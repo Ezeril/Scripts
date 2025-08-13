@@ -10,20 +10,18 @@ getgenv().Settings = {
     Default = false,
 }
 
--- Recherche du modèle Coin_Server dans le Workspace
+-- Table pour stocker les objets collectés
+local touchedCoins = {}
+local positionChangeConnections = {}
+
 local function GetContainer()
-  -- Recherche continue dans le Workspace
-  while true do
-    for _, v in ipairs(Workspace:GetDescendants()) do
-      if v.Name == "Coin_Server" then 
-        return v  -- Trouvé le modèle Coin_Server
-      end
-    end
-    task.wait(1)  -- Attendre avant de réessayer
+  for _, v in ipairs(Workspace:GetDescendants()) do
+    if v.Name == "CoinContainer" then return v end
   end
+  return nil
 end
 
--- Fonction pour obtenir le bonbon le plus proche
+-- Fonction pour obtenir la pièce la plus proche
 local function GetNearestCandy(arentEqual)
   local Container = GetContainer()
   if not Container then return nil end
@@ -31,24 +29,20 @@ local function GetNearestCandy(arentEqual)
   local Candy = nil
   local CurrentDistance = 9999
 
-  -- Parcours des enfants du modèle Coin_Server pour trouver le bonbon le plus proche
   for _, v in ipairs(Container:GetChildren()) do
     if arentEqual and v == arentEqual then continue end
-    -- Utilisation de v.CFrame.Position pour obtenir la position du bonbon
-    if v:IsA("Part") then  -- Vérifie que l'objet est bien un Part
-      local Distance = LocalPlayer:DistanceFromCharacter(v.CFrame.Position)
+    local Distance = LocalPlayer:DistanceFromCharacter(v:GetPivot().Position)
 
-      if CurrentDistance > Distance then
-          CurrentDistance = Distance
-          Candy = v
-      end
+    if CurrentDistance > Distance then
+        CurrentDistance = Distance
+        Candy = v
     end
   end
 
   return Candy
 end
 
--- Fonction pour activer un événement de contact
+-- Fonction pour simuler le toucher d'une pièce
 local function FireTouchTransmitter(touchParent)
   local Character = LocalPlayer.Character:FindFirstChildOfClass("Part")
 
@@ -58,40 +52,139 @@ local function FireTouchTransmitter(touchParent)
   end
 end
 
--- Chargement de la bibliothèque pour l'interface
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
-local Window = Library:CreateWindow("MM2 | EsohaSL")
+-- Marque une pièce comme touchée
+local function isCoinTouched(coin)
+    return touchedCoins[coin]
+end
 
-Window:Section("esohasl.net")
+-- Marque une pièce comme touchée et retire le node de l'octree
+local function markCoinAsTouched(coin)
+    if not LocalPlayer then return end
+    touchedCoins[coin] = true
+    local node = rt.octree:FindFirstNode(coin)
+    if node then
+        rt.octree:RemoveNode(node)
+    end
+end
 
--- Toggle pour activer/désactiver l'auto-candy
-Window:Toggle("Auto Candy", {}, function(state)
-    task.spawn(function()
-        Settings.Default = state
-        while true do
-            if not Settings.Default then return end
-
-            if LocalPlayer:GetAttribute("Alive") then
-              local Candy = GetNearestCandy()
-              local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-
-              if Candy and Humanoid then  
-                -- Création d'une animation pour se déplacer vers le bonbon
-                local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
-                  Position = Candy.CFrame.Position  -- Utilisation de CFrame.Position pour le déplacement
-                })
-  
-                Process:Play()
-                Process.Completed:Wait()
-              end
-            end
-
-            task.wait(.1)  -- Attendre un petit moment avant de réessayer
+-- Suivi de la position des pièces
+local function setupPositionTracking(coin, LastPositionY)
+    local connection
+    connection = coin:GetPropertyChangedSignal("Position"):Connect(function()
+        local currentY = coin.Position.Y
+        if LastPositionY and LastPositionY ~= currentY then
+            markCoinAsTouched(coin)
+            rt.Disconnect(connection)
+            coin:Destroy()
+            return
         end
     end)
+    positionChangeConnections[coin] = connection
+end
+
+-- Remplir l'octree avec des pièces
+local function populateOctree()
+    rt.octree:ClearAllNodes()
+
+    for _, descendant in pairs(rt.coinContainer:GetDescendants()) do
+        if descendant:IsA("TouchTransmitter") then
+            local parentCoin = descendant.Parent
+            if not isCoinTouched(parentCoin) then
+                rt.octree:CreateNode(parentCoin.Position, parentCoin)
+                setupPositionTracking(parentCoin, parentCoin.Position.Y)
+            end
+        end
+    end
+
+    rt.Added = rt.coinContainer.DescendantAdded:Connect(function(descendant)
+        if descendant:IsA("TouchTransmitter") then
+            local parentCoin = descendant.Parent
+            if not isCoinTouched(parentCoin) then
+                rt.octree:CreateNode(parentCoin.Position, parentCoin)
+                setupPositionTracking(parentCoin, parentCoin.Position.Y)
+            end
+        end
+    end)
+
+    rt.Removing = rt.coinContainer.DescendantRemoving:Connect(function(descendant)
+        if descendant:IsA("TouchTransmitter") then
+            local parentCoin = descendant.Parent
+            if isCoinTouched(parentCoin) then
+                markCoinAsTouched(parentCoin)
+            end
+        end
+    end)
+end
+
+-- Déplacement vers une pièce
+local function moveToPositionSlowly(targetPosition, duration)
+    local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    local startPosition = humanoidRootPart.Position
+    local startTime = tick()
+
+    while true do
+        local elapsedTime = tick() - startTime
+        local alpha = math.min(elapsedTime / duration, 1)
+        LocalPlayer.Character:PivotTo(CFrame.new(startPosition:Lerp(targetPosition, alpha)))
+
+        if alpha >= 1 then
+            task.wait(0.2)
+            break
+        end
+
+        task.wait() -- Small delay to make the movement smoother
+    end
+end
+
+-- Fonction pour collecter les pièces automatiquement
+local function collectCoins()
+    rt.coinContainer = GetContainer()
+    local check = LocalPlayer:WaitForChild("MainGUI").CoinBags.Container.SnowToken.CurrencyFrame.Icon.Coins
+    local price = "40"
+    if rt:IsElite() then price = "50" end
+
+    populateOctree()
+
+    while Settings.Default do
+        if check.Text == price then
+            Notif:Notify("Full Bag", 2, "success")
+            break
+        end
+
+        -- Trouver la pièce la plus proche
+        local nearestNode = rt.octree:GetNearest(LocalPlayer.Character.PrimaryPart.Position, rt.radius, 1)[1]
+
+        if nearestNode then
+            local closestCoin = nearestNode.Object
+            if not isCoinTouched(closestCoin) then
+                local closestCoinPosition = closestCoin.Position
+                local distance = (LocalPlayer.Character.PrimaryPart.Position - closestCoinPosition).Magnitude
+                local duration = distance / rt.walkspeed -- Vitesse de marche par défaut
+
+                -- Déplacer vers la pièce
+                moveToPositionSlowly(closestCoinPosition, duration)
+
+                -- Marquer la pièce comme touchée
+                markCoinAsTouched(closestCoin)
+                task.wait(0.2) -- Assurer que le toucher est bien enregistré
+            end
+        else
+            task.wait(1) -- Pas de pièces, réessayer après un délai
+        end
+    end
+
+    AutoFarmCleanUp() -- Nettoyer après la collecte
+end
+
+-- Activation de l'autofarm via l'interface
+Window:Toggle("Auto Candy", {}, function(state)
+    Settings.Default = state
+    if state then
+        collectCoins() -- Démarrer la collecte des pièces
+    end
 end)
 
--- Bouton pour copier le lien YouTube dans le presse-papiers
 Window:Button("YouTube: EsohaSL", function()
     task.spawn(function()
         if setclipboard then
@@ -100,12 +193,12 @@ Window:Button("YouTube: EsohaSL", function()
     end)
 end)
 
--- Empêcher l'inactivité du joueur
 LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
     task.wait()
-    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
 end)
+
 
 
 
