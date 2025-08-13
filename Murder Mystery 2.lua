@@ -177,14 +177,22 @@ local function collectCoins()
     AutoFarmCleanUp() -- Nettoyer après la collecte
 end
 
--- Activation de l'autofarm via l'interface
-Window:Toggle("Auto Candy", {}, function(state)
+-- Library (chargement de la bibliothèque GUI)
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
+local Window = Library:CreateWindow("MM2 | EsohaSL")
+
+-- Fenêtre du GUI
+Window:Section("esohasl.net")
+
+-- Case à cocher pour activer/désactiver l'autofarm
+Window:Checkbox("Auto Candy", false, function(state)
     Settings.Default = state
     if state then
-        collectCoins() -- Démarrer la collecte des pièces
+        collectCoins()  -- Démarrer la collecte des pièces si activé
     end
 end)
 
+-- Bouton pour copier le lien YouTube
 Window:Button("YouTube: EsohaSL", function()
     task.spawn(function()
         if setclipboard then
@@ -193,12 +201,10 @@ Window:Button("YouTube: EsohaSL", function()
     end)
 end)
 
+-- Simulation d'un bouton pour éviter l'inactivité du joueur
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
     task.wait()
     VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
 end)
-
-
-
 
