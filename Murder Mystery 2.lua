@@ -10,34 +10,44 @@ getgenv().Settings = {
     AutoBallonEnabled = false,
 }
 
--- Récupérer le container
+-- Récupérer le container dans ReplicatedStorage
 local function GetContainer()
-    local container = Workspace:FindFirstChild("CoinContainer")
+    local container = game.ReplicatedStorage:FindFirstChild("Coins")
     if container then
-        return container
+        local beachBallsObjets = container:FindFirstChild("BeachBallsObjets")
+        if beachBallsObjets then
+            local beachBall = beachBallsObjets:FindFirstChild("BeachBall")
+            if beachBall then
+                return beachBall
+            else
+                print("BeachBall introuvable dans BeachBallsObjets.")
+                return nil
+            end
+        else
+            print("BeachBallsObjets introuvable dans Coins.")
+            return nil
+        end
     else
-        print("CoinContainer introuvable.")
+        print("Coins introuvable dans ReplicatedStorage.")
         return nil
     end
 end
 
 -- Obtenir le ballon le plus proche
 local function GetNearestBallon(arentEqual)
-    local Container = GetContainer()
-    if not Container then return nil end
+    local BeachBall = GetContainer()
+    if not BeachBall then return nil end
 
     local NearestBallon = nil
     local MinDistance = math.huge
 
-    for _, v in ipairs(Container:GetChildren()) do
-        if arentEqual and v == arentEqual then continue end
-        local Position = v:IsA("Part") and v.Position or v:GetPivot().Position
-        local Distance = LocalPlayer:DistanceFromCharacter(Position)
+    -- Vérifier la distance du BeachBall (au lieu de vérifier tous les objets dans le container)
+    local Position = BeachBall:IsA("Part") and BeachBall.Position or BeachBall:GetPivot().Position
+    local Distance = LocalPlayer:DistanceFromCharacter(Position)
 
-        if Distance < MinDistance then
-            MinDistance = Distance
-            NearestBallon = v
-        end
+    if Distance < MinDistance then
+        MinDistance = Distance
+        NearestBallon = BeachBall
     end
 
     return NearestBallon
