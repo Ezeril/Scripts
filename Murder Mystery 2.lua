@@ -35,11 +35,13 @@ local function GetNearestCandy(arentEqual)
   for _, v in ipairs(Container:GetChildren()) do
     if arentEqual and v == arentEqual then continue end
     -- Utilisation de v.CFrame.Position pour obtenir la position du bonbon
-    local Distance = LocalPlayer:DistanceFromCharacter(v.CFrame.Position)
+    if v:IsA("Part") then  -- Vérifie que l'objet est bien un Part
+      local Distance = LocalPlayer:DistanceFromCharacter(v.CFrame.Position)
 
-    if CurrentDistance > Distance then
-        CurrentDistance = Distance
-        Candy = v
+      if CurrentDistance > Distance then
+          CurrentDistance = Distance
+          Candy = v
+      end
     end
   end
 
