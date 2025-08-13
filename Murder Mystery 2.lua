@@ -49,7 +49,7 @@ local function FireTouchTransmitter(touchParent)
 end
 
 -- Library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/library.lua", true))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
 local Window = Library:CreateWindow("MM2 | EsohaSL")
 
 Window:Section("esohasl.net")
