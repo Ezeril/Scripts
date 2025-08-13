@@ -10,23 +10,19 @@ getgenv().Settings = {
     Default = false,
 }
 
--- Fonction pour obtenir le conteneur contenant les ballons (anciennement les bonbons)
 local function GetContainer()
-  for _, v in ipairs(Workspace:GetDescendants()) do
-    if v.Name == "CoinContainer" then  -- "BalloonContainer" au lieu de "CoinContainer"
-      return v
-    end
+  for _,v in ipairs(Workspace:GetDescendants()) do
+    if v.Name == "CoinContainer" then return v end
   end
 
   return nil
 end
 
--- Fonction pour obtenir le ballon le plus proche, en excluant un ballon donné si besoin
-local function GetNearestBalloon(arentEqual)
+local function GetNearestCandy(arentEqual)
   local Container = GetContainer()
   if not Container then return nil end
 
-  local Balloon = nil
+  local Ballon = nil
   local CurrentDistance = 9999
 
   for _, v in ipairs(Container:GetChildren()) do
@@ -35,14 +31,14 @@ local function GetNearestBalloon(arentEqual)
 
     if CurrentDistance > Distance then
         CurrentDistance = Distance
-        Balloon = v
+        Candy = v
     end
   end
 
-  return Balloon
+
+  return Candy
 end
 
--- Fonction pour déclencher un événement de toucher sur un objet
 local function FireTouchTransmitter(touchParent)
   local Character = LocalPlayer.Character:FindFirstChildOfClass("Part")
 
@@ -52,29 +48,27 @@ local function FireTouchTransmitter(touchParent)
   end
 end
 
--- Bibliothèque (utilisation d'un script externe)
+-- Library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
 local Window = Library:CreateWindow("MM2 | EsohaSL")
 
 Window:Section("esohasl.net")
 
--- Option pour activer/désactiver l'auto-balloon
-Window:Toggle("Auto Balloon", {}, function(state)
+Window:Toggle("Auto Ballon", {}, function(state)
     task.spawn(function()
         Settings.Default = state
         while true do
             if not Settings.Default then return end
 
             if LocalPlayer:GetAttribute("Alive") then
-              local Balloon = GetNearestBalloon()  -- Chercher un ballon
+              local Candy = GetNearestCandy()
               local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 
-              if Balloon and Humanoid then  
-                -- Tweener pour se déplacer vers le ballon
+              if Candy and Humanoid then  
                 local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
-                  Position = Balloon:GetPivot().Position
+                  Position = Candy:GetPivot().Position
                 })
-
+  
                 Process:Play()
                 Process.Completed:Wait()
               end
@@ -93,10 +87,9 @@ Window:Button("YouTube: EsohaSL", function()
     end)
 end)
 
--- Événement pour simuler l'inactivité et éviter d'être expulsé
 LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
     task.wait()
-    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
 end)
 
