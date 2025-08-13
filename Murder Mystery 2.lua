@@ -18,7 +18,7 @@ local function GetContainer()
   return nil
 end
 
-local function GetNearestCandy(arentEqual)
+local function GetNearestBallon(arentEqual)
   local Container = GetContainer()
   if not Container then return nil end
 
@@ -31,12 +31,12 @@ local function GetNearestCandy(arentEqual)
 
     if CurrentDistance > Distance then
         CurrentDistance = Distance
-        Candy = v
+        Ballon = v
     end
   end
 
 
-  return Candy
+  return Ballon
 end
 
 local function FireTouchTransmitter(touchParent)
@@ -61,12 +61,12 @@ Window:Toggle("Auto Ballon", {}, function(state)
             if not Settings.Default then return end
 
             if LocalPlayer:GetAttribute("Alive") then
-              local Candy = GetNearestCandy()
+              local Ballon = GetNearestBallon()
               local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 
-              if Candy and Humanoid then  
+              if Ballon and Humanoid then  
                 local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
-                  Position = Candy:GetPivot().Position
+                  Position = Ballon:GetPivot().Position
                 })
   
                 Process:Play()
@@ -92,4 +92,5 @@ LocalPlayer.Idled:Connect(function()
     task.wait()
     VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
 end)
+
 
