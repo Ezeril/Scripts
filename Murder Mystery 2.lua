@@ -7,45 +7,42 @@ local LocalPlayer = Players.LocalPlayer
 local Spawn = Workspace.Lobby.Spawns.SpawnLocation
 
 getgenv().Settings = {
-    Default = false,
+    AutoBallonEnabled = false,
 }
 
+-- Récupérer le container
 local function GetContainer()
-  for _,v in ipairs(Workspace:GetDescendants()) do
-    if v.Name == "CoinContainer" then return v end
-  end
-
-  return nil
+    return Workspace:FindFirstChild("CoinContainer")
 end
 
+-- Obtenir le ballon le plus proche
 local function GetNearestBallon(arentEqual)
-  local Container = GetContainer()
-  if not Container then return nil end
+    local Container = GetContainer()
+    if not Container then return nil end
 
-  local Ballon = nil
-  local CurrentDistance = 9999
+    local NearestBallon = nil
+    local MinDistance = math.huge
 
-  for _, v in ipairs(Container:GetChildren()) do
-    if arentEqual and v == arentEqual then continue end
-    local Distance = LocalPlayer:DistanceFromCharacter(v:GetPivot().Position)
+    for _, v in ipairs(Container:GetChildren()) do
+        if arentEqual and v == arentEqual then continue end
+        local Distance = LocalPlayer:DistanceFromCharacter(v.Position)
 
-    if CurrentDistance > Distance then
-        CurrentDistance = Distance
-        Ballon = v
+        if Distance < MinDistance then
+            MinDistance = Distance
+            NearestBallon = v
+        end
     end
-  end
 
-
-  return Ballon
+    return NearestBallon
 end
 
+-- Fonction pour toucher un objet
 local function FireTouchTransmitter(touchParent)
-  local Character = LocalPlayer.Character:FindFirstChildOfClass("Part")
-
-  if Character then
-      firetouchinterest(touchParent, Character, 0)
-      firetouchinterest(touchParent, Character, 1)
-  end
+    local Character = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Part")
+    if Character then
+        firetouchinterest(touchParent, Character, 0)
+        firetouchinterest(touchParent, Character, 1)
+    end
 end
 
 -- Library
@@ -54,31 +51,34 @@ local Window = Library:CreateWindow("MM2 | EsohaSL")
 
 Window:Section("esohasl.net")
 
+-- Auto Ballon Toggle
 Window:Toggle("Auto Ballon", {}, function(state)
-    task.spawn(function()
-        Settings.Default = state
-        while true do
-            if not Settings.Default then return end
+    Settings.AutoBallonEnabled = state
+    if state then
+        -- Lancer l'auto ballon en tâche de fond
+        task.spawn(function()
+            while Settings.AutoBallonEnabled do
+                if LocalPlayer:GetAttribute("Alive") then
+                    local Ballon = GetNearestBallon()
 
-            if LocalPlayer:GetAttribute("Alive") then
-              local Ballon = GetNearestBallon()
-              local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-
-              if Ballon and Humanoid then  
-                local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
-                  Position = Ballon:GetPivot().Position
-                })
-  
-                Process:Play()
-                Process.Completed:Wait()
-              end
+                    if Ballon then
+                        local HumanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if HumanoidRootPart then
+                            local Tween = TweenService:Create(HumanoidRootPart, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+                                Position = Ballon.Position
+                            })
+                            Tween:Play()
+                            Tween.Completed:Wait()
+                        end
+                    end
+                end
+                task.wait(0.1)
             end
-
-            task.wait(.1)
-        end
-    end)
+        end)
+    end
 end)
 
+-- Copier le lien YouTube
 Window:Button("YouTube: EsohaSL", function()
     task.spawn(function()
         if setclipboard then
@@ -87,10 +87,9 @@ Window:Button("YouTube: EsohaSL", function()
     end)
 end)
 
+-- Gérer l'Idle
 LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
-    task.wait()
-    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame);
+    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    task.wait(0.1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
-
-
