@@ -7,108 +7,101 @@ local LocalPlayer = Players.LocalPlayer
 local Spawn = Workspace.Lobby.Spawns.SpawnLocation
 
 getgenv().Settings = {
-    AutoBallonEnabled = false,
+    Default = false,
 }
 
--- Récupérer le container dans ReplicatedStorage
-local function GetContainer()
-    local container = game.ReplicatedStorage:FindFirstChild("Coins")
-    if container then
-        local BeachBallObjets = container:FindFirstChild("BeachBallObjets")
-        if BeachBallObjets then
-            local beachBall = beachBallObjets:FindFirstChild("BeachBall")
-            if beachBall then
-                return beachBall
-            else
-                print("BeachBall introuvable dans BeachBallObjets.")
-                return nil
-            end
-        else
-            print("BeachBallObjets introuvable dans Coins.")
-            return nil
+-- Fonction pour obtenir le nom de la carte actuelle
+local function GetCurrentMapName()
+    -- On suppose que les modèles des cartes sont dans Workspace et ont des noms uniques
+    for _, v in ipairs(Workspace:GetChildren()) do
+        if v:IsA("Model") and v.Name ~= "Lobby" then
+            return v.Name  -- Retourne le nom du modèle (la carte)
         end
-    else
-        print("Coins introuvable dans ReplicatedStorage.")
-        return nil
     end
+    return nil  -- Retourne nil si aucune carte n'est trouvée
 end
 
--- Obtenir le ballon le plus proche
-local function GetNearestBallon(arentEqual)
-    local BeachBall = GetContainer()
-    if not BeachBall then return nil end
+-- Fonction pour obtenir le conteneur des coins pour la carte actuelle
+local function GetContainer()
+    local mapName = GetCurrentMapName()
+    if not mapName then return nil end
 
-    local NearestBallon = nil
-    local MinDistance = math.huge
-
-    -- Vérifier la distance du BeachBall (au lieu de vérifier tous les objets dans le container)
-    local Position = BeachBall:IsA("Part") and BeachBall.Position or BeachBall:GetPivot().Position
-    local Distance = LocalPlayer:DistanceFromCharacter(Position)
-
-    if Distance < MinDistance then
-        MinDistance = Distance
-        NearestBallon = BeachBall
+    -- Recherche dans le dossier de la carte actuelle
+    local mapFolder = Workspace:FindFirstChild(mapName)
+    if mapFolder then
+        for _, v in ipairs(mapFolder:GetDescendants()) do
+            if v.Name == "CoinContainer" then
+                return v  -- Retourne le CoinContainer trouvé
+            end
+        end
     end
 
-    return NearestBallon
+    return nil
 end
 
--- Fonction pour toucher un objet
+-- Fonction pour obtenir le coin le plus proche
+local function GetNearestCandy(arentEqual)
+    local Container = GetContainer()
+    if not Container then return nil end
+
+    local Candy = nil
+    local CurrentDistance = 9999
+
+    -- Recherche les enfants du conteneur pour le plus proche Candy
+    for _, v in ipairs(Container:GetChildren()) do
+        if arentEqual and v == arentEqual then continue end
+        local Distance = LocalPlayer:DistanceFromCharacter(v:GetPivot().Position)
+
+        if CurrentDistance > Distance then
+            CurrentDistance = Distance
+            Candy = v
+        end
+    end
+
+    return Candy
+end
+
+-- Fonction pour interagir avec un objet de type "touch" (comme un Candy)
 local function FireTouchTransmitter(touchParent)
-    local Character = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Part")
+    local Character = LocalPlayer.Character:FindFirstChildOfClass("Part")
+
     if Character then
         firetouchinterest(touchParent, Character, 0)
         firetouchinterest(touchParent, Character, 1)
-    else
-        print("Aucun Character trouvé pour FireTouchTransmitter.")
     end
 end
 
--- Library
-print("Chargement de la bibliothèque...")
+-- Interface graphique avec la librairie
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
-print("Bibliothèque chargée.")
-
--- Vérification si la fenêtre a été correctement créée
 local Window = Library:CreateWindow("MM2 | EsohaSL")
-if Window then
-    print("Fenêtre créée avec succès.")
-else
-    print("Erreur dans la création de la fenêtre.")
-end
 
 Window:Section("esohasl.net")
 
--- Auto Ballon Toggle
-Window:Toggle("Auto Ballon", {}, function(state)
-    Settings.AutoBallonEnabled = state
-    if state then
-        -- Lancer l'auto ballon en tâche de fond
-        task.spawn(function()
-            while Settings.AutoBallonEnabled do
-                if LocalPlayer:GetAttribute("Alive") then
-                    local Ballon = GetNearestBallon()
+Window:Toggle("Auto Candy", {}, function(state)
+    task.spawn(function()
+        Settings.Default = state
+        while true do
+            if not Settings.Default then return end
 
-                    if Ballon then
-                        local HumanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                        if HumanoidRootPart then
-                            local Tween = TweenService:Create(HumanoidRootPart, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-                                Position = Ballon:GetPivot().Position
-                            })
-                            Tween:Play()
-                            Tween.Completed:Wait()
-                        else
-                            print("HumanoidRootPart introuvable.")
-                        end
-                    end
+            if LocalPlayer:GetAttribute("Alive") then
+                local Candy = GetNearestCandy()
+                local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+
+                if Candy and Humanoid then  
+                    local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
+                        Position = Candy:GetPivot().Position
+                    })
+    
+                    Process:Play()
+                    Process.Completed:Wait()
                 end
-                task.wait(0.1)
             end
-        end)
-    end
+
+            task.wait(.1)
+        end
+    end)
 end)
 
--- Copier le lien YouTube
 Window:Button("YouTube: EsohaSL", function()
     task.spawn(function()
         if setclipboard then
@@ -117,10 +110,10 @@ Window:Button("YouTube: EsohaSL", function()
     end)
 end)
 
--- Gérer l'Idle
+-- Simulation de l'activité du joueur pour éviter l'inactivité
 LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-    task.wait(0.1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+    task.wait()
+    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
 end)
 
