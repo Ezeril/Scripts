@@ -14,17 +14,17 @@ getgenv().Settings = {
 local function GetContainer()
     local container = game.ReplicatedStorage:FindFirstChild("Coins")
     if container then
-        local beachBallsObjets = container:FindFirstChild("BeachBallsObjets")
-        if beachBallsObjets then
-            local beachBall = beachBallsObjets:FindFirstChild("BeachBall")
+        local BeachBallObjets = container:FindFirstChild("BeachBallObjets")
+        if BeachBallObjets then
+            local beachBall = beachBallObjets:FindFirstChild("BeachBall")
             if beachBall then
                 return beachBall
             else
-                print("BeachBall introuvable dans BeachBallsObjets.")
+                print("BeachBall introuvable dans BeachBallObjets.")
                 return nil
             end
         else
-            print("BeachBallsObjets introuvable dans Coins.")
+            print("BeachBallObjets introuvable dans Coins.")
             return nil
         end
     else
