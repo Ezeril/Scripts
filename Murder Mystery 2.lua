@@ -12,7 +12,13 @@ getgenv().Settings = {
 
 -- Récupérer le container
 local function GetContainer()
-    return Workspace:FindFirstChild("CoinContainer")
+    local container = Workspace:FindFirstChild("CoinContainer")
+    if container then
+        return container
+    else
+        print("CoinContainer introuvable.")
+        return nil
+    end
 end
 
 -- Obtenir le ballon le plus proche
@@ -25,7 +31,8 @@ local function GetNearestBallon(arentEqual)
 
     for _, v in ipairs(Container:GetChildren()) do
         if arentEqual and v == arentEqual then continue end
-        local Distance = LocalPlayer:DistanceFromCharacter(v.Position)
+        local Position = v:IsA("Part") and v.Position or v:GetPivot().Position
+        local Distance = LocalPlayer:DistanceFromCharacter(Position)
 
         if Distance < MinDistance then
             MinDistance = Distance
@@ -42,12 +49,23 @@ local function FireTouchTransmitter(touchParent)
     if Character then
         firetouchinterest(touchParent, Character, 0)
         firetouchinterest(touchParent, Character, 1)
+    else
+        print("Aucun Character trouvé pour FireTouchTransmitter.")
     end
 end
 
 -- Library
+print("Chargement de la bibliothèque...")
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
+print("Bibliothèque chargée.")
+
+-- Vérification si la fenêtre a été correctement créée
 local Window = Library:CreateWindow("MM2 | EsohaSL")
+if Window then
+    print("Fenêtre créée avec succès.")
+else
+    print("Erreur dans la création de la fenêtre.")
+end
 
 Window:Section("esohasl.net")
 
@@ -65,10 +83,12 @@ Window:Toggle("Auto Ballon", {}, function(state)
                         local HumanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                         if HumanoidRootPart then
                             local Tween = TweenService:Create(HumanoidRootPart, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-                                Position = Ballon.Position
+                                Position = Ballon:GetPivot().Position
                             })
                             Tween:Play()
                             Tween.Completed:Wait()
+                        else
+                            print("HumanoidRootPart introuvable.")
                         end
                     end
                 end
@@ -93,3 +113,4 @@ LocalPlayer.Idled:Connect(function()
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
+
