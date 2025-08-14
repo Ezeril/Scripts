@@ -101,10 +101,11 @@ local function ToggleAutoFarm(state)
     end
 end
 
--- Gestion de l'interface utilisateur (UI)
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/library.lua", true))()
-local Window = Library:CreateWindow("MM2 | Autofarm")
+-- Initialisation de la bibliothèque avec un design futuriste
+local futuristicLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
+local Window = futuristicLibrary:CreateWindow("MM2 | Autofarm")
 
+-- Section des paramètres de l'autofarm
 Window:Section("AutoFarm Settings")
 
 -- Toggle pour l'auto-farm
