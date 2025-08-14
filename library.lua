@@ -1,16 +1,14 @@
--- forked by SharKK | SharKK#1954
-
 local library = {count = 0, queue = {}, callbacks = {}, rainbowtable = {}, toggled = true, binds = {}}
 local defaults
 
--- Moderne : couleurs sombres et accent lumineux
-local modernTheme = {
-    backgroundColor = Color3.fromRGB(34, 34, 34),
-    buttonColor = Color3.fromRGB(44, 44, 44),
-    textColor = Color3.fromRGB(255, 255, 255),
-    accentColor = Color3.fromRGB(44, 120, 255),
-    borderColor = Color3.fromRGB(50, 50, 50),
-    shadowColor = Color3.fromRGB(0, 0, 0)
+-- Couleurs futuristes : violet, blanc et accents lumineux
+local futuristicTheme = {
+    backgroundColor = Color3.fromRGB(30, 30, 30),  -- Fond sombre
+    buttonColor = Color3.fromRGB(60, 60, 60),       -- Boutons gris foncé
+    textColor = Color3.fromRGB(255, 255, 255),      -- Texte en blanc
+    accentColor = Color3.fromRGB(130, 45, 255),     -- Violet
+    borderColor = Color3.fromRGB(80, 80, 80),       -- Bordures grises
+    shadowColor = Color3.fromRGB(0, 0, 0)           -- Ombres noires
 }
 
 do
@@ -53,7 +51,7 @@ do
             if key.KeyCode == Enum.KeyCode.RightControl then
                 library.toggled = not library.toggled
                 for i, data in next, library.queue do
-                    local pos = (library.toggled and data.p or UDim2.new(-1, 0, -0.5,0))
+                    local pos = (library.toggled and data.p or UDim2.new(-1, 0, -0.5, 0))
                     data.w:TweenPosition(pos, (library.toggled and 'Out' or 'In'), 'Quad', 0.15, true)
                     wait()
                 end
@@ -68,10 +66,10 @@ do
         library.count = library.count + 1
         local newWindow = library:Create('Frame', {
             Name = name,
-            Size = UDim2.new(0, 250, 0, 40),
-            BackgroundColor3 = options.topcolor or modernTheme.backgroundColor,
+            Size = UDim2.new(0, 350, 0, 50),  -- Taille augmentée pour plus de confort
+            BackgroundColor3 = options.topcolor or futuristicTheme.backgroundColor,
             BorderSizePixel = 0,
-            Position = UDim2.new(0, (15 + (300 * library.count) - 300), 0, 0),
+            Position = UDim2.new(0, (15 + (350 * library.count) - 350), 0, 0),
             ZIndex = 3,
             Parent = library.container
         })
@@ -83,10 +81,10 @@ do
             Position = UDim2.new(0, 5, 0, 0),
             BackgroundTransparency = 1,
             Font = Enum.Font.Code,
-            TextSize = options.titlesize or 18,
-            TextColor3 = options.titletextcolor or modernTheme.textColor,
+            TextSize = options.titlesize or 20,
+            TextColor3 = options.titletextcolor or futuristicTheme.textColor,
             TextStrokeTransparency = 0.5,
-            TextStrokeColor3 = modernTheme.accentColor,
+            TextStrokeColor3 = futuristicTheme.accentColor,
             ZIndex = 3
         })
 
@@ -96,11 +94,11 @@ do
             Position = UDim2.new(1, -35, 0, 0),
             BackgroundTransparency = 1,
             Text = "-",
-            TextSize = options.titlesize or 18,
+            TextSize = options.titlesize or 20,
             Font = Enum.Font.Code,
-            TextColor3 = options.titletextcolor or modernTheme.textColor,
+            TextColor3 = options.titletextcolor or futuristicTheme.textColor,
             TextStrokeTransparency = 0.5,
-            TextStrokeColor3 = modernTheme.accentColor,
+            TextStrokeColor3 = futuristicTheme.accentColor,
             ZIndex = 3,
             Parent = newWindow
         })
@@ -111,9 +109,9 @@ do
             Position = UDim2.new(0, 0, 1, 0),
             Size = UDim2.new(1, 0, 0, 0),
             BorderSizePixel = 0,
-            BackgroundColor3 = options.bgcolor or modernTheme.buttonColor,
+            BackgroundColor3 = options.bgcolor or futuristicTheme.buttonColor,
             ClipsDescendants = false,
-            BorderRadius = UDim.new(0, 10), -- Coins arrondis
+            BorderRadius = UDim.new(0, 10),  -- Coins arrondis
             Parent = newWindow
         })
 
@@ -178,7 +176,7 @@ do
 
         local check = library:Create('Frame', {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 25),
+            Size = UDim2.new(1, 0, 0, 30),
             LayoutOrder = self:GetOrder(),
             library:Create('TextLabel', {
                 Name = name,
@@ -239,7 +237,7 @@ do
 
         local check = library:Create('Frame', {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 25),
+            Size = UDim2.new(1, 0, 0, 30),
             LayoutOrder = self:GetOrder(),
             library:Create('TextButton', {
                 Name = name,
@@ -305,7 +303,7 @@ do
 
     spawn(function()
         while true do
-            for i=0, 1, 1 / 300 do
+            for i = 0, 1, 1 / 300 do
                 for _, obj in next, library.rainbowtable do
                     obj.BackgroundColor3 = Color3.fromHSV(i, 1, 1)
                 end
@@ -314,33 +312,7 @@ do
         end
     end)
 
-    local function isreallypressed(bind, inp)
-        local key = bind
-        if typeof(key) == "Instance" then
-            if key.UserInputType == Enum.UserInputType.Keyboard and inp.KeyCode == key.KeyCode then
-                return true
-            elseif tostring(key.UserInputType):find('MouseButton') and inp.UserInputType == key.UserInputType then
-                return true
-            end
-        end
-        if tostring(key):find'MouseButton1' then
-            return key == inp.UserInputType
-        else
-            return key == inp.KeyCode
-        end
-    end
-
-    game:GetService("UserInputService").InputBegan:connect(function(input)
-        if (not library.binding) then
-            for idx, binds in next, library.binds do
-                local real_binding = binds.location[idx]
-                if real_binding and isreallypressed(real_binding, input) then
-                    binds.callback()
-                end
-            end
-        end
-    end)
-
 end
 
 return library
+
