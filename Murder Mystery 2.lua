@@ -1,144 +1,162 @@
--- Configuration des services nécessaires
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local VirtualUser = game:GetService("VirtualUser")
-local HttpService = game:GetService("HttpService")
 
--- Variables globales
 local LocalPlayer = Players.LocalPlayer
-local CoinContainer = nil
-local Settings = {
-    Default = false,
-    AutoFarmOn = false,
-    Uninterrupted = false,
-    TpBackToStart = true,
-    radius = 120,
-    walkspeed = 20
+local Spawn = Workspace.Lobby.Spawns.SpawnLocation
+
+getgenv().Settings = {
+    AutoFarm = false,
+    WalkSpeed = 20, -- Vitesse ajustable pour le mouvement
+    SearchRadius = 120, -- Rayon de recherche des jetons
+    TpBackToStart = true, -- Retourner à la position initiale après l'autofarm
 }
 
-local touchedCoins = {}
-local positionChangeConnections = setmetatable({}, { __mode = "v" })
-local start = nil
-local waypoint = nil
+local touchedCoins = {} -- Table pour suivre les jetons collectés
+local startPosition = nil -- Position initiale du joueur
+local coinContainer = nil -- Conteneur des jetons
 
--- Fonction pour obtenir le conteneur des coins
+-- Trouver le conteneur des jetons
 local function GetContainer()
     for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" then return v end
+        if v.Name == "CoinContainer" then
+            coinContainer = v
+            return v
+        end
     end
     return nil
 end
 
--- Fonction pour récupérer le bon coin à collecter
-local function GetNearestCandy(arentEqual)
-    local Container = GetContainer()
-    if not Container then return nil end
+-- Trouver le jeton le plus proche non collecté
+local function GetNearestCandy()
+    local container = GetContainer()
+    if not container then return nil end
 
-    local Candy = nil
-    local CurrentDistance = 9999
+    local nearestCandy = nil
+    local currentDistance = Settings.SearchRadius
 
-    for _, v in ipairs(Container:GetChildren()) do
-        if arentEqual and v == arentEqual then continue end
-        local Distance = LocalPlayer:DistanceFromCharacter(v:GetPivot().Position)
-
-        if CurrentDistance > Distance then
-            CurrentDistance = Distance
-            Candy = v
+    for _, v in ipairs(container:GetChildren()) do
+        if touchedCoins[v] then continue end -- Ignore les jetons déjà collectés
+        local distance = LocalPlayer:DistanceFromCharacter(v:GetPivot().Position)
+        if distance < currentDistance then
+            currentDistance = distance
+            nearestCandy = v
         end
     end
-    return Candy
+
+    return nearestCandy
 end
 
--- Fonction pour toucher un coin
+-- Simuler l'interaction avec un jeton
 local function FireTouchTransmitter(touchParent)
-    local Character = LocalPlayer.Character:FindFirstChildOfClass("Part")
-    if Character then
-        firetouchinterest(touchParent, Character, 0)
-        firetouchinterest(touchParent, Character, 1)
+    local character = LocalPlayer.Character
+    local part = character and character:FindFirstChildOfClass("Part")
+    if part and touchParent then
+        firetouchinterest(touchParent, part, 0)
+        task.wait(0.1) -- Petit délai pour garantir l'interaction
+        firetouchinterest(touchParent, part, 1)
     end
 end
 
--- Fonction de déplacement vers un coin
-local function MoveToCoin(coin)
-    local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if coin and Humanoid then  
-        local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
-            Position = coin:GetPivot().Position
-        })
-        Process:Play()
-        Process.Completed:Wait()
+-- Déplacer le joueur vers une position progressivement
+local function MoveToPositionSlowly(targetPosition, duration)
+    local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+
+    local startPosition = humanoidRootPart.Position
+    local startTime = tick()
+
+    while tick() - startTime < duration do
+        local alpha = math.min((tick() - startTime) / duration, 1)
+        humanoidRootPart.CFrame = CFrame.new(startPosition:Lerp(targetPosition, alpha))
+        task.wait()
+    end
+    humanoidRootPart.CFrame = CFrame.new(targetPosition) -- S'assurer d'atteindre la position exacte
+end
+
+-- Vérifier si le sac est plein
+local function IsBagFull()
+    local gui = LocalPlayer.PlayerGui:WaitForChild("MainGUI", 5)
+    if not gui then return false end
+    local coinFrame = gui:WaitForChild("Game").CoinBags.Container.SnowToken.CurrencyFrame.Icon.Coins
+    local price = LocalPlayer:GetAttribute("Elite") and "50" or "40"
+    return coinFrame.Text == price
+end
+
+-- Nettoyer les ressources
+local function AutoFarmCleanup()
+    Settings.AutoFarm = false
+    table.clear(touchedCoins)
+    if Settings.TpBackToStart and startPosition then
+        local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            humanoidRootPart.CFrame = startPosition
+        end
     end
 end
 
--- Fonction pour activer l'autofarm
-local function AutoFarm()
-    while Settings.AutoFarmOn do
-        if LocalPlayer:GetAttribute("Alive") then
-            local Candy = GetNearestCandy()
-            if Candy then
-                MoveToCoin(Candy)
-                FireTouchTransmitter(Candy)
-                touchedCoins[Candy] = true
-                task.wait(0.2)
+-- Bibliothèque UI (inchangée)
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
+local Window = Library:CreateWindow("MM2 | EsohaSL")
+
+Window:Section("esohasl.net")
+
+-- Toggle pour l'autofarm
+Window:Toggle("Auto Candy", {}, function(state)
+    task.spawn(function()
+        Settings.AutoFarm = state
+        if not state then
+            AutoFarmCleanup()
+            return
+        end
+
+        -- Stocker la position initiale
+        local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        startPosition = humanoidRootPart and humanoidRootPart.CFrame or Spawn.CFrame
+
+        while Settings.AutoFarm do
+            if not LocalPlayer:GetAttribute("Alive") then
+                AutoFarmCleanup()
+                break
+            end
+
+            if IsBagFull() then
+                print("Sac plein, arrêt de l'autofarm")
+                AutoFarmCleanup()
+                break
+            end
+
+            local candy = GetNearestCandy()
+            if candy then
+                local distance = LocalPlayer:DistanceFromCharacter(candy:GetPivot().Position)
+                local duration = distance / Settings.WalkSpeed -- Ajuster la durée selon la distance
+                MoveToPositionSlowly(candy:GetPivot().Position, duration)
+                FireTouchTransmitter(candy)
+                touchedCoins[candy] = true -- Marquer le jeton comme collecté
+                task.wait(0.2) -- Attendre pour garantir l'interaction
+            else
+                task.wait(1) -- Attendre si aucun jeton n'est trouvé
             end
         end
-        task.wait(0.1)
-    end
-end
+    end)
+end)
 
--- Fonction pour démarrer l'autofarm
-local function ToggleAutoFarm(state)
-    Settings.AutoFarmOn = state
-    if state then
-        start = coroutine.create(AutoFarm)
-        coroutine.resume(start)
-    else
-        Settings.AutoFarmOn = false
-        if start then
-            coroutine.yield(start)
+-- Bouton YouTube (inchangé)
+Window:Button("YouTube: EsohaSL", function()
+    task.spawn(function()
+        if setclipboard then
+            setclipboard("https://youtube.com/@esohasl")
         end
-    end
-end
-
--- Initialisation de la bibliothèque avec un design futuriste
-local futuristicLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
-local Window = futuristicLibrary:CreateWindow("MM2 | Autofarm")
-
--- Section des paramètres de l'autofarm
-Window:Section("AutoFarm Settings")
-
--- Toggle pour l'auto-farm
-Window:Toggle("Activate AutoFarm", {}, function(state)
-    ToggleAutoFarm(state)
+    end)
 end)
 
-Window:Toggle("Uninterrupted Mode", Settings.Uninterrupted, function(state)
-    Settings.Uninterrupted = state
-end)
-
-Window:Slider("Farm Radius", {min = 50, max = 200, default = Settings.radius}, function(value)
-    Settings.radius = value
-end)
-
-Window:Slider("Tween Speed", {min = 16, max = 50, default = Settings.walkspeed}, function(value)
-    Settings.walkspeed = value
-end)
-
--- Fonction pour réinitialiser l'autofarm si un coin est touché
-local function ResetAutoFarm()
-    touchedCoins = {}
-    positionChangeConnections = setmetatable({}, { __mode = "v" })
-    AutoFarm()
-end
-
--- Déclenchement des événements lors de la mort du joueur
+-- Anti-AFK (inchangé)
 LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
     task.wait()
-    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
 end)
-
 -- Initialisation du système d'autofarm
 GetContainer()
 AutoFarm()
