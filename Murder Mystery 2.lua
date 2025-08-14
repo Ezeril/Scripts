@@ -1,15 +1,28 @@
+-- Configuration des services nécessaires
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local VirtualUser = game:GetService("VirtualUser")
+local HttpService = game:GetService("HttpService")
 
+-- Variables globales
 local LocalPlayer = Players.LocalPlayer
-local Spawn = Workspace.Lobby.Spawns.SpawnLocation
-
-getgenv().Settings = {
+local CoinContainer = nil
+local Settings = {
     Default = false,
+    AutoFarmOn = false,
+    Uninterrupted = false,
+    TpBackToStart = true,
+    radius = 120,
+    walkspeed = 20
 }
 
+local touchedCoins = {}
+local positionChangeConnections = setmetatable({}, { __mode = "v" })
+local start = nil
+local waypoint = nil
+
+-- Fonction pour obtenir le conteneur des coins
 local function GetContainer()
     for _, v in ipairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" then return v end
@@ -17,6 +30,7 @@ local function GetContainer()
     return nil
 end
 
+-- Fonction pour récupérer le bon coin à collecter
 local function GetNearestCandy(arentEqual)
     local Container = GetContainer()
     if not Container then return nil end
@@ -26,18 +40,17 @@ local function GetNearestCandy(arentEqual)
 
     for _, v in ipairs(Container:GetChildren()) do
         if arentEqual and v == arentEqual then continue end
-        if v:IsA("BasePart") then  -- Assure que l'objet est un BasePart
-            local Distance = LocalPlayer:DistanceFromCharacter(v.Position)
-            if CurrentDistance > Distance then
-                CurrentDistance = Distance
-                Candy = v
-            end
+        local Distance = LocalPlayer:DistanceFromCharacter(v:GetPivot().Position)
+
+        if CurrentDistance > Distance then
+            CurrentDistance = Distance
+            Candy = v
         end
     end
-
     return Candy
 end
 
+-- Fonction pour toucher un coin
 local function FireTouchTransmitter(touchParent)
     local Character = LocalPlayer.Character:FindFirstChildOfClass("Part")
     if Character then
@@ -46,178 +59,86 @@ local function FireTouchTransmitter(touchParent)
     end
 end
 
--- Library
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
-local Window = Library:CreateWindow("MM2 | EsohaSL")
+-- Fonction de déplacement vers un coin
+local function MoveToCoin(coin)
+    local Humanoid = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if coin and Humanoid then  
+        local Process = TweenService:Create(Humanoid, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, false, 1), {
+            Position = coin:GetPivot().Position
+        })
+        Process:Play()
+        Process.Completed:Wait()
+    end
+end
 
-Window:Section("esohasl.net")
-
-Window:Toggle("Auto Candy", {}, function(state)
-    task.spawn(function()
-        Settings.Default = state
-        while true do
-            if not Settings.Default then return end
-            if LocalPlayer:GetAttribute("Alive") then
-                local Candy = GetNearestCandy()
-                local Humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-
-                if Candy and Humanoid then  
-                    local TargetPosition = Candy.Position
-                    local Duration = (LocalPlayer.Character.HumanoidRootPart.Position - TargetPosition).Magnitude / Humanoid.WalkSpeed
-                    Humanoid:MoveTo(TargetPosition)
-
-                    -- Attendre que le personnage arrive à la position cible
-                    while (LocalPlayer.Character.HumanoidRootPart.Position - TargetPosition).Magnitude > 2 do
-                        task.wait(0.1)
-                    end
-
-                    -- Marquer la pièce comme touchée
-                    FireTouchTransmitter(Candy)
-                    print("Coin touched!")
-                end
+-- Fonction pour activer l'autofarm
+local function AutoFarm()
+    while Settings.AutoFarmOn do
+        if LocalPlayer:GetAttribute("Alive") then
+            local Candy = GetNearestCandy()
+            if Candy then
+                MoveToCoin(Candy)
+                FireTouchTransmitter(Candy)
+                touchedCoins[Candy] = true
+                task.wait(0.2)
             end
-            task.wait(0.1)
         end
-    end)
+        task.wait(0.1)
+    end
+end
+
+-- Fonction pour démarrer l'autofarm
+local function ToggleAutoFarm(state)
+    Settings.AutoFarmOn = state
+    if state then
+        start = coroutine.create(AutoFarm)
+        coroutine.resume(start)
+    else
+        Settings.AutoFarmOn = false
+        if start then
+            coroutine.yield(start)
+        end
+    end
+end
+
+-- Gestion de l'interface utilisateur (UI)
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
+local Window = Library:CreateWindow("MM2 | Autofarm")
+
+Window:Section("AutoFarm Settings")
+
+-- Toggle pour l'auto-farm
+Window:Toggle("Activate AutoFarm", {}, function(state)
+    ToggleAutoFarm(state)
 end)
 
-Window:Button("YouTube: EsohaSL", function()
-    task.spawn(function()
-        if setclipboard then
-            setclipboard("https://youtube.com/@esohasl")
-        end
-    end)
+Window:Toggle("Uninterrupted Mode", Settings.Uninterrupted, function(state)
+    Settings.Uninterrupted = state
 end)
 
+Window:Slider("Farm Radius", {min = 50, max = 200, default = Settings.radius}, function(value)
+    Settings.radius = value
+end)
+
+Window:Slider("Tween Speed", {min = 16, max = 50, default = Settings.walkspeed}, function(value)
+    Settings.walkspeed = value
+end)
+
+-- Fonction pour réinitialiser l'autofarm si un coin est touché
+local function ResetAutoFarm()
+    touchedCoins = {}
+    positionChangeConnections = setmetatable({}, { __mode = "v" })
+    AutoFarm()
+end
+
+-- Déclenchement des événements lors de la mort du joueur
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
     task.wait()
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
 
--- Nettoyage des pièces et des connexions
-local function AutoFarmCleanUp()
-    -- Vérification de si la table est vide
-    if next(rt.positionChangeConnections) == nil then
-        rt.AutoFarmOn = false
-        print("No items in positionChangeConnections")
-        return true
-    end
-
-    rt.AutoFarmOn = false
-    coroutine.yield(rt.start)
-    coroutine.close(rt.start)
-    if coroutine.status(rt.start) == "suspended" then
-        coroutine.yield(rt.start)
-        coroutine.close(rt.start)
-    end
-    
-    -- Déconnexion de toutes les connexions
-    for _, connection in pairs(rt.positionChangeConnections) do
-        rt.Disconnect(connection)
-    end
-    rt.Disconnect(rt.Added)
-    rt.Disconnect(rt.Removing)
-
-    -- Notification et nettoyage
-    Notif:Notify("Removing cached instances for AutoFarm", 1.5, "success")
-    table.clear(rt.touchedCoins)
-    table.clear(rt.positionChangeConnections)
-    
-    task.wait(1)
-    rt.start = coroutine.create(collectCoins)
-    return true
-end
-
--- Fonction pour collecter les pièces
-collectCoins = function ()
-    -- Assurez-vous que CoinContainer existe
-    rt.coinContainer = rt:Map():FindFirstChild("CoinContainer")
-    rt.waypoint = rt:Character():GetPivot()
-    local check = rt:MainGUI():WaitForChild("Game").CoinBags.Container.SnowToken.CurrencyFrame.Icon.Coins
-    local price = "40"
-    if rt:IsElite() then price = "50" end
-
-    -- Peupler l'Octree
-    populateOctree()
-    
-    while rt.AutoFarmOn do
-        if check.Text == price then
-            Notif:Notify("Full Bag", 2, "success")
-            break
-        end
-
-        -- Trouver la pièce la plus proche
-        local nearestNode = rt.octree:GetNearest(rt:Character().PrimaryPart.Position, rt.radius, 1)[1]
-
-        if nearestNode then
-            local closestCoin = nearestNode.Object
-            if not isCoinTouched(closestCoin) then
-                local closestCoinPosition = closestCoin.Position
-                local distance = (rt:Character().PrimaryPart.Position - closestCoinPosition).Magnitude
-                local duration = distance / rt.walkspeed -- Vitesse de marche par défaut de 26 studs/sec
-
-                -- Déplacement vers la pièce
-                moveToPositionSlowly(closestCoinPosition, duration)
-
-                -- Marquer la pièce comme touchée et nettoyer
-                markCoinAsTouched(closestCoin)
-                task.wait(0.2) -- S'assurer que le contact est enregistré
-            end
-        else
-            task.wait(1) -- Pas de pièces disponibles; essayer après un délai
-        end
-    end
-
-    if rt.TpBackToStart then
-        rt:Character():PivotTo(rt.waypoint)
-    end
-    AutoFarmCleanUp()
-end
-
--- Fonction de déplacement lent vers une position cible
-local function moveToPositionSlowly(targetPosition: Vector3, duration: number)
-    rt.humanoidRootPart = rt:Character().PrimaryPart
-    local startPosition = rt.humanoidRootPart.Position
-    local startTime = tick()
-    
-    while true do
-        local elapsedTime = tick() - startTime
-        local alpha = math.min(elapsedTime / duration, 1)
-        rt:Character():PivotTo(CFrame.new(startPosition:Lerp(targetPosition, alpha)))
-
-        if alpha >= 1 then
-            task.wait(0.2)
-            break
-        end
-
-        task.wait() -- Petit délai pour rendre le mouvement plus fluide
-    end
-end
-
--- Fonction pour activer ou désactiver l'AutoFarm
-local function ToggleAutoFarm(value : boolean)
-    if not value then
-        return AutoFarmCleanUp()
-    end
-
-    if not rt:CheckIfGameInProgress() then Notif:Notify("Map must be loaded to use Autofarm", 2, "error") return false end
-    if not rt:CheckIfPlayerWasInARound() then Notif:Notify("You need to be in a round or have played a round to use the autofarm", 5, "error") return false end
-    if not rt.Murderer then Notif:Notify("No Murderer found to satisfy: Round in Progress", 4, "information") return false end
-    local isAlive = rt:CheckIfPlayerIsInARound()
-    local OldState = rt.Uninterrupted
-    local IsMurderer = rt.player.Name == rt.Murderer.Name
-
-    -- Si le joueur est le meurtrier et a activé Uninterrupted
-    if rt.Uninterrupted and IsMurderer then rt.Uninterrupted = false; IsMurderer = not IsMurderer end
-
-    if rt.Uninterrupted then
-        rt:Character():FindFirstChildWhichIsA("Humanoid"):ChangeState(Enum.HumanoidStateType.Dead)
-        repeat task.wait() until rt.player.CharacterAdded:Wait()
-        task.wait(1)
-        TeleportToPlayer(rt.Murderer)
-        -- Démarrer l'autofarm
-        Notif:Notify("Uninterrupted made it all the way", 4, "alert")
-        rt.AutoFarmOn = true
-        coroutine.resume(rt.start)
+-- Initialisation du système d'autofarm
+GetContainer()
+AutoFarm()
 
