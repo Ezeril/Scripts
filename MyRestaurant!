@@ -1,0 +1,194 @@
+-- Simple My Restaurant Cheat Script
+-- Compatible with Roblox exploits (e.g., Synapse X, Krnl)
+-- Features: Auto Daily Rewards, Give Best Food, Instant Teleport for Waiters/Cooks
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+-- Configuration
+local Config = {
+    AutoDailyReward = false,
+    GiveBestFood = false,
+    InstantTeleport = false
+}
+
+-- Find game framework (My Restaurant specific)
+local function getFramework()
+    for _, v in pairs(ReplicatedStorage:GetChildren()) do
+        if v.Name == "Framework" or v.Name:find("MyRestaurant") then
+            return v
+        end
+    end
+    return nil
+end
+
+-- Find player's restaurant data
+local function getMyBakery()
+    local framework = getFramework()
+    if framework then
+        return framework:FindFirstChild("MyBakery")
+    end
+    return nil
+end
+
+-- Auto Daily Reward function
+local function autoDailyReward()
+    while Config.AutoDailyReward do
+        local myBakery = getMyBakery()
+        if myBakery then
+            local dailyReward = myBakery:FindFirstChild("DailyReward")
+            if dailyReward then
+                ReplicatedStorage:FindFirstChild("Network"):FindFirstChild("ClaimDailyReward"):FireServer()
+            end
+        end
+        wait(12.5) -- Wait for daily reward cooldown
+    end
+end
+
+-- Give Best Food to customers
+local function giveBestFood()
+    while Config.GiveBestFood do
+        local myBakery = getMyBakery()
+        if myBakery then
+            for _, customer in pairs(myBakery:GetChildren()) do
+                if customer:IsA("Model") and customer:FindFirstChild("Humanoid") then
+                    local foodData = customer:FindFirstChild("FoodData")
+                    if foodData then
+                        ReplicatedStorage:FindFirstChild("Network"):FindFirstChild("ServeFood"):FireServer(customer, "PremiumFood")
+                    end
+                end
+            end
+        end
+        wait(1)
+    end
+end
+
+-- Instant Teleport for Waiters and Cooks
+local function instantTeleport()
+    while Config.InstantTeleport do
+        local myBakery = getMyBakery()
+        if myBakery then
+            for _, entity in pairs(myBakery:GetChildren()) do
+                if entity:IsA("Model") and (entity.Name:find("Waiter") or entity.Name:find("Cook")) then
+                    local humanoidRootPart = entity:FindFirstChild("HumanoidRootPart")
+                    if humanoidRootPart then
+                        -- Teleport to target position instantly
+                        humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, 0, 0) -- Replace with target position if needed
+                    end
+                end
+            end
+        end
+        wait(0.1)
+    end
+end
+
+-- Simple GUI using Roblox's built-in UI
+local function createGUI()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    ScreenGui.Name = "CheatGUI"
+
+    local Frame = Instance.new("Frame")
+    Frame.Size = UDim2.new(0, 200, 0, 150)
+    Frame.Position = UDim2.new(0.5, -100, 0.5, -75)
+    Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Frame.BorderSizePixel = 2
+    Frame.Parent = ScreenGui
+
+    local function createButton(name, position, callback)
+        local Button = Instance.new("TextButton")
+        Button.Size = UDim2.new(0, 180, 0, 30)
+        Button.Position = position
+        Button.Text = name
+        Button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+        Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Button.Parent = Frame
+        Button.MouseButton1Click:Connect(callback)
+        return Button
+    end
+
+    -- Buttons for toggling features
+    createButton("Toggle Auto Daily Reward", UDim2.new(0, 10, 0, 10), function()
+        Config.AutoDailyReward = not Config.AutoDailyReward
+        if Config.AutoDailyReward then
+            spawn(autoDailyReward)
+        end
+        StarterGui:SetCore("SendNotification", {
+            Title = "Auto Daily Reward",
+            Text = Config.AutoDailyReward and "Enabled" or "Disabled",
+            Duration = 3
+        })
+    end)
+
+    createButton("Toggle Best Food", UDim2.new(0, 10, 0, 50), function()
+        Config.GiveBestFood = not Config.GiveBestFood
+        if Config.GiveBestFood then
+            spawn(giveBestFood)
+        end
+        StarterGui:SetCore("SendNotification", {
+            Title = "Give Best Food",
+            Text = Config.GiveBestFood and "Enabled" or "Disabled",
+            Duration = 3
+        })
+    end)
+
+    createButton("Toggle Instant Teleport", UDim2.new(0, 10, 0, 90), function()
+        Config.InstantTeleport = not Config.InstantTeleport
+        if Config.InstantTeleport then
+            spawn(instantTeleport)
+        end
+        StarterGui:SetCore("SendNotification", {
+            Title = "Instant Teleport",
+            Text = Config.InstantTeleport and "Enabled" or "Disabled",
+            Duration = 3
+        })
+    end)
+
+    -- Make GUI draggable
+    local dragging, dragInput, dragStart, startPos
+    Frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = Frame.Position
+        end
+    end)
+
+    Frame.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+
+    Frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+end
+
+-- Initialize script
+local function init()
+    local success, err = pcall(function()
+        createGUI()
+        StarterGui:SetCore("SendNotification", {
+            Title = "My Restaurant Cheat",
+            Text = "Script loaded! Use the GUI to toggle features.",
+            Duration = 5
+        })
+    end)
+    if not success then
+        warn("Error initializing script: " .. err)
+    end
+end
+
+init()
