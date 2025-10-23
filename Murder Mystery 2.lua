@@ -9,12 +9,12 @@ local Spawn = Workspace.Lobby.Spawns.SpawnLocation
 
 getgenv().Settings = {
     AutoFarm = false,
-    WalkSpeed = 28, -- un peu plus rapide par défaut
+    WalkSpeed = 28,
     SearchRadius = 120,
     TpBackToStart = true,
 }
 
-local touchedCoins = {} -- jetons marqués pris (confirmés)
+local touchedCoins = {}
 local startPosition = nil
 local coinContainer = nil
 
@@ -97,8 +97,6 @@ local function FireTouchTransmitter(touchParent)
     end
 end
 
--- La fonction MoveToPositionSlowly n'est plus nécessaire, sa logique est intégrée dans la boucle principale.
-
 -- Vérifier si le sac est plein
 local function IsBagFull()
     local gui = LocalPlayer.PlayerGui:WaitForChild("MainGUI", 5)
@@ -142,13 +140,20 @@ Window:Toggle("Auto Candy", {}, function(state)
         startPosition = humanoidRootPart and humanoidRootPart.CFrame or Spawn.CFrame
 
         while Settings.AutoFarm do
-            -- === DÉBUT DE LA SECTION OPTIMISÉE ===
-
-            if not LocalPlayer:GetAttribute("Alive") or IsBagFull() then
-                print("Sac plein ou personnage mort. Arrêt de l'autofarm.")
+            if not LocalPlayer:GetAttribute("Alive") then
                 AutoFarmCleanup()
                 break
             end
+            
+            -- === MODIFICATION POUR LA RÉINITIALISATION ===
+            if IsBagFull() then
+                print("Sac plein, réinitialisation du personnage.")
+                LocalPlayer:LoadCharacter() -- Ajout de cette ligne pour réinitialiser
+                task.wait(3) -- Petite pause pour laisser le temps au personnage de réapparaître
+                AutoFarmCleanup()
+                break
+            end
+            -- === FIN DE LA MODIFICATION ===
 
             local candy = GetNearestCandy()
 
@@ -166,9 +171,7 @@ Window:Toggle("Auto Candy", {}, function(state)
                 local t0 = tick()
                 local movementCompleted = true
 
-                -- Boucle de mouvement qui vérifie la validité du bonbon à chaque pas
                 while true do
-                    -- OPTIMISATION CLÉ : Si le bonbon n'existe plus, on arrête le mouvement
                     if not IsAlive(candy) then
                         movementCompleted = false
                         break
@@ -179,31 +182,25 @@ Window:Toggle("Auto Candy", {}, function(state)
                     hrp.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha))
 
                     if alpha >= 1 then
-                        break -- Destination atteinte
+                        break
                     end
-
-                    -- Utilise Heartbeat pour un mouvement plus fluide et des vérifications plus fréquentes
+                    
                     RunService.Heartbeat:Wait()
                 end
 
                 if movementCompleted then
-                    -- Le mouvement a réussi, on tente de collecter le bonbon
                     local tpart = GetTouchPart(candy)
                     if tpart and IsAlive(tpart) then
                         FireTouchTransmitter(tpart)
                         task.wait(0.08)
                     end
-                    -- On marque le bonbon comme "touché" pour ne pas le re-cibler
                     touchedCoins[candy] = true
                 else
-                    -- Le mouvement a été interrompu. La boucle va chercher un nouveau bonbon.
                     task.wait(0.01)
                 end
             else
-                -- Aucun bonbon trouvé, on attend avant de chercher à nouveau
                 task.wait(0.35)
             end
-            -- === FIN DE LA SECTION OPTIMISÉE ===
         end
     end)
 end)
@@ -225,5 +222,3 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 GetContainer()
-
-
