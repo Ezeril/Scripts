@@ -140,7 +140,7 @@ end -- [web:24]
 
 -- Bibliothèque UI (inchangée)
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
-local Window = Library:CreateWindow("MM2 | EsohaSL")
+local Window = Library:CreateWindow("MM2 | Lunaris")
 
 Window:Section("esohasl.net")
 
@@ -229,7 +229,7 @@ Window:Toggle("Auto Candy", {}, function(state)
 end)
 
 -- Bouton YouTube (inchangé)
-Window:Button("YouTube: EsohaSL", function()
+Window:Button("YouTube: Lunaris", function()
     task.spawn(function()
         if setclipboard then
             setclipboard("https://youtube.com/@esohasl")
