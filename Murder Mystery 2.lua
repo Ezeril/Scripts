@@ -122,7 +122,7 @@ local function AutoFarmCleanup()
 end
 
 -- Bibliothèque UI
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/library.lua", true))()
 local Window = Library:CreateWindow("MM2 | Lunaris")
 
 Window:Section("Bêta")
