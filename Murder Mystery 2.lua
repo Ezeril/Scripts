@@ -125,7 +125,7 @@ end
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
 local Window = Library:CreateWindow("MM2 | Lunaris")
 
-Window:Section("esohasl.net")
+Window:Section("Bêta")
 
 -- Toggle pour l'autofarm
 Window:Toggle("Auto Candy", {}, function(state)
