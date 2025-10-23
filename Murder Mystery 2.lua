@@ -9,7 +9,7 @@ local Spawn = Workspace.Lobby.Spawns.SpawnLocation
 
 getgenv().Settings = {
     AutoFarm = false,
-    WalkSpeed = 28,
+    WalkSpeed = 25,
     SearchRadius = 120,
     TpBackToStart = true,
 }
