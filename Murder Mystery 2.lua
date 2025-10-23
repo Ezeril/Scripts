@@ -8,19 +8,19 @@ local Spawn = Workspace.Lobby.Spawns.SpawnLocation
 
 getgenv().Settings = {
     AutoFarm = false,
-    WalkSpeed = 28, -- un peu plus rapide par défaut
-    SearchRadius = 120,
-    TpBackToStart = true,
+    WalkSpeed = 28, -- un peu plus rapide
+    SearchRadius = 120, -- Rayon de recherche des jetons
+    TpBackToStart = true, -- Retourner à la position initiale après l'autofarm
 }
 
-local touchedCoins = {} -- jetons marqués pris (confirmés)
-local startPosition = nil
-local coinContainer = nil
+local touchedCoins = {} -- Table pour suivre les jetons collectés (confirmés)
+local startPosition = nil -- Position initiale du joueur
+local coinContainer = nil -- Conteneur des jetons
 
--- helpers sûrs
+-- Helpers
 local function IsAlive(inst)
     return inst and inst.Parent ~= nil
-end -- [web:24]
+end -- [web:31]
 
 local function SafeGetPos(inst)
     if not IsAlive(inst) then return nil end
@@ -36,7 +36,7 @@ local function SafeGetPos(inst)
         end
     end
     return nil
-end -- [web:26]
+end -- [web:82][web:88]
 
 local function GetTouchPart(inst)
     if not IsAlive(inst) then return nil end
@@ -45,11 +45,13 @@ local function GetTouchPart(inst)
         return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart")
     end
     return nil
-end -- [web:36]
+end -- [web:82]
 
 -- Trouver le conteneur des jetons
 local function GetContainer()
-    if coinContainer and coinContainer.Parent then return coinContainer end
+    if coinContainer and coinContainer.Parent then
+        return coinContainer
+    end
     for _, v in ipairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" then
             coinContainer = v
@@ -68,22 +70,23 @@ local function GetNearestCandy()
     local currentDistance = Settings.SearchRadius
 
     for _, v in ipairs(container:GetChildren()) do
-        if touchedCoins[v] then continue end
-        if not IsAlive(v) then continue end
+        if touchedCoins[v] then continue end -- Ignore les jetons déjà marqués
+        if not IsAlive(v) then continue end -- Ignore s'il a disparu
         local pos = SafeGetPos(v)
-        if not pos then continue end
-        local ok, dist = pcall(function()
+        if not pos then continue end -- Ignore si pas de position exploitable
+        local ok, distance = pcall(function()
             return LocalPlayer:DistanceFromCharacter(pos)
         end)
-        if ok and dist < currentDistance then
-            currentDistance = dist
+        if ok and distance < currentDistance then
+            currentDistance = distance
             nearestCandy = v
         end
     end
-    return nearestCandy
-end -- [web:24][web:26]
 
--- Simuler l'interaction (protégé)
+    return nearestCandy
+end -- [web:83][web:82]
+
+-- Simuler l'interaction avec un jeton (protégé)
 local function FireTouchTransmitter(touchParent)
     local character = LocalPlayer.Character
     local part = character and character:FindFirstChildOfClass("Part")
@@ -94,25 +97,42 @@ local function FireTouchTransmitter(touchParent)
             firetouchinterest(touchParent, part, 1)
         end)
     end
-end -- [web:29]
+end -- [web:78][web:84]
 
--- Déplacer le joueur rapidement avec pas adaptatif
-local function MoveToPositionSlowly(targetPosition, duration)
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+-- Déplacer le joueur vers une position progressivement, annuler si la cible disparaît
+-- Retourne true si arrivé, false si annulé (cible disparue)
+local function MoveToPositionSlowly(targetInstance, targetPosition, duration)
+    local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return false end
 
-    local startPos = hrp.Position
+    local startPos = humanoidRootPart.Position
     local t0 = tick()
+
     while true do
-        if not (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) then return end
+        -- annuler si la cible n'existe plus
+        if not IsAlive(targetInstance) then
+            return false
+        end
+        -- annuler si le perso n'a plus de HRP
+        if not (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) then
+            return false
+        end
+
         local elapsed = tick() - t0
         local alpha = math.clamp(elapsed / duration, 0, 1)
-        hrp.CFrame = CFrame.new(startPos:Lerp(targetPosition, alpha))
+        humanoidRootPart.CFrame = CFrame.new(startPos:Lerp(targetPosition, alpha))
         if alpha >= 1 then break end
-        task.wait() -- court wait; si tu veux encore plus rapide, remplace par RunService.Heartbeat connect pattern
+        task.wait() -- pour encore plus de réactivité, on peut passer sur Heartbeat avec deltaTime [web:68][web:67]
     end
-    hrp.CFrame = CFrame.new(targetPosition)
-end -- [web:50][web:43]
+
+    -- recheck juste à l'arrivée
+    if not IsAlive(targetInstance) then
+        return false
+    end
+
+    humanoidRootPart.CFrame = CFrame.new(targetPosition)
+    return true
+end -- [web:65][web:62]
 
 -- Vérifier si le sac est plein
 local function IsBagFull()
@@ -124,19 +144,19 @@ local function IsBagFull()
     if not ok or not coinFrame then return false end
     local price = LocalPlayer:GetAttribute("Elite") and "50" or "40"
     return tostring(coinFrame.Text) == price
-end -- [web:29]
+end -- [web:79]
 
 -- Nettoyer les ressources
 local function AutoFarmCleanup()
     Settings.AutoFarm = false
     table.clear(touchedCoins)
     if Settings.TpBackToStart and startPosition then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = startPosition
+        local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            humanoidRootPart.CFrame = startPosition
         end
     end
-end -- [web:24]
+end -- [web:79]
 
 -- Bibliothèque UI (inchangée)
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
@@ -171,15 +191,15 @@ Window:Toggle("Auto Candy", {}, function(state)
 
             local candy = GetNearestCandy()
             if candy then
-                -- revalider avant de calculer
+                -- Revalider dès maintenant
                 if not IsAlive(candy) then
-                    task.wait(0.05)
+                    task.wait(0.03)
                     continue
                 end
 
                 local pos = SafeGetPos(candy)
                 if not pos then
-                    task.wait(0.05)
+                    task.wait(0.03)
                     continue
                 end
 
@@ -188,41 +208,32 @@ Window:Toggle("Auto Candy", {}, function(state)
                 end)
                 local duration = 0.05
                 if okDist then
-                    duration = math.max(0.04, distance / math.max(1, Settings.WalkSpeed))
+                    duration = math.max(0.035, distance / math.max(1, Settings.WalkSpeed))
                 end
 
-                -- revalider juste avant de bouger
-                if not IsAlive(candy) then
-                    task.wait(0.05)
+                -- Déplacement annulable: stoppe si la cible disparaît pendant l'approche
+                local arrived = MoveToPositionSlowly(candy, pos, duration)
+                if not arrived then
+                    -- la cible a été prise par un autre joueur pendant l'approche: retarget immédiat
                     continue
                 end
 
-                MoveToPositionSlowly(pos, duration)
-
-                -- revalider juste avant de toucher
+                -- Revalider juste avant de toucher
                 if not IsAlive(candy) then
-                    task.wait(0.02)
                     continue
                 end
 
-                local tpart = GetTouchPart(candy)
-                if tpart and IsAlive(tpart) then
-                    FireTouchTransmitter(tpart)
-                    task.wait(0.08)
-                    -- considérer collecté si l’objet a disparu
+                local touchPart = GetTouchPart(candy)
+                if touchPart and IsAlive(touchPart) then
+                    FireTouchTransmitter(touchPart)
+                    task.wait(0.06)
+                    -- marquer collecté uniquement si elle disparaît après contact
                     if not IsAlive(candy) then
                         touchedCoins[candy] = true
-                    else
-                        -- pour éviter d’y retourner tout de suite si le serveur a un léger délai,
-                        -- marque-le temporairement; il sera filtré au prochain scan s’il a disparu
-                        touchedCoins[candy] = true
                     end
-                else
-                    -- pas de part touchable, on ignore sans marquer définitivement
-                    task.wait(0.05)
                 end
             else
-                task.wait(0.35) -- réduit l’attente pour retarget plus souvent
+                task.wait(0.25) -- retarget plus fréquent qu'1s
             end
         end
     end)
@@ -246,4 +257,4 @@ end)
 
 -- Initialisation du système d'autofarm
 GetContainer()
--- AutoFarm() non requis; le toggle lance/arrête la boucle
+-- AutoFarm() non défini; utilise le toggle ci-dessus
