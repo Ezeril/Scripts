@@ -5,12 +5,13 @@ local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
-local Spawn = Workspace.Lobby.Spawns.SpawnLocation
+local Spawn = Workspace:FindFirstChild("Lobby") and Workspace.Lobby:FindFirstChild("Spawns") and Workspace.Lobby.Spawns:FindFirstChild("SpawnLocation")
 
+-- Configuration par défaut
 getgenv().Settings = {
     AutoFarm = false,
     WalkSpeed = 25,
-    SearchRadius = 120,
+    SearchRadius = 250, -- Augmenté pour mieux trouver les bonbons
     TpBackToStart = true,
 }
 
@@ -18,7 +19,19 @@ local touchedCoins = {}
 local startPosition = nil
 local coinContainer = nil
 
--- helpers sûrs
+-- --- CHARGEMENT DE LA LIBRAIRIE ORION ---
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local Window = OrionLib:MakeWindow({
+    Name = "MM2 | Lunaris (Fixed)", 
+    HidePremium = false, 
+    SaveConfig = false, 
+    ConfigFolder = "LunarisMM2",
+    IntroEnabled = true,
+    IntroText = "Lunaris"
+})
+
+-- --- FONCTIONS UTILITAIRES ---
+
 local function IsAlive(inst)
     return inst and inst.Parent ~= nil
 end
@@ -48,11 +61,12 @@ local function GetTouchPart(inst)
     return nil
 end
 
--- Trouver le conteneur des jetons
+-- Trouver le conteneur des jetons (SnowToken, Candy, etc.)
 local function GetContainer()
     if coinContainer and coinContainer.Parent then return coinContainer end
+    -- Cherche n'importe quel conteneur de monnaie (souvent "CoinContainer" ou "ConfettiContainer")
     for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" then
+        if v.Name == "CoinContainer" or v.Name == "ConfettiContainer" then
             coinContainer = v
             return v
         end
@@ -60,23 +74,29 @@ local function GetContainer()
     return nil
 end
 
--- Trouver le jeton le plus proche non collecté et encore présent
+-- Trouver le jeton le plus proche
 local function GetNearestCandy()
     local container = GetContainer()
     if not container then return nil end
 
     local nearestCandy = nil
     local currentDistance = Settings.SearchRadius
+    local character = LocalPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not hrp then return nil end
 
     for _, v in ipairs(container:GetChildren()) do
         if touchedCoins[v] then continue end
         if not IsAlive(v) then continue end
+        if v.Transparency == 1 then continue end -- Ignorer les pièces invisibles
+
         local pos = SafeGetPos(v)
         if not pos then continue end
-        local ok, dist = pcall(function()
-            return LocalPlayer:DistanceFromCharacter(pos)
-        end)
-        if ok and dist < currentDistance then
+
+        local dist = (hrp.Position - pos).Magnitude
+        
+        if dist < currentDistance then
             currentDistance = dist
             nearestCandy = v
         end
@@ -84,141 +104,224 @@ local function GetNearestCandy()
     return nearestCandy
 end
 
--- Simuler l'interaction (protégé)
+-- Simuler l'interaction (firetouchinterest)
 local function FireTouchTransmitter(touchParent)
     local character = LocalPlayer.Character
-    local part = character and character:FindFirstChildOfClass("Part")
-    if part and touchParent and IsAlive(touchParent) and typeof(firetouchinterest) == "function" then
-        pcall(function()
-            firetouchinterest(touchParent, part, 0)
-            task.wait(0.06)
-            firetouchinterest(touchParent, part, 1)
-        end)
+    local part = character and character:FindFirstChild("HumanoidRootPart") -- Utiliser HRP c'est plus stable
+    
+    if part and touchParent and IsAlive(touchParent) then
+        if typeof(firetouchinterest) == "function" then
+            pcall(function()
+                firetouchinterest(touchParent, part, 0)
+                task.wait()
+                firetouchinterest(touchParent, part, 1)
+            end)
+        else
+            -- Fallback si l'exécuteur ne supporte pas firetouchinterest (téléportation simple)
+            local prevCF = part.CFrame
+            part.CFrame = touchParent.CFrame
+            task.wait(0.1)
+            part.CFrame = prevCF
+        end
     end
 end
 
 -- Vérifier si le sac est plein
 local function IsBagFull()
-    local gui = LocalPlayer.PlayerGui:WaitForChild("MainGUI", 5)
+    local gui = LocalPlayer.PlayerGui:FindFirstChild("MainGUI")
     if not gui then return false end
-    local ok, coinFrame = pcall(function()
-        return gui:WaitForChild("Game").CoinBags.Container.SnowToken.CurrencyFrame.Icon.Coins
+    
+    -- Chemin général pour MM2, peut varier selon les événements
+    local ok, coinLabel = pcall(function()
+        local gameFrame = gui:WaitForChild("Game", 5)
+        if not gameFrame then return nil end
+        -- Recherche récursive rapide pour trouver le texte des pièces
+        local bags = gameFrame:FindFirstChild("CoinBags")
+        if bags and bags:FindFirstChild("Container") then
+             -- Adapte ceci selon l'event actuel (SnowToken, Candy, etc.)
+            for _, c in pairs(bags.Container:GetChildren()) do
+                if c:FindFirstChild("CurrencyFrame") then
+                    return c.CurrencyFrame.Icon.Coins
+                end
+            end
+        end
+        return nil
     end)
-    if not ok or not coinFrame then return false end
-    local price = LocalPlayer:GetAttribute("Elite") and "50" or "40"
-    return tostring(coinFrame.Text) == price
+
+    if ok and coinLabel and coinLabel:IsA("TextLabel") then
+        local currentText = coinLabel.Text
+        local price = LocalPlayer:GetAttribute("Elite") and "50" or "40"
+        return tostring(currentText) == price
+    end
+    
+    return false
 end
 
--- Nettoyer les ressources
 local function AutoFarmCleanup()
     Settings.AutoFarm = false
     table.clear(touchedCoins)
-    if Settings.TpBackToStart and startPosition then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = startPosition
-        end
-    end
+    OrionLib:MakeNotification({
+        Name = "Arrêt",
+        Content = "AutoFarm désactivé ou sac plein.",
+        Image = "rbxassetid://4483345998",
+        Time = 5
+    })
 end
 
--- Bibliothèque UI
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/library.lua", true))()
-local Window = Library:CreateWindow("MM2 | Lunaris")
+-- --- CRÉATION DE L'INTERFACE (TABS) ---
 
-Window:Section("Bêta")
+local MainTab = Window:MakeTab({
+    Name = "Farm",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- Toggle pour l'autofarm
-Window:Toggle("Auto Candy", {}, function(state)
-    task.spawn(function()
-        Settings.AutoFarm = state
-        if not state then
+local MiscTab = Window:MakeTab({
+    Name = "Misc",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- --- LOGIQUE AUTOFARM ---
+
+MainTab:AddToggle({
+    Name = "Auto Candy / Coins",
+    Default = false,
+    Callback = function(Value)
+        Settings.AutoFarm = Value
+        
+        if not Value then
             AutoFarmCleanup()
             return
         end
 
-        local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        startPosition = humanoidRootPart and humanoidRootPart.CFrame or Spawn.CFrame
-
-        while Settings.AutoFarm do
-            if not LocalPlayer:GetAttribute("Alive") then
-                AutoFarmCleanup()
-                break
+        task.spawn(function()
+            local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                startPosition = humanoidRootPart.CFrame
+            elseif Spawn then
+                startPosition = Spawn.CFrame
             end
-            
-            -- === MODIFICATION POUR LA RÉINITIALISATION ===
-            if IsBagFull() then
-                print("Sac plein, réinitialisation du personnage.")
-                LocalPlayer:LoadCharacter() -- Ajout de cette ligne pour réinitialiser
-                task.wait(3) -- Petite pause pour laisser le temps au personnage de réapparaître
-                AutoFarmCleanup()
-                break
-            end
-            -- === FIN DE LA MODIFICATION ===
 
-            local candy = GetNearestCandy()
-
-            if candy then
-                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if not hrp then task.wait(0.1); continue end
-
-                local targetPos = SafeGetPos(candy)
-                if not targetPos then task.wait(0.1); continue end
-
-                local okDist, distance = pcall(function() return (hrp.Position - targetPos).Magnitude end)
-                local duration = okDist and math.max(0.04, distance / math.max(1, Settings.WalkSpeed)) or 0.1
-
-                local startPos = hrp.Position
-                local t0 = tick()
-                local movementCompleted = true
-
-                while true do
-                    if not IsAlive(candy) then
-                        movementCompleted = false
-                        break
-                    end
-
-                    local elapsed = tick() - t0
-                    local alpha = math.clamp(elapsed / duration, 0, 1)
-                    hrp.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha))
-
-                    if alpha >= 1 then
-                        break
-                    end
+            while Settings.AutoFarm do
+                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") or LocalPlayer.Character.Humanoid.Health <= 0 then
+                    -- Si mort, on attend le respawn
+                    task.wait(1)
+                    continue
+                end
+                
+                -- Vérification sac plein
+                if IsBagFull() then
+                    print("Sac plein ! Reset...")
+                    -- Utilisation de BreakJoints pour un reset plus propre que LoadCharacter
+                    LocalPlayer.Character:BreakJoints()
+                    task.wait(5) -- Attendre le respawn
                     
-                    RunService.Heartbeat:Wait()
+                    -- Réinitialiser la table des pièces touchées
+                    table.clear(touchedCoins)
+                    
+                    -- Si on veut arrêter après un sac plein, décommenter ci-dessous:
+                    -- AutoFarmCleanup() 
+                    -- break
                 end
 
-                if movementCompleted then
-                    local tpart = GetTouchPart(candy)
-                    if tpart and IsAlive(tpart) then
-                        FireTouchTransmitter(tpart)
-                        task.wait(0.08)
+                local candy = GetNearestCandy()
+
+                if candy then
+                    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not hrp then task.wait(0.1); continue end
+
+                    local targetPos = SafeGetPos(candy)
+                    if not targetPos then task.wait(0.1); continue end
+
+                    local distance = (hrp.Position - targetPos).Magnitude
+                    
+                    -- Calcul de vitesse (Tween)
+                    local speed = math.max(10, Settings.WalkSpeed)
+                    local time = distance / speed
+                    
+                    if time < 0.05 then time = 0.05 end
+
+                    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+                    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                    
+                    tween:Play()
+                    
+                    -- Attendre la fin du tween ou la disparition de la pièce
+                    local t0 = tick()
+                    while tick() - t0 < time do
+                        if not IsAlive(candy) or not Settings.AutoFarm then 
+                            tween:Cancel()
+                            break 
+                        end
+                        RunService.Heartbeat:Wait()
                     end
-                    touchedCoins[candy] = true
-                else
-                    task.wait(0.01)
-                end
-            else
-                task.wait(0.35)
-            end
-        end
-    end)
-end)
 
--- Bouton YouTube
-Window:Button("YouTube: Lunaris", function()
-    task.spawn(function()
+                    -- Collecte
+                    if IsAlive(candy) then
+                        local tpart = GetTouchPart(candy)
+                        FireTouchTransmitter(tpart)
+                        touchedCoins[candy] = true
+                        task.wait(0.05) -- Petit délai pour éviter le crash
+                    end
+                else
+                    -- Pas de bonbon trouvé, on attend un peu
+                    task.wait(0.5)
+                end
+            end
+        end)
+    end    
+})
+
+MainTab:AddSlider({
+    Name = "Vitesse de Farm (WalkSpeed)",
+    Min = 16,
+    Max = 100,
+    Default = 25,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "S",
+    Callback = function(Value)
+        Settings.WalkSpeed = Value
+    end    
+})
+
+MainTab:AddSlider({
+    Name = "Rayon de recherche",
+    Min = 50,
+    Max = 500,
+    Default = 120,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 10,
+    ValueName = "Studs",
+    Callback = function(Value)
+        Settings.SearchRadius = Value
+    end    
+})
+
+-- --- MISC ---
+
+MiscTab:AddButton({
+    Name = "Anti-AFK",
+    Callback = function()
+        LocalPlayer.Idled:Connect(function()
+            VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+            task.wait(1)
+            VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
+            OrionLib:MakeNotification({Name = "Anti-AFK", Content = "AFK évité !", Time = 3})
+        end)
+        OrionLib:MakeNotification({Name = "Succès", Content = "Anti-AFK activé.", Time = 5})
+    end    
+})
+
+MiscTab:AddButton({
+    Name = "Copier lien YouTube",
+    Callback = function()
         if setclipboard then
             setclipboard("https://youtube.com/@esohasl")
+            OrionLib:MakeNotification({Name = "YouTube", Content = "Lien copié dans le presse-papier.", Time = 5})
         end
-    end)
-end)
+    end    
+})
 
--- Anti-AFK
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-    task.wait()
-    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-end)
-
-GetContainer()
+OrionLib:Init()
