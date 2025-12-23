@@ -5,283 +5,255 @@ local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
-local Spawn = Workspace.Lobby.Spawns.SpawnLocation
 
+-- --- CHARGEMENT DE LA LIBRAIRIE RAYFIELD (Celle-ci fonctionne 100%) ---
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "MM2 | Lunaris (Fixed)",
+   LoadingTitle = "Lunaris Interface",
+   LoadingSubtitle = "by OpenAI",
+   ConfigurationSaving = {
+      Enabled = false,
+      FolderName = nil,
+      FileName = "LunarisConfig"
+   },
+   KeySystem = false,
+})
+
+-- --- VARIABLES GLOBALES ---
 getgenv().Settings = {
-    AutoFarm = false,
-    WalkSpeed = 25,
-    SearchRadius = 120,
-    TpBackToStart = true,
+    AutoFarm = false,
+    WalkSpeed = 16,
+    SearchRadius = 300,
+    FarmSpeed = 0 -- 0 = Instantané, >0 = Tween
 }
 
 local touchedCoins = {}
-local startPosition = nil
 local coinContainer = nil
 
--- helpers sûrs
-local function IsAlive(inst)
-    return inst and inst.Parent ~= nil
+-- --- FONCTIONS UTILITAIRES ---
+
+local function IsAlive(model)
+    return model and model:FindFirstChild("Humanoid") and model.Humanoid.Health > 0
 end
 
-local function SafeGetPos(inst)
-    if not IsAlive(inst) then return nil end
-    if inst:IsA("BasePart") then
-        return inst.Position
-    elseif inst:IsA("Model") then
-        local ok, cf = pcall(function() return inst:GetPivot() end)
-        if ok and cf then
-            return cf.Position
-        else
-            local pp = inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart")
-            return pp and pp.Position or nil
-        end
-    end
-    return nil
-end
-
-local function GetTouchPart(inst)
-    if not IsAlive(inst) then return nil end
-    if inst:IsA("BasePart") then return inst end
-    if inst:IsA("Model") then
-        return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart")
-    end
-    return nil
-end
-
--- Trouver le conteneur des jetons
 local function GetContainer()
-    if coinContainer and coinContainer.Parent then return coinContainer end
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" then
-            coinContainer = v
-            return v
-        end
-    end
-    return nil
+    if coinContainer and coinContainer.Parent then return coinContainer end
+    local potentialNames = {"CoinContainer", "ConfettiContainer", "Drops", "CandyContainer"}
+    for _, name in pairs(potentialNames) do
+        local found = Workspace:FindFirstChild(name, true)
+        if found then
+            coinContainer = found
+            return found
+        end
+    end
+    for _, v in ipairs(Workspace:GetChildren()) do
+        if v.Name == "Normal" and v:FindFirstChild("Coin") then
+            return v
+        end
+    end
+    return nil
 end
 
--- Trouver le jeton le plus proche non collecté et encore présent
-local function GetNearestCandy()
-    local container = GetContainer()
-    if not container then return nil end
-
-    local nearestCandy = nil
-    local currentDistance = Settings.SearchRadius
-
-    for _, v in ipairs(container:GetChildren()) do
-        if touchedCoins[v] then continue end
-        if not IsAlive(v) then continue end
-        local pos = SafeGetPos(v)
-        if not pos then continue end
-        local ok, dist = pcall(function()
-            return LocalPlayer:DistanceFromCharacter(pos)
-        end)
-        if ok and dist < currentDistance then
-            currentDistance = dist
-            nearestCandy = v
-        end
-    end
-    return nearestCandy
-end
-
--- Simuler l'interaction (protégé)
-local function FireTouchTransmitter(touchParent)
-    local character = LocalPlayer.Character
-    local part = character and character:FindFirstChildOfClass("Part")
-    if part and touchParent and IsAlive(touchParent) and typeof(firetouchinterest) == "function" then
-        pcall(function()
-            firetouchinterest(touchParent, part, 0)
-            task.wait(0.06)
-            firetouchinterest(touchParent, part, 1)
-        end)
-    end
-end
-
--- Vérifier si le sac est plein
+-- --- FONCTION ANTI-CRASH (BAG FULL) ---
 local function IsBagFull()
-    local gui = LocalPlayer.PlayerGui:WaitForChild("MainGUI", 5)
-    if not gui then return false end
-    local ok, coinFrame = pcall(function()
-        return gui:WaitForChild("Game").CoinBags.Container.SnowToken.CurrencyFrame.Icon.Coins
-    end)
-    if not ok or not coinFrame then return false end
-    local price = LocalPlayer:GetAttribute("Elite") and "50" or "40"
-    return tostring(coinFrame.Text) == price
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
+    if not playerGui then return false end
+
+    -- Gestion Majuscule/Minuscule pour MainGUI
+    local gui = playerGui:FindFirstChild("MainGUI") or playerGui:FindFirstChild("MainGui")
+    if not gui then return false end
+
+    local bagFull = false
+    
+    local success, _ = pcall(function()
+        -- Recherche sécurisée du conteneur de pièces
+        local gameFrame = gui:FindFirstChild("Game")
+        if gameFrame then
+            local container = gameFrame.CoinBags.Container
+            for _, currencyFrame in pairs(container:GetChildren()) do
+                if currencyFrame:IsA("Frame") and currencyFrame:FindFirstChild("CurrencyFrame") then
+                    local textLabel = currencyFrame.CurrencyFrame.Icon.Coins
+                    local currentAmt = tonumber(textLabel.Text) or 0
+                    local maxAmt = LocalPlayer:GetAttribute("Elite") and 50 or 40
+                    
+                    if currentAmt >= maxAmt then
+                        bagFull = true
+                    end
+                end
+            end
+        end
+    end)
+
+    return bagFull
 end
 
--- Nettoyer les ressources
-local function AutoFarmCleanup()
-    Settings.AutoFarm = false
-    table.clear(touchedCoins)
-    if Settings.TpBackToStart and startPosition then
-        local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = startPosition
-        end
-    end
+local function FireTouch(part)
+    local character = LocalPlayer.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if hrp and part then
+        if firetouchinterest then
+            firetouchinterest(hrp, part, 0)
+            task.wait()
+            firetouchinterest(hrp, part, 1)
+        else
+            local oldPos = hrp.CFrame
+            hrp.CFrame = part.CFrame
+            task.wait(0.1)
+            hrp.CFrame = oldPos
+        end
+    end
 end
 
--- Bibliothèque UI
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/library.lua", true))()
-local Window = Library:CreateWindow("MM2 | Lunaris")
+-- --- CRÉATION DES ONGLETS ---
 
-Window:Section("Bêta")
+local MainTab = Window:CreateTab("Auto Farm", 4483362458) -- Icone Farm
+local MiscTab = Window:CreateTab("Divers", 4483362458)
 
--- Toggle pour l'autofarm
-Window:Toggle("Auto Candy", {}, function(state)
-    task.spawn(function()
-        Settings.AutoFarm = state
-        if not state then
-            AutoFarmCleanup()
-            return
-        end
+-- --- SECTION FARM ---
 
-        local humanoidRootPart = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        startPosition = humanoidRootPart and humanoidRootPart.CFrame or Spawn.CFrame
+MainTab:CreateToggle({
+   Name = "Auto Farm Candy/Coins",
+   CurrentValue = false,
+   Flag = "AutoFarm",
+   Callback = function(Value)
+        Settings.AutoFarm = Value
+        
+        if Value then
+            task.spawn(function()
+                while Settings.AutoFarm do
+                    task.wait()
+                    local character = LocalPlayer.Character
+                    if not IsAlive(character) then 
+                        task.wait(1)
+                        continue 
+                    end
 
-        while Settings.AutoFarm do
-            if not LocalPlayer:GetAttribute("Alive") then
-                AutoFarmCleanup()
-                break
-            end
-            
-            -- === MODIFICATION POUR LA RÉINITIALISATION ===
-            if IsBagFull() then
-                print("Sac plein, réinitialisation du personnage.")
-                LocalPlayer:LoadCharacter() -- Ajout de cette ligne pour réinitialiser
-                task.wait(3) -- Petite pause pour laisser le temps au personnage de réapparaître
-                AutoFarmCleanup()
-                break
-            end
-            -- === FIN DE LA MODIFICATION ===
+                    -- Vérification du sac plein
+                    if IsBagFull() then
+                        Rayfield:Notify({
+                           Title = "Sac Plein",
+                           Content = "Réinitialisation du personnage...",
+                           Duration = 3,
+                           Image = 4483362458,
+                        })
+                        character:BreakJoints()
+                        
+                        local respawnStart = tick()
+                        repeat task.wait(1) until IsAlive(LocalPlayer.Character) or tick() - respawnStart > 10
+                        task.wait(1.5)
+                        table.clear(touchedCoins)
+                        continue
+                    end
 
-            local candy = GetNearestCandy()
+                    -- Recherche des pièces
+                    local container = GetContainer()
+                    if not container then continue end
 
-            if candy then
-                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if not hrp then task.wait(0.1); continue end
+                    local hrp = character.HumanoidRootPart
+                    local nearest = nil
+                    local minDst = Settings.SearchRadius
 
-                local targetPos = SafeGetPos(candy)
-                if not targetPos then task.wait(0.1); continue end
+                    for _, coin in ipairs(container:GetChildren()) do
+                        if coin:IsA("BasePart") and coin.Transparency < 1 and not touchedCoins[coin] then
+                            local dst = (hrp.Position - coin.Position).Magnitude
+                            if dst < minDst then
+                                minDst = dst
+                                nearest = coin
+                            end
+                        end
+                    end
 
-                local okDist, distance = pcall(function() return (hrp.Position - targetPos).Magnitude end)
-                local duration = okDist and math.max(0.04, distance / math.max(1, Settings.WalkSpeed)) or 0.1
+                    -- Mouvement
+                    if nearest then
+                        local coinPos = nearest.Position
+                        
+                        if Settings.WalkSpeed > 0 then
+                            -- Tween
+                            local time = (hrp.Position - coinPos).Magnitude / math.max(16, Settings.WalkSpeed)
+                            local ti = TweenInfo.new(math.max(time, 0.05), Enum.EasingStyle.Linear)
+                            local tween = TweenService:Create(hrp, ti, {CFrame = CFrame.new(coinPos)})
+                            tween:Play()
+                            
+                            local t0 = tick()
+                            local reached = false
+                            while tick() - t0 < time do
+                                if not Settings.AutoFarm or not nearest.Parent then 
+                                    tween:Cancel()
+                                    break 
+                                end
+                                if (hrp.Position - coinPos).Magnitude < 3 then
+                                    reached = true
+                                    break
+                                end
+                                RunService.Heartbeat:Wait()
+                            end
+                        else
+                            hrp.CFrame = CFrame.new(coinPos)
+                        end
 
-                local startPos = hrp.Position
-                local t0 = tick()
-                local movementCompleted = true
+                        FireTouch(nearest)
+                        touchedCoins[nearest] = true
+                        task.wait(0.15)
+                    end
+                end
+            end)
+        else
+            -- Annuler les tweens si on désactive
+            for _, t in pairs(TweenService:GetTweens()) do t:Cancel() end
+        end
+   end,
+})
 
-                while true do
-                    if not IsAlive(candy) then
-                        movementCompleted = false
-                        break
-                    end
+MainTab:CreateSlider({
+   Name = "Vitesse de Farm",
+   Range = {16, 300},
+   Increment = 1,
+   Suffix = "Speed",
+   CurrentValue = 25,
+   Flag = "SpeedSlider",
+   Callback = function(Value)
+        Settings.WalkSpeed = Value
+   end,
+})
 
-                    local elapsed = tick() - t0
-                    local alpha = math.clamp(elapsed / duration, 0, 1)
-                    hrp.CFrame = CFrame.new(startPos:Lerp(targetPos, alpha))
+MainTab:CreateSlider({
+   Name = "Rayon de recherche",
+   Range = {50, 2000},
+   Increment = 50,
+   Suffix = "Studs",
+   CurrentValue = 300,
+   Flag = "RadiusSlider",
+   Callback = function(Value)
+        Settings.SearchRadius = Value
+   end,
+})
 
-                    if alpha >= 1 then
-                        break
-                    end
-                    
-                    RunService.Heartbeat:Wait()
-                end
+-- --- SECTION DIVERS ---
 
-                if movementCompleted then
-                    local tpart = GetTouchPart(candy)
-                    if tpart and IsAlive(tpart) then
-                        FireTouchTransmitter(tpart)
-                        task.wait(0.08)
-                    end
-                    touchedCoins[candy] = true
-                else
-                    task.wait(0.01)
-                end
-            else
-                task.wait(0.35)
-            end
-        end
-    end)
-end)
+MiscTab:CreateButton({
+   Name = "Activer Anti-AFK",
+   Callback = function()
+        LocalPlayer.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+        Rayfield:Notify({
+           Title = "Succès",
+           Content = "Anti-AFK activé !",
+           Duration = 3,
+           Image = 4483362458,
+        })
+   end,
+})
 
--- Bouton YouTube
-Window:Button("YouTube: Lunaris", function()
-    task.spawn(function()
-        if setclipboard then
-            setclipboard("https://youtube.com/@esohasl")
-        end
-    end)
-end)
-
--- Anti-AFK
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-    task.wait()
-    VirtualUser:Button2Up(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)
-end)
-
-GetContainer() Pourquoi ce script ne marche pas voici la librairy -- forked by SharKK | SharKK#1954
-local library = {count = 0, queue = {}, callbacks = {}, rainbowtable = {}, toggled = true, binds = {}};
-local defaults; 
-do
-    local dragger = {}; 
-    do
-        local mouse        = game:GetService("Players").LocalPlayer:GetMouse();
-        local inputService = game:GetService('UserInputService');
-        local heartbeat    = game:GetService("RunService").Heartbeat;
-        -- // credits to Ririchi / Inori for this cute drag function :)
-        function dragger.new(frame)
-            local s, event = pcall(function()
-                return frame.MouseEnter
-            end)
-    
-            if s then
-                frame.Active = true;
-                
-                event:connect(function()
-                    local input = frame.InputBegan:connect(function(key)
-                        if key.UserInputType == Enum.UserInputType.MouseButton1 then
-                            local objectPosition = Vector2.new(mouse.X - frame.AbsolutePosition.X, mouse.Y - frame.AbsolutePosition.Y);
-                            while heartbeat:wait() and inputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
-                                pcall(function()
-                                    frame:TweenPosition(UDim2.new(0, mouse.X - objectPosition.X, 0, mouse.Y - objectPosition.Y), 'Out', 'Linear', 0.1, true);
-                                end)
-                            end
-                        end
-                    end)
-    
-                    local leave;
-                    leave = frame.MouseLeave:connect(function()
-                        input:disconnect();
-                        leave:disconnect();
-                    end)
-                end)
-            end
-        end
-        game:GetService('UserInputService').InputBegan:connect(function(key, gpe)
-            if (not gpe) then
-                if key.KeyCode == Enum.KeyCode.RightControl then
-                    library.toggled = not library.toggled;
-                    for i, data in next, library.queue do
-                        local pos = (library.toggled and data.p or UDim2.new(-1, 0, -0.5,0))
-                        data.w:TweenPosition(pos, (library.toggled and 'Out' or 'In'), 'Quad', 0.15, true)
-                        wait();
-                    end
-                end
-            end
-        end)
-    end
-    
-    defaults = {
-        -- Thème lunaire moderne noir-violet SharKK
-        topcolor = Color3.fromRGB(15, 10, 25);
-        secondcolor = Color3.fromRGB(25, 15, 40);
-        outlinecolor = Color3.fromRGB(80, 50, 120);
-        bgcolor = Color3.fromRGB(20, 12, 30);
-        buttoncolor = Color3.fromRGB(35, 20, 55);
-        buttonoutlinecolor = Color3.fromRGB(70, 40, 110);
-    };
-    
-    return library
-}
+MiscTab:CreateButton({
+   Name = "Copier lien YouTube",
+   Callback = function()
+        if setclipboard then
+            setclipboard("https://youtube.com/@esohasl")
+        end
+   end,
+})
