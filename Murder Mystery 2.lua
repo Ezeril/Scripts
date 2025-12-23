@@ -6,41 +6,44 @@ local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- --- CHARGEMENT DE LA LIBRAIRIE RAYFIELD (Celle-ci fonctionne 100%) ---
+-- --- CHARGEMENT DE LA LIBRAIRIE RAYFIELD ---
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "MM2 | Lunaris (Fixed)",
-   LoadingTitle = "Lunaris Interface",
-   LoadingSubtitle = "by OpenAI",
+   Name = "MM2 | Winter Event Farm",
+   LoadingTitle = "Lunaris Updated",
+   LoadingSubtitle = "Auto Farm Tokens",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = nil,
-      FileName = "LunarisConfig"
+      FileName = "LunarisWinter"
    },
    KeySystem = false,
 })
 
--- --- VARIABLES GLOBALES ---
+-- --- VARIABLES ---
 getgenv().Settings = {
     AutoFarm = false,
     WalkSpeed = 16,
-    SearchRadius = 300,
-    FarmSpeed = 0 -- 0 = Instantané, >0 = Tween
+    SearchRadius = 500,
+    FarmSpeed = 0
 }
 
 local touchedCoins = {}
 local coinContainer = nil
 
--- --- FONCTIONS UTILITAIRES ---
+-- --- FONCTIONS ---
 
 local function IsAlive(model)
     return model and model:FindFirstChild("Humanoid") and model.Humanoid.Health > 0
 end
 
+-- Fonction améliorée pour trouver le conteneur, peu importe le nom (CoinContainer, Drops, etc.)
 local function GetContainer()
     if coinContainer and coinContainer.Parent then return coinContainer end
-    local potentialNames = {"CoinContainer", "ConfettiContainer", "Drops", "CandyContainer"}
+    
+    -- 1. Chercher par nom standard
+    local potentialNames = {"CoinContainer", "ConfettiContainer", "Drops", "CandyContainer", "TokenContainer"}
     for _, name in pairs(potentialNames) do
         local found = Workspace:FindFirstChild(name, true)
         if found then
@@ -48,37 +51,40 @@ local function GetContainer()
             return found
         end
     end
-    for _, v in ipairs(Workspace:GetChildren()) do
-        if v.Name == "Normal" and v:FindFirstChild("Coin") then
-            return v
+
+    -- 2. Chercher dynamiquement un dossier qui contient des "SnowToken"
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if child:IsA("Model") or child:IsA("Folder") then
+            if child:FindFirstChild("SnowToken") or child:FindFirstChild("Coin") then
+                coinContainer = child
+                return child
+            end
         end
     end
+    
     return nil
 end
 
--- --- FONCTION ANTI-CRASH (BAG FULL) ---
+-- Fonction universelle pour lire le sac (Candy, Token, Coins...)
 local function IsBagFull()
     local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
     if not playerGui then return false end
 
-    -- Gestion Majuscule/Minuscule pour MainGUI
     local gui = playerGui:FindFirstChild("MainGUI") or playerGui:FindFirstChild("MainGui")
     if not gui then return false end
 
     local bagFull = false
     
-    local success, _ = pcall(function()
-        -- Recherche sécurisée du conteneur de pièces
-        local gameFrame = gui:FindFirstChild("Game")
-        if gameFrame then
-            local container = gameFrame.CoinBags.Container
-            for _, currencyFrame in pairs(container:GetChildren()) do
-                if currencyFrame:IsA("Frame") and currencyFrame:FindFirstChild("CurrencyFrame") then
-                    local textLabel = currencyFrame.CurrencyFrame.Icon.Coins
-                    local currentAmt = tonumber(textLabel.Text) or 0
-                    local maxAmt = LocalPlayer:GetAttribute("Elite") and 50 or 40
-                    
-                    if currentAmt >= maxAmt then
+    pcall(function()
+        -- On scanne tous les dossiers dans CoinBags (SnowToken, Candy, etc.)
+        local container = gui.Game.CoinBags.Container
+        for _, currencyFolder in pairs(container:GetChildren()) do
+            if currencyFolder:FindFirstChild("CurrencyFrame") then
+                local label = currencyFolder.CurrencyFrame.Icon.Coins
+                if label then
+                    local current = tonumber(label.Text) or 0
+                    local max = LocalPlayer:GetAttribute("Elite") and 50 or 40
+                    if current >= max then
                         bagFull = true
                     end
                 end
@@ -94,28 +100,33 @@ local function FireTouch(part)
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     
     if hrp and part then
-        if firetouchinterest then
-            firetouchinterest(hrp, part, 0)
-            task.wait()
-            firetouchinterest(hrp, part, 1)
-        else
-            local oldPos = hrp.CFrame
-            hrp.CFrame = part.CFrame
-            task.wait(0.1)
-            hrp.CFrame = oldPos
+        -- On essaie de toucher le PrimaryPart si c'est un modèle
+        local target = part
+        if part:IsA("Model") then
+            target = part.PrimaryPart or part:FindFirstChildWhichIsA("BasePart")
+        end
+
+        if target then
+            if firetouchinterest then
+                firetouchinterest(hrp, target, 0)
+                task.wait()
+                firetouchinterest(hrp, target, 1)
+            else
+                local oldPos = hrp.CFrame
+                hrp.CFrame = target.CFrame
+                task.wait(0.1)
+                hrp.CFrame = oldPos
+            end
         end
     end
 end
 
--- --- CRÉATION DES ONGLETS ---
+-- --- INTERFACE ---
 
-local MainTab = Window:CreateTab("Auto Farm", 4483362458) -- Icone Farm
-local MiscTab = Window:CreateTab("Divers", 4483362458)
-
--- --- SECTION FARM ---
+local MainTab = Window:CreateTab("Farm", 4483362458)
 
 MainTab:CreateToggle({
-   Name = "Auto Farm Candy/Coins",
+   Name = "Auto Farm Snow Tokens",
    CurrentValue = false,
    Flag = "AutoFarm",
    Callback = function(Value)
@@ -126,29 +137,22 @@ MainTab:CreateToggle({
                 while Settings.AutoFarm do
                     task.wait()
                     local character = LocalPlayer.Character
-                    if not IsAlive(character) then 
-                        task.wait(1)
-                        continue 
-                    end
+                    if not IsAlive(character) then task.wait(1) continue end
 
-                    -- Vérification du sac plein
+                    -- 1. Sac Plein ?
                     if IsBagFull() then
-                        Rayfield:Notify({
-                           Title = "Sac Plein",
-                           Content = "Réinitialisation du personnage...",
-                           Duration = 3,
-                           Image = 4483362458,
-                        })
+                        Rayfield:Notify({Title = "Sac Plein", Content = "Reset...", Duration = 3})
                         character:BreakJoints()
                         
-                        local respawnStart = tick()
-                        repeat task.wait(1) until IsAlive(LocalPlayer.Character) or tick() - respawnStart > 10
-                        task.wait(1.5)
+                        -- Attente respawn
+                        local t = tick()
+                        repeat task.wait(1) until IsAlive(LocalPlayer.Character) or tick() - t > 10
+                        task.wait(2)
                         table.clear(touchedCoins)
                         continue
                     end
 
-                    -- Recherche des pièces
+                    -- 2. Recherche
                     local container = GetContainer()
                     if not container then continue end
 
@@ -156,104 +160,67 @@ MainTab:CreateToggle({
                     local nearest = nil
                     local minDst = Settings.SearchRadius
 
-                    for _, coin in ipairs(container:GetChildren()) do
-                        if coin:IsA("BasePart") and coin.Transparency < 1 and not touchedCoins[coin] then
-                            local dst = (hrp.Position - coin.Position).Magnitude
-                            if dst < minDst then
-                                minDst = dst
-                                nearest = coin
+                    for _, item in ipairs(container:GetChildren()) do
+                        -- On accepte tout (Model ou Part) tant que c'est pas déjà touché
+                        if not touchedCoins[item] and (item:IsA("BasePart") or item:IsA("Model")) then
+                            
+                            -- Récupérer la position centrale de l'item
+                            local itemPos = nil
+                            if item:IsA("BasePart") then itemPos = item.Position
+                            elseif item:IsA("Model") then itemPos = item:GetPivot().Position end
+
+                            if itemPos then
+                                local dst = (hrp.Position - itemPos).Magnitude
+                                if dst < minDst then
+                                    minDst = dst
+                                    nearest = item
+                                end
                             end
                         end
                     end
 
-                    -- Mouvement
+                    -- 3. Mouvement
                     if nearest then
-                        local coinPos = nearest.Position
+                        local targetPos = nearest:IsA("Model") and nearest:GetPivot().Position or nearest.Position
                         
-                        if Settings.WalkSpeed > 0 then
-                            -- Tween
-                            local time = (hrp.Position - coinPos).Magnitude / math.max(16, Settings.WalkSpeed)
-                            local ti = TweenInfo.new(math.max(time, 0.05), Enum.EasingStyle.Linear)
-                            local tween = TweenService:Create(hrp, ti, {CFrame = CFrame.new(coinPos)})
-                            tween:Play()
-                            
-                            local t0 = tick()
-                            local reached = false
-                            while tick() - t0 < time do
-                                if not Settings.AutoFarm or not nearest.Parent then 
-                                    tween:Cancel()
-                                    break 
-                                end
-                                if (hrp.Position - coinPos).Magnitude < 3 then
-                                    reached = true
-                                    break
-                                end
-                                RunService.Heartbeat:Wait()
-                            end
-                        else
-                            hrp.CFrame = CFrame.new(coinPos)
+                        -- Tween rapide
+                        local speed = math.max(16, Settings.WalkSpeed)
+                        local time = (hrp.Position - targetPos).Magnitude / speed
+                        local ti = TweenInfo.new(math.max(time, 0.05), Enum.EasingStyle.Linear)
+                        local tween = TweenService:Create(hrp, ti, {CFrame = CFrame.new(targetPos)})
+                        
+                        tween:Play()
+                        local startT = tick()
+                        while tick() - startT < time do
+                            if not Settings.AutoFarm or not nearest.Parent then tween:Cancel() break end
+                            RunService.Heartbeat:Wait()
                         end
 
                         FireTouch(nearest)
                         touchedCoins[nearest] = true
-                        task.wait(0.15)
+                        task.wait(0.1)
                     end
                 end
             end)
         else
-            -- Annuler les tweens si on désactive
+            -- Stop tween
             for _, t in pairs(TweenService:GetTweens()) do t:Cancel() end
         end
    end,
 })
 
 MainTab:CreateSlider({
-   Name = "Vitesse de Farm",
-   Range = {16, 300},
+   Name = "Vitesse (WalkSpeed)",
+   Range = {16, 100},
    Increment = 1,
-   Suffix = "Speed",
    CurrentValue = 25,
-   Flag = "SpeedSlider",
-   Callback = function(Value)
-        Settings.WalkSpeed = Value
-   end,
+   Callback = function(Value) Settings.WalkSpeed = Value end,
 })
 
 MainTab:CreateSlider({
    Name = "Rayon de recherche",
-   Range = {50, 2000},
+   Range = {100, 2000},
    Increment = 50,
-   Suffix = "Studs",
-   CurrentValue = 300,
-   Flag = "RadiusSlider",
-   Callback = function(Value)
-        Settings.SearchRadius = Value
-   end,
-})
-
--- --- SECTION DIVERS ---
-
-MiscTab:CreateButton({
-   Name = "Activer Anti-AFK",
-   Callback = function()
-        LocalPlayer.Idled:Connect(function()
-            VirtualUser:CaptureController()
-            VirtualUser:ClickButton2(Vector2.new())
-        end)
-        Rayfield:Notify({
-           Title = "Succès",
-           Content = "Anti-AFK activé !",
-           Duration = 3,
-           Image = 4483362458,
-        })
-   end,
-})
-
-MiscTab:CreateButton({
-   Name = "Copier lien YouTube",
-   Callback = function()
-        if setclipboard then
-            setclipboard("https://youtube.com/@esohasl")
-        end
-   end,
+   CurrentValue = 500,
+   Callback = function(Value) Settings.SearchRadius = Value end,
 })
