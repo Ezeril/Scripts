@@ -9,10 +9,9 @@ if game.CoreGui:FindFirstChild("LunaMoonHub") then
 end
 
 -- SERVICES
-local Players        = game:GetService("Players")
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService   = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
@@ -20,30 +19,29 @@ local events = ReplicatedStorage:WaitForChild("events")
 -- ============================================================
 --  GLOBALS
 -- ============================================================
-_G.AutoCollect    = false
-_G.AutoUpload     = false
-_G.AutoClaim      = false
-_G.AutoRebirth    = false
-_G.AutoUpgrades   = false
-_G.AutoBuy        = false
-_G.AutoSubmit     = false
-_G.AutoBulkHatch  = false
-_G.AutoFloorCycle = false
+_G.AutoCollect      = false
+_G.AutoUpload       = false
+_G.AutoClaim        = false
+_G.AutoSubmit       = false
+_G.AutoUpgrades     = false
+_G.AutoBuy          = false
+_G.AutoBulkHatch    = false
+_G.AutoFloorCycle   = false
 _G.SmartAutoRebirth = false
 _G.SelectedYoutuber = ""
-_G.WalkSpeed      = 16
+_G.WalkSpeed        = 16
 
 -- ============================================================
---  COLOR PALETTE  (LunaMoon Dark + Silver)
+--  PALETTE  (LunaMoon Dark + Silver-Purple)
 -- ============================================================
 local C = {
     bg         = Color3.fromRGB(12,  12,  18),
     sidebar    = Color3.fromRGB(18,  18,  28),
     panel      = Color3.fromRGB(22,  22,  34),
     card       = Color3.fromRGB(30,  30,  46),
-    cardHover  = Color3.fromRGB(38,  38,  58),
-    accent     = Color3.fromRGB(180, 180, 210),  -- silver-purple
-    accentGlow = Color3.fromRGB(140, 120, 220),  -- purple
+    cardHover  = Color3.fromRGB(40,  40,  62),
+    accent     = Color3.fromRGB(180, 180, 210),
+    accentGlow = Color3.fromRGB(140, 120, 220),
     text       = Color3.fromRGB(240, 240, 255),
     subtext    = Color3.fromRGB(140, 140, 170),
     green      = Color3.fromRGB(80,  220, 130),
@@ -61,358 +59,379 @@ local function corner(parent, radius)
     return c
 end
 
-local function padding(parent, t, b, l, r)
-    local p = Instance.new("UIPadding", parent)
-    p.PaddingTop    = UDim.new(0, t or 0)
-    p.PaddingBottom = UDim.new(0, b or 0)
-    p.PaddingLeft   = UDim.new(0, l or 0)
-    p.PaddingRight  = UDim.new(0, r or 0)
-end
-
 local function stroke(parent, color, thickness)
     local s = Instance.new("UIStroke", parent)
-    s.Color     = color or C.accentGlow
-    s.Thickness = thickness or 1
-    s.Transparency = 0.6
+    s.Color        = color or C.accentGlow
+    s.Thickness    = thickness or 1
+    s.Transparency = 0.55
     return s
 end
 
-local function label(parent, text, size, color, font, xAlign)
-    local l = Instance.new("TextLabel", parent)
-    l.BackgroundTransparency = 1
-    l.Text = text
-    l.TextSize = size or 13
-    l.TextColor3 = color or C.text
-    l.Font = font or Enum.Font.GothamSemibold
-    l.TextXAlignment = xAlign or Enum.TextXAlignment.Left
-    l.Size = UDim2.new(1, 0, 0, size and size + 6 or 20)
-    return l
+local function tween(obj, props, t, style, dir)
+    TweenService:Create(
+        obj,
+        TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out),
+        props
+    ):Play()
 end
 
-local function tween(obj, props, t, style, dir)
-    TweenService:Create(obj, TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props):Play()
+local function applyPadding(parent, top, bottom, left, right)
+    local p = Instance.new("UIPadding", parent)
+    p.PaddingTop    = UDim.new(0, top    or 0)
+    p.PaddingBottom = UDim.new(0, bottom or 0)
+    p.PaddingLeft   = UDim.new(0, left   or 0)
+    p.PaddingRight  = UDim.new(0, right  or 0)
 end
 
 -- ============================================================
 --  ROOT GUI
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LunaMoonHub"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = game.CoreGui
+ScreenGui.Name            = "LunaMoonHub"
+ScreenGui.ResetOnSpawn    = false
+ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent          = game.CoreGui
 
 -- ============================================================
---  OUTER SHADOW
+--  DROP SHADOW
 -- ============================================================
 local Shadow = Instance.new("ImageLabel", ScreenGui)
-Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+Shadow.AnchorPoint          = Vector2.new(0.5, 0.5)
 Shadow.BackgroundTransparency = 1
-Shadow.Position = UDim2.new(0.5, 0, 0.5, 2)
-Shadow.Size = UDim2.new(0, 600, 0, 420)
-Shadow.Image = "rbxassetid://6015897843"
-Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-Shadow.ImageTransparency = 0.5
-Shadow.ScaleType = Enum.ScaleType.Slice
-Shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+Shadow.Position             = UDim2.new(0.5, 0, 0.5, 4)
+Shadow.Size                 = UDim2.new(0, 610, 0, 430)
+Shadow.Image                = "rbxassetid://6015897843"
+Shadow.ImageColor3          = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency    = 0.45
+Shadow.ScaleType            = Enum.ScaleType.Slice
+Shadow.SliceCenter          = Rect.new(49, 49, 450, 450)
 
 -- ============================================================
---  MAIN WINDOW  (560 × 390)
+--  MAIN WINDOW  560 × 400
 -- ============================================================
 local Win = Instance.new("Frame", ScreenGui)
-Win.Name = "MainWindow"
-Win.AnchorPoint = Vector2.new(0.5, 0.5)
-Win.Position = UDim2.new(0.5, 0, 0.5, 0)
-Win.Size = UDim2.new(0, 560, 0, 390)
+Win.Name            = "MainWindow"
+Win.AnchorPoint     = Vector2.new(0.5, 0.5)
+Win.Position        = UDim2.new(0.5, 0, 0.5, 0)
+Win.Size            = UDim2.new(0, 560, 0, 400)
 Win.BackgroundColor3 = C.bg
 Win.BorderSizePixel = 0
-Win.Active = true
-Win.Draggable = true
+Win.Active          = true
+Win.Draggable       = true
+Win.ClipsDescendants = true
 corner(Win, 14)
 stroke(Win, C.accentGlow, 1.2)
 
--- sync shadow
-Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-
 -- ============================================================
---  TOPBAR  (height 46)
+--  TOPBAR  (46 px)
 -- ============================================================
 local TopBar = Instance.new("Frame", Win)
-TopBar.Size = UDim2.new(1, 0, 0, 46)
+TopBar.Size             = UDim2.new(1, 0, 0, 46)
 TopBar.BackgroundColor3 = C.sidebar
-TopBar.BorderSizePixel = 0
-corner(TopBar, 14)
+TopBar.BorderSizePixel  = 0
+-- coin seulement en haut
+local TopCorner = Instance.new("UICorner", TopBar)
+TopCorner.CornerRadius = UDim.new(0, 14)
+-- patch pour aplatir les coins bas de la topbar
+local TopPatch = Instance.new("Frame", TopBar)
+TopPatch.Size             = UDim2.new(1, 0, 0, 14)
+TopPatch.Position         = UDim2.new(0, 0, 1, -14)
+TopPatch.BackgroundColor3 = C.sidebar
+TopPatch.BorderSizePixel  = 0
 
--- bottom-flatten the topbar corners
-local TopBarFix = Instance.new("Frame", TopBar)
-TopBarFix.Size = UDim2.new(1, 0, 0.5, 0)
-TopBarFix.Position = UDim2.new(0, 0, 0.5, 0)
-TopBarFix.BackgroundColor3 = C.sidebar
-TopBarFix.BorderSizePixel = 0
+-- Logo placeholder (remplace l'Image par ton assetId)
+local Logo = Instance.new("ImageLabel", TopBar)
+Logo.Size                 = UDim2.new(0, 28, 0, 28)
+Logo.Position             = UDim2.new(0, 12, 0.5, -14)
+Logo.BackgroundTransparency = 1
+Logo.Image                = "rbxassetid://6015897843"
+Logo.ImageColor3          = C.accentGlow
 
--- Logo Icon (moon comet emoji substitute, replace with rbxassetid if needed)
-local LogoIcon = Instance.new("ImageLabel", TopBar)
-LogoIcon.Size = UDim2.new(0, 28, 0, 28)
-LogoIcon.Position = UDim2.new(0, 10, 0.5, -14)
-LogoIcon.BackgroundTransparency = 1
-LogoIcon.Image = "rbxassetid://6015897843"  -- replace with your logo asset ID
-LogoIcon.ImageColor3 = C.accent
-
--- Title
 local TopTitle = Instance.new("TextLabel", TopBar)
-TopTitle.Position = UDim2.new(0, 46, 0, 0)
-TopTitle.Size = UDim2.new(0, 200, 1, 0)
+TopTitle.Position         = UDim2.new(0, 48, 0, 5)
+TopTitle.Size             = UDim2.new(0, 250, 0, 20)
 TopTitle.BackgroundTransparency = 1
-TopTitle.Text = "LunaMoon Hub"
-TopTitle.TextColor3 = C.white
-TopTitle.Font = Enum.Font.GothamBold
-TopTitle.TextSize = 16
-TopTitle.TextXAlignment = Enum.TextXAlignment.Left
+TopTitle.Text             = "LunaMoon Hub"
+TopTitle.TextColor3       = C.white
+TopTitle.Font             = Enum.Font.GothamBold
+TopTitle.TextSize         = 15
+TopTitle.TextXAlignment   = Enum.TextXAlignment.Left
 
--- Subtitle
 local TopSub = Instance.new("TextLabel", TopBar)
-TopSub.Position = UDim2.new(0, 46, 0, 22)
-TopSub.Size = UDim2.new(0, 200, 0, 18)
+TopSub.Position           = UDim2.new(0, 48, 0, 26)
+TopSub.Size               = UDim2.new(0, 250, 0, 14)
 TopSub.BackgroundTransparency = 1
-TopSub.Text = "Speed Escape for Brainrots"
-TopSub.TextColor3 = C.subtext
-TopSub.Font = Enum.Font.Gotham
-TopSub.TextSize = 11
-TopSub.TextXAlignment = Enum.TextXAlignment.Left
+TopSub.Text               = "Speed Escape for Brainrots"
+TopSub.TextColor3         = C.subtext
+TopSub.Font               = Enum.Font.Gotham
+TopSub.TextSize           = 11
+TopSub.TextXAlignment     = Enum.TextXAlignment.Left
 
--- Close Button
+-- Close
 local CloseBtn = Instance.new("TextButton", TopBar)
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -38, 0.5, -15)
+CloseBtn.Size             = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position         = UDim2.new(1, -38, 0.5, -14)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 70)
-CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = C.white
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 13
-corner(CloseBtn, 8)
+CloseBtn.Text             = "✕"
+CloseBtn.TextColor3       = C.white
+CloseBtn.Font             = Enum.Font.GothamBold
+CloseBtn.TextSize         = 13
+CloseBtn.BorderSizePixel  = 0
+corner(CloseBtn, 7)
 CloseBtn.MouseButton1Click:Connect(function() Win.Visible = false end)
 
--- Minimize Button
+-- Minimize
 local MinBtn = Instance.new("TextButton", TopBar)
-MinBtn.Size = UDim2.new(0, 30, 0, 30)
-MinBtn.Position = UDim2.new(1, -74, 0.5, -15)
-MinBtn.BackgroundColor3 = C.card
-MinBtn.Text = "─"
-MinBtn.TextColor3 = C.subtext
-MinBtn.Font = Enum.Font.GothamBold
-MinBtn.TextSize = 14
-corner(MinBtn, 8)
+MinBtn.Size               = UDim2.new(0, 28, 0, 28)
+MinBtn.Position           = UDim2.new(1, -72, 0.5, -14)
+MinBtn.BackgroundColor3   = C.card
+MinBtn.Text               = "─"
+MinBtn.TextColor3         = C.subtext
+MinBtn.Font               = Enum.Font.GothamBold
+MinBtn.TextSize           = 14
+MinBtn.BorderSizePixel    = 0
+corner(MinBtn, 7)
 
 -- ============================================================
---  BODY  (below topbar)
+--  BODY  (en dessous de la topbar)
 -- ============================================================
 local Body = Instance.new("Frame", Win)
-Body.Position = UDim2.new(0, 0, 0, 46)
-Body.Size = UDim2.new(1, 0, 1, -46)
+Body.Position            = UDim2.new(0, 0, 0, 46)
+Body.Size                = UDim2.new(1, 0, 1, -46)
 Body.BackgroundTransparency = 1
-Body.BorderSizePixel = 0
+Body.BorderSizePixel     = 0
+Body.ClipsDescendants    = true
 
 -- ============================================================
---  SIDEBAR  (width 130)
+--  SIDEBAR  (130 px de large)
 -- ============================================================
 local Sidebar = Instance.new("Frame", Body)
-Sidebar.Size = UDim2.new(0, 130, 1, 0)
+Sidebar.Size             = UDim2.new(0, 130, 1, 0)
+Sidebar.Position         = UDim2.new(0, 0, 0, 0)
 Sidebar.BackgroundColor3 = C.sidebar
-Sidebar.BorderSizePixel = 0
+Sidebar.BorderSizePixel  = 0
 
-local SidebarFix = Instance.new("Frame", Sidebar)
-SidebarFix.Size = UDim2.new(0.5, 0, 1, 0)
-SidebarFix.Position = UDim2.new(0.5, 0, 0, 0)
-SidebarFix.BackgroundColor3 = C.sidebar
-SidebarFix.BorderSizePixel = 0
+-- Séparateur vertical
+local VDivider = Instance.new("Frame", Body)
+VDivider.Position        = UDim2.new(0, 130, 0, 0)
+VDivider.Size            = UDim2.new(0, 1, 1, 0)
+VDivider.BackgroundColor3 = C.divider
+VDivider.BorderSizePixel = 0
 
-local SideCorner = Instance.new("UICorner", Sidebar)
-SideCorner.CornerRadius = UDim.new(0, 14)
-
+-- Layout sidebar
 local SideList = Instance.new("UIListLayout", Sidebar)
-SideList.Padding = UDim.new(0, 2)
-SideList.SortOrder = Enum.SortOrder.LayoutOrder
-padding(Sidebar, 10, 10, 8, 8)
+SideList.Padding              = UDim.new(0, 4)
+SideList.SortOrder            = Enum.SortOrder.LayoutOrder
+SideList.HorizontalAlignment  = Enum.HorizontalAlignment.Center
+SideList.VerticalAlignment    = Enum.VerticalAlignment.Top
+applyPadding(Sidebar, 12, 12, 8, 8)
 
--- Divider line between sidebar and content
-local Divider = Instance.new("Frame", Body)
-Divider.Position = UDim2.new(0, 130, 0, 0)
-Divider.Size = UDim2.new(0, 1, 1, 0)
-Divider.BackgroundColor3 = C.divider
-Divider.BorderSizePixel = 0
+-- Version en bas de sidebar
+local SideVer = Instance.new("TextLabel", Sidebar)
+SideVer.Size               = UDim2.new(1, 0, 0, 14)
+SideVer.BackgroundTransparency = 1
+SideVer.Text               = "v2.0"
+SideVer.TextColor3         = Color3.fromRGB(80, 80, 110)
+SideVer.Font               = Enum.Font.Gotham
+SideVer.TextSize            = 10
+SideVer.TextXAlignment      = Enum.TextXAlignment.Center
+SideVer.LayoutOrder         = 999
 
 -- ============================================================
 --  CONTENT AREA
 -- ============================================================
 local Content = Instance.new("Frame", Body)
-Content.Position = UDim2.new(0, 131, 0, 0)
-Content.Size = UDim2.new(1, -131, 1, 0)
+Content.Position         = UDim2.new(0, 131, 0, 0)
+Content.Size             = UDim2.new(1, -131, 1, 0)
 Content.BackgroundTransparency = 1
-Content.BorderSizePixel = 0
+Content.BorderSizePixel  = 0
 Content.ClipsDescendants = true
 
 -- ============================================================
---  TAB SYSTEM
+--  TAB FACTORY
 -- ============================================================
 local tabs = {}
-local activeTab = nil
 
 local TAB_DEFS = {
     { name = "Automation", icon = "⚡" },
     { name = "Speed",      icon = "🚀" },
-    { name = "Floor",      icon = "🗺" },
-    { name = "Info",       icon = "ℹ" },
+    { name = "Floor",      icon = "🗺"  },
+    { name = "Info",       icon = "ℹ"  },
 }
 
--- Creates a tab page (ScrollingFrame)
 local function makeTabPage(name)
     local page = Instance.new("ScrollingFrame", Content)
-    page.Name = name
-    page.Size = UDim2.new(1, 0, 1, 0)
-    page.Position = UDim2.new(0, 0, 0, 0)
+    page.Name                 = name
+    page.Size                 = UDim2.new(1, 0, 1, 0)
+    page.Position             = UDim2.new(0, 0, 0, 0)
     page.BackgroundTransparency = 1
-    page.ScrollBarThickness = 3
+    page.ScrollBarThickness   = 3
     page.ScrollBarImageColor3 = C.accentGlow
-    page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    page.BorderSizePixel = 0
-    page.Visible = false
+    page.CanvasSize           = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize  = Enum.AutomaticSize.Y
+    page.BorderSizePixel      = 0
+    page.Visible              = false
 
     local list = Instance.new("UIListLayout", page)
-    list.Padding = UDim.new(0, 6)
-    list.SortOrder = Enum.SortOrder.LayoutOrder
-    padding(page, 10, 10, 10, 10)
+    list.Padding             = UDim.new(0, 6)
+    list.SortOrder           = Enum.SortOrder.LayoutOrder
+    list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
+    applyPadding(page, 10, 10, 10, 10)
     return page, list
 end
 
--- Creates a sidebar tab button
-local function makeTabBtn(tabDef, index)
+local function makeTabBtn(def, index)
     local btn = Instance.new("TextButton", Sidebar)
-    btn.Name = tabDef.name
-    btn.LayoutOrder = index
-    btn.Size = UDim2.new(1, 0, 0, 36)
-    btn.BackgroundColor3 = C.card
+    btn.Name                 = def.name
+    btn.LayoutOrder          = index
+    btn.Size                 = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3     = C.card
     btn.BackgroundTransparency = 1
-    btn.Text = tabDef.icon .. "  " .. tabDef.name
-    btn.TextColor3 = C.subtext
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 12
-    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.Text                 = def.icon .. "  " .. def.name
+    btn.TextColor3           = C.subtext
+    btn.Font                 = Enum.Font.GothamSemibold
+    btn.TextSize             = 12
+    btn.TextXAlignment       = Enum.TextXAlignment.Left
+    btn.BorderSizePixel      = 0
     corner(btn, 8)
-    padding(btn, 0, 0, 10, 0)
+    applyPadding(btn, 0, 0, 10, 0)
     return btn
 end
 
 local function switchTab(name)
     for tabName, t in pairs(tabs) do
-        local isActive = tabName == name
-        t.page.Visible = isActive
-        t.btn.TextColor3 = isActive and C.white or C.subtext
-        t.btn.BackgroundTransparency = isActive and 0 or 1
-        if isActive then
-            t.btn.BackgroundColor3 = C.card
-        end
+        local on = tabName == name
+        t.page.Visible = on
+        tween(t.btn, {
+            TextColor3           = on and C.white or C.subtext,
+            BackgroundTransparency = on and 0 or 1,
+        })
+        if on then t.btn.BackgroundColor3 = C.card end
     end
-    activeTab = name
 end
 
--- Build tabs
-local pages = {}
 for i, def in ipairs(TAB_DEFS) do
     local page, list = makeTabPage(def.name)
-    local btn = makeTabBtn(def, i)
-    tabs[def.name] = { page = page, list = list, btn = btn }
-    pages[def.name] = page
+    local btn        = makeTabBtn(def, i)
+    tabs[def.name]   = { page = page, list = list, btn = btn }
     btn.MouseButton1Click:Connect(function() switchTab(def.name) end)
 end
 
+-- Raccourcis locaux
+local autoPage  = tabs["Automation"].page
+local speedPage = tabs["Speed"].page
+local floorPage = tabs["Floor"].page
+local infoPage  = tabs["Info"].page
+
 -- ============================================================
---  CARD HELPERS  (used inside pages)
+--  COMPOSANTS RÉUTILISABLES
 -- ============================================================
+
 local function sectionLabel(parent, text, order)
-    local lbl = Instance.new("TextLabel", parent)
-    lbl.LayoutOrder = order or 0
-    lbl.Size = UDim2.new(1, 0, 0, 20)
+    local f = Instance.new("Frame", parent)
+    f.LayoutOrder          = order or 0
+    f.Size                 = UDim2.new(1, 0, 0, 22)
+    f.BackgroundTransparency = 1
+
+    local lbl = Instance.new("TextLabel", f)
+    lbl.Size               = UDim2.new(1, 0, 1, 0)
     lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = C.accentGlow
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 11
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    return lbl
+    lbl.Text               = text
+    lbl.TextColor3         = C.accentGlow
+    lbl.Font               = Enum.Font.GothamBold
+    lbl.TextSize           = 11
+    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    return f
 end
 
--- Toggle button (ON/OFF with green/red bg on active)
 local function makeToggle(parent, text, order, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, 0, 0, 36)
-    btn.BackgroundColor3 = C.card
-    btn.Text = "   " .. text
-    btn.TextColor3 = C.text
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 13
-    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.LayoutOrder        = order
+    btn.Size               = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3   = C.card
+    btn.Text               = "   " .. text
+    btn.TextColor3         = C.text
+    btn.Font               = Enum.Font.GothamSemibold
+    btn.TextSize           = 13
+    btn.TextXAlignment     = Enum.TextXAlignment.Left
+    btn.BorderSizePixel    = 0
     corner(btn, 9)
     stroke(btn, C.divider, 1)
 
-    -- indicator dot
+    -- Indicateur LED
     local dot = Instance.new("Frame", btn)
-    dot.Size = UDim2.new(0, 8, 0, 8)
-    dot.Position = UDim2.new(1, -20, 0.5, -4)
-    dot.BackgroundColor3 = C.red
-    dot.BorderSizePixel = 0
+    dot.Size               = UDim2.new(0, 8, 0, 8)
+    dot.Position           = UDim2.new(1, -18, 0.5, -4)
+    dot.BackgroundColor3   = C.red
+    dot.BorderSizePixel    = 0
     corner(dot, 8)
 
     local active = false
     btn.MouseButton1Click:Connect(function()
         active = not active
-        dot.BackgroundColor3 = active and C.green or C.red
-        btn.BackgroundColor3 = active and Color3.fromRGB(25, 38, 28) or C.card
-        btn.TextColor3 = active and C.green or C.text
+        tween(dot,  { BackgroundColor3 = active and C.green or C.red })
+        tween(btn,  {
+            BackgroundColor3 = active and Color3.fromRGB(22, 36, 26) or C.card,
+            TextColor3       = active and C.green or C.text,
+        })
         callback(btn, active)
     end)
 
-    -- hover
     btn.MouseEnter:Connect(function()
-        if not active then tween(btn, {BackgroundColor3 = C.cardHover}) end
+        if not active then tween(btn, { BackgroundColor3 = C.cardHover }) end
     end)
     btn.MouseLeave:Connect(function()
-        if not active then tween(btn, {BackgroundColor3 = C.card}) end
+        if not active then tween(btn, { BackgroundColor3 = C.card }) end
     end)
 
     return btn
 end
 
--- Simple action button (no toggle)
 local function makeActionBtn(parent, text, order, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.LayoutOrder = order
-    btn.Size = UDim2.new(1, 0, 0, 36)
-    btn.BackgroundColor3 = C.card
-    btn.Text = text
-    btn.TextColor3 = C.accent
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 13
+    btn.LayoutOrder        = order
+    btn.Size               = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3   = C.card
+    btn.Text               = text
+    btn.TextColor3         = C.accent
+    btn.Font               = Enum.Font.GothamBold
+    btn.TextSize           = 13
+    btn.BorderSizePixel    = 0
     corner(btn, 9)
     stroke(btn, C.accentGlow, 1)
 
     btn.MouseButton1Click:Connect(callback)
-    btn.MouseEnter:Connect(function() tween(btn, {BackgroundColor3 = C.cardHover}) end)
-    btn.MouseLeave:Connect(function() tween(btn, {BackgroundColor3 = C.card}) end)
+    btn.MouseEnter:Connect(function() tween(btn, { BackgroundColor3 = C.cardHover }) end)
+    btn.MouseLeave:Connect(function() tween(btn, { BackgroundColor3 = C.card }) end)
     return btn
 end
 
--- ============================================================
---  TAB: AUTOMATION
--- ============================================================
-local autoPage = pages["Automation"]
-local autoList = tabs["Automation"].list
+local function makeInput(parent, placeholder, order)
+    local box = Instance.new("TextBox", parent)
+    box.LayoutOrder           = order
+    box.Size                  = UDim2.new(1, 0, 0, 36)
+    box.BackgroundColor3      = C.card
+    box.PlaceholderText       = "  " .. placeholder
+    box.PlaceholderColor3     = C.subtext
+    box.Text                  = ""
+    box.TextColor3            = C.text
+    box.Font                  = Enum.Font.GothamSemibold
+    box.TextSize              = 13
+    box.TextXAlignment        = Enum.TextXAlignment.Left
+    box.BorderSizePixel       = 0
+    box.ClearTextOnFocus      = false
+    corner(box, 9)
+    stroke(box, C.divider, 1)
+    return box
+end
 
+-- ============================================================
+--  TAB : AUTOMATION
+-- ============================================================
 sectionLabel(autoPage, "COLLECTE & UPLOAD", 0)
 
-makeToggle(autoPage, "Auto Collect", 1, function(btn, state)
+makeToggle(autoPage, "Auto Collect", 1, function(_, state)
     _G.AutoCollect = state
     if state then task.spawn(function()
         while _G.AutoCollect do
@@ -436,43 +455,53 @@ makeToggle(autoPage, "Auto Collect", 1, function(btn, state)
     end) end
 end)
 
-makeToggle(autoPage, "Auto Upload", 2, function(btn, state)
+makeToggle(autoPage, "Auto Upload", 2, function(_, state)
     _G.AutoUpload = state
     if state then task.spawn(function()
-        while _G.AutoUpload do pcall(function() events.uploadAll:FireServer() end) task.wait(3) end
+        while _G.AutoUpload do
+            pcall(function() events.uploadAll:FireServer() end)
+            task.wait(3)
+        end
     end) end
 end)
 
-makeToggle(autoPage, "Auto Claim", 3, function(btn, state)
+makeToggle(autoPage, "Auto Claim", 3, function(_, state)
     _G.AutoClaim = state
     if state then task.spawn(function()
-        while _G.AutoClaim do pcall(function() events.claimAll:FireServer() end) task.wait(3) end
+        while _G.AutoClaim do
+            pcall(function() events.claimAll:FireServer() end)
+            task.wait(3)
+        end
     end) end
 end)
 
-makeToggle(autoPage, "Auto Submit", 4, function(btn, state)
+makeToggle(autoPage, "Auto Submit", 4, function(_, state)
     _G.AutoSubmit = state
     if state then task.spawn(function()
-        while _G.AutoSubmit do pcall(function() events.submitAll:FireServer() end) task.wait(3) end
+        while _G.AutoSubmit do
+            pcall(function() events.submitAll:FireServer() end)
+            task.wait(3)
+        end
     end) end
 end)
 
 sectionLabel(autoPage, "REBIRTH & UPGRADES", 10)
 
-makeToggle(autoPage, "Smart Auto Rebirth", 11, function(btn, state)
+makeToggle(autoPage, "Smart Auto Rebirth", 11, function(_, state)
     _G.SmartAutoRebirth = state
     if state then task.spawn(function()
         local rebirthMenu = player.PlayerGui.ScreenGui.menus.rebirthMenu
-        local container = rebirthMenu.container
+        local cont = rebirthMenu.container
         while _G.SmartAutoRebirth do
             local cash = player.leaderstats.Cash.Value
             local bestAmount, bestButton = 0, nil
-            for _, b in pairs(container:GetChildren()) do
+            for _, b in pairs(cont:GetChildren()) do
                 if b:IsA("TextButton") then
                     local amount = tonumber((b.rebirths.Text or ""):match("%+(%d+)"))
                     local cost   = tonumber((b.cost.Text or ""):match("%$(%d+)"))
                     if amount and cost and cash >= cost and amount > bestAmount then
-                        bestAmount = amount; bestButton = b
+                        bestAmount = amount
+                        bestButton = b
                     end
                 end
             end
@@ -484,7 +513,7 @@ makeToggle(autoPage, "Smart Auto Rebirth", 11, function(btn, state)
     end) end
 end)
 
-makeToggle(autoPage, "Auto Upgrades", 12, function(btn, state)
+makeToggle(autoPage, "Auto Upgrades", 12, function(_, state)
     _G.AutoUpgrades = state
     local upgradeList = {"views","luck","viralChance","rebirthButtons","uploadTime"}
     if state then task.spawn(function()
@@ -501,24 +530,12 @@ end)
 
 sectionLabel(autoPage, "YOUTUBERS", 20)
 
--- Youtuber ID input
-local inputBox = Instance.new("TextBox", autoPage)
-inputBox.LayoutOrder = 21
-inputBox.Size = UDim2.new(1, 0, 0, 34)
-inputBox.BackgroundColor3 = C.card
-inputBox.PlaceholderText = "  Entrer l'ID du Youtuber..."
-inputBox.PlaceholderColor3 = C.subtext
-inputBox.Text = ""
-inputBox.TextColor3 = C.text
-inputBox.Font = Enum.Font.GothamSemibold
-inputBox.TextSize = 13
-inputBox.TextXAlignment = Enum.TextXAlignment.Left
-corner(inputBox, 9)
-stroke(inputBox, C.divider, 1)
-padding(inputBox, 0, 0, 8, 0)
-inputBox:GetPropertyChangedSignal("Text"):Connect(function() _G.SelectedYoutuber = inputBox.Text end)
+local inputYT = makeInput(autoPage, "Entrer l'ID du Youtuber...", 21)
+inputYT:GetPropertyChangedSignal("Text"):Connect(function()
+    _G.SelectedYoutuber = inputYT.Text
+end)
 
-makeToggle(autoPage, "Auto Buy Youtuber", 22, function(btn, state)
+makeToggle(autoPage, "Auto Buy Youtuber", 22, function(_, state)
     _G.AutoBuy = state
     if state then task.spawn(function()
         while _G.AutoBuy do
@@ -536,287 +553,286 @@ end)
 
 sectionLabel(autoPage, "EGGS", 30)
 
-makeToggle(autoPage, "Auto Bulk Hatch", 31, function(btn, state)
+makeToggle(autoPage, "Auto Bulk Hatch", 31, function(_, state)
     _G.AutoBulkHatch = state
     if state then task.spawn(function()
         local BATCH = 10000
-        local cratesLabel = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
-            :WaitForChild("menus"):WaitForChild("eventMenu"):WaitForChild("balance"):WaitForChild("crates")
-        local openEventEgg = ReplicatedStorage:WaitForChild("events"):WaitForChild("openEventEgg")
+        local cratesLabel = player
+            :WaitForChild("PlayerGui")
+            :WaitForChild("ScreenGui")
+            :WaitForChild("menus")
+            :WaitForChild("eventMenu")
+            :WaitForChild("balance")
+            :WaitForChild("crates")
+        local openEventEgg = ReplicatedStorage
+            :WaitForChild("events")
+            :WaitForChild("openEventEgg")
         while _G.AutoBulkHatch do
             local n = tonumber((cratesLabel.Text or ""):match("%d+")) or 0
-            if n > 0 then openEventEgg:FireServer(math.min(n, BATCH)) end
+            if n > 0 then
+                openEventEgg:FireServer(math.min(n, BATCH))
+            end
             task.wait(1)
         end
     end) end
 end)
 
--- EGG ANIMATION REMOVAL
+-- Suppression animations oeufs (délayée)
 task.spawn(function()
     task.wait(3)
     for _, name in ipairs({"hatchExclusiveEgg","hatchEventEgg","hatchPet","showEgg","eggAnimation"}) do
         local ev = events:FindFirstChild(name)
         if ev and ev.OnClientEvent then
-            for _, conn in pairs(getconnections(ev.OnClientEvent)) do conn:Disconnect() end
+            for _, conn in pairs(getconnections(ev.OnClientEvent)) do
+                conn:Disconnect()
+            end
         end
     end
 end)
 
 -- ============================================================
---  TAB: SPEED
+--  TAB : SPEED
 -- ============================================================
-local speedPage = pages["Speed"]
-
 sectionLabel(speedPage, "VITESSE DU PERSONNAGE", 0)
 
--- Speed display
+-- Affichage valeur courante
 local speedDisplay = Instance.new("TextLabel", speedPage)
-speedDisplay.LayoutOrder = 1
-speedDisplay.Size = UDim2.new(1, 0, 0, 44)
-speedDisplay.BackgroundColor3 = C.card
-speedDisplay.TextColor3 = C.white
-speedDisplay.Font = Enum.Font.GothamBold
-speedDisplay.TextSize = 22
-speedDisplay.Text = "Speed: 16"
+speedDisplay.LayoutOrder       = 1
+speedDisplay.Size              = UDim2.new(1, 0, 0, 50)
+speedDisplay.BackgroundColor3  = C.card
+speedDisplay.TextColor3        = C.white
+speedDisplay.Font              = Enum.Font.GothamBold
+speedDisplay.TextSize          = 24
+speedDisplay.Text              = "⚡  Speed : 16"
+speedDisplay.BorderSizePixel   = 0
 corner(speedDisplay, 9)
 stroke(speedDisplay, C.accentGlow, 1)
 
+local jumpDisplay = Instance.new("TextLabel", speedPage)
+jumpDisplay.LayoutOrder        = 6
+jumpDisplay.Size               = UDim2.new(1, 0, 0, 50)
+jumpDisplay.BackgroundColor3   = C.card
+jumpDisplay.TextColor3         = C.white
+jumpDisplay.Font               = Enum.Font.GothamBold
+jumpDisplay.TextSize           = 24
+jumpDisplay.Text               = "↑  Jump  : 50"
+jumpDisplay.BorderSizePixel    = 0
+corner(jumpDisplay, 9)
+stroke(jumpDisplay, C.accentGlow, 1)
+
 local function applySpeed(val)
     _G.WalkSpeed = val
-    speedDisplay.Text = "Speed: " .. val
+    speedDisplay.Text = "⚡  Speed : " .. val
     pcall(function()
         player.Character.Humanoid.WalkSpeed = val
     end)
-    player.CharacterAdded:Connect(function(char)
-        char:WaitForChild("Humanoid").WalkSpeed = _G.WalkSpeed
+end
+
+local function applyJump(val)
+    jumpDisplay.Text = "↑  Jump  : " .. val
+    pcall(function()
+        player.Character.Humanoid.JumpPower = val
     end)
 end
 
--- Preset buttons row
-local presets = {16, 50, 100, 200}
-local presetRow = Instance.new("Frame", speedPage)
-presetRow.LayoutOrder = 2
-presetRow.Size = UDim2.new(1, 0, 0, 36)
-presetRow.BackgroundTransparency = 1
-local presetGrid = Instance.new("UIGridLayout", presetRow)
-presetGrid.CellSize = UDim2.new(0.25, -4, 1, 0)
-presetGrid.CellPadding = UDim2.new(0, 4, 0, 0)
-presetGrid.SortOrder = Enum.SortOrder.LayoutOrder
+-- Presets Speed
+local function makePresetsRow(parent, order, presets, applyFn)
+    local row = Instance.new("Frame", parent)
+    row.LayoutOrder        = order
+    row.Size               = UDim2.new(1, 0, 0, 38)
+    row.BackgroundTransparency = 1
+    row.BorderSizePixel    = 0
 
-for _, v in ipairs(presets) do
-    local pb = Instance.new("TextButton", presetRow)
-    pb.Text = "x" .. v
-    pb.BackgroundColor3 = C.card
-    pb.TextColor3 = C.accent
-    pb.Font = Enum.Font.GothamBold
-    pb.TextSize = 13
-    corner(pb, 8)
-    pb.MouseButton1Click:Connect(function() applySpeed(v) end)
-    pb.MouseEnter:Connect(function() tween(pb, {BackgroundColor3 = C.cardHover}) end)
-    pb.MouseLeave:Connect(function() tween(pb, {BackgroundColor3 = C.card}) end)
+    local grid = Instance.new("UIGridLayout", row)
+    grid.CellSize          = UDim2.new(0, 86, 0, 34)
+    grid.CellPadding       = UDim2.new(0, 5, 0, 0)
+    grid.SortOrder         = Enum.SortOrder.LayoutOrder
+    grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    grid.FillDirectionMaxCells = #presets
+
+    for _, v in ipairs(presets) do
+        local pb = Instance.new("TextButton", row)
+        pb.BackgroundColor3 = C.card
+        pb.Text             = tostring(v)
+        pb.TextColor3       = C.accent
+        pb.Font             = Enum.Font.GothamBold
+        pb.TextSize         = 13
+        pb.BorderSizePixel  = 0
+        corner(pb, 8)
+        stroke(pb, C.divider, 1)
+        pb.MouseButton1Click:Connect(function() applyFn(v) end)
+        pb.MouseEnter:Connect(function() tween(pb, {BackgroundColor3 = C.cardHover}) end)
+        pb.MouseLeave:Connect(function() tween(pb, {BackgroundColor3 = C.card}) end)
+    end
+
+    return row
 end
 
-sectionLabel(speedPage, "VALEUR PERSONNALISÉE", 3)
+makePresetsRow(speedPage, 2, {16, 50, 100, 200}, applySpeed)
 
--- Custom speed input
-local speedInput = Instance.new("TextBox", speedPage)
-speedInput.LayoutOrder = 4
-speedInput.Size = UDim2.new(1, 0, 0, 34)
-speedInput.BackgroundColor3 = C.card
-speedInput.PlaceholderText = "  Entrer une vitesse..."
-speedInput.PlaceholderColor3 = C.subtext
-speedInput.Text = ""
-speedInput.TextColor3 = C.text
-speedInput.Font = Enum.Font.GothamSemibold
-speedInput.TextSize = 13
-speedInput.TextXAlignment = Enum.TextXAlignment.Left
-corner(speedInput, 9)
-stroke(speedInput, C.divider, 1)
-padding(speedInput, 0, 0, 8, 0)
+sectionLabel(speedPage, "VITESSE PERSONNALISÉE", 3)
+
+local speedInput = makeInput(speedPage, "Valeur (ex: 150)", 4)
 
 makeActionBtn(speedPage, "✓  Appliquer la vitesse", 5, function()
     local val = tonumber(speedInput.Text)
-    if val and val > 0 and val <= 1000 then
+    if val and val > 0 and val <= 10000 then
         applySpeed(val)
     end
 end)
 
-makeActionBtn(speedPage, "↩  Reset vitesse (16)", 6, function()
-    applySpeed(16)
-    speedInput.Text = ""
-end)
-
 sectionLabel(speedPage, "JUMP POWER", 7)
 
-local jumpDisplay = Instance.new("TextLabel", speedPage)
-jumpDisplay.LayoutOrder = 8
-jumpDisplay.Size = UDim2.new(1, 0, 0, 44)
-jumpDisplay.BackgroundColor3 = C.card
-jumpDisplay.TextColor3 = C.white
-jumpDisplay.Font = Enum.Font.GothamBold
-jumpDisplay.TextSize = 22
-jumpDisplay.Text = "Jump: 50"
-corner(jumpDisplay, 9)
-stroke(jumpDisplay, C.accentGlow, 1)
+makePresetsRow(speedPage, 8, {50, 100, 200, 500}, applyJump)
 
-local function applyJump(val)
-    jumpDisplay.Text = "Jump: " .. val
-    pcall(function() player.Character.Humanoid.JumpPower = val end)
-end
+sectionLabel(speedPage, "JUMP PERSONNALISÉ", 9)
 
-local jumpPresets = {50, 100, 200, 500}
-local jumpRow = Instance.new("Frame", speedPage)
-jumpRow.LayoutOrder = 9
-jumpRow.Size = UDim2.new(1, 0, 0, 36)
-jumpRow.BackgroundTransparency = 1
-local jumpGrid = Instance.new("UIGridLayout", jumpRow)
-jumpGrid.CellSize = UDim2.new(0.25, -4, 1, 0)
-jumpGrid.CellPadding = UDim2.new(0, 4, 0, 0)
-jumpGrid.SortOrder = Enum.SortOrder.LayoutOrder
+local jumpInput = makeInput(speedPage, "Valeur (ex: 200)", 10)
 
-for _, v in ipairs(jumpPresets) do
-    local jb = Instance.new("TextButton", jumpRow)
-    jb.Text = "j" .. v
-    jb.BackgroundColor3 = C.card
-    jb.TextColor3 = C.accent
-    jb.Font = Enum.Font.GothamBold
-    jb.TextSize = 13
-    corner(jb, 8)
-    jb.MouseButton1Click:Connect(function() applyJump(v) end)
-    jb.MouseEnter:Connect(function() tween(jb, {BackgroundColor3 = C.cardHover}) end)
-    jb.MouseLeave:Connect(function() tween(jb, {BackgroundColor3 = C.card}) end)
-end
+makeActionBtn(speedPage, "✓  Appliquer le jump", 11, function()
+    local val = tonumber(jumpInput.Text)
+    if val and val > 0 and val <= 10000 then
+        applyJump(val)
+    end
+end)
+
+makeActionBtn(speedPage, "↩  Reset tout (Speed 16 / Jump 50)", 12, function()
+    applySpeed(16)
+    applyJump(50)
+    speedInput.Text = ""
+    jumpInput.Text  = ""
+end)
 
 -- ============================================================
---  TAB: FLOOR
+--  TAB : FLOOR
 -- ============================================================
-local floorPage = pages["Floor"]
-
-sectionLabel(floorPage, "AUTO FLOOR CYCLE", 0)
-
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp  = char:WaitForChild("HumanoidRootPart")
 player.CharacterAdded:Connect(function(c)
     char = c
-    hrp = c:WaitForChild("HumanoidRootPart")
+    hrp  = c:WaitForChild("HumanoidRootPart")
 end)
 
 local floorPositions = {
-    Vector3.new(-477.358, 11.399, -1931.170),
-    Vector3.new(-475.437, 38.249, -1936.069),
-    Vector3.new(-476.861, 65.599, -1931.540),
-    Vector3.new(-473.636, 92.699, -1937.243),
+    Vector3.new(-477.358, 11.399,  -1931.170),
+    Vector3.new(-475.437, 38.249,  -1936.069),
+    Vector3.new(-476.861, 65.599,  -1931.540),
+    Vector3.new(-473.636, 92.699,  -1937.243),
     Vector3.new(-475.971, 118.709, -1931.321),
     Vector3.new(-476.068, 145.299, -1934.286),
 }
 
--- Floor status display
+sectionLabel(floorPage, "AUTO FLOOR CYCLE", 0)
+
+-- Statut étage en cours
 local floorStatus = Instance.new("TextLabel", floorPage)
-floorStatus.LayoutOrder = 1
-floorStatus.Size = UDim2.new(1, 0, 0, 34)
-floorStatus.BackgroundColor3 = C.card
-floorStatus.TextColor3 = C.subtext
-floorStatus.Font = Enum.Font.GothamSemibold
-floorStatus.TextSize = 12
-floorStatus.Text = "Étage actuel: —"
+floorStatus.LayoutOrder        = 1
+floorStatus.Size               = UDim2.new(1, 0, 0, 38)
+floorStatus.BackgroundColor3   = C.card
+floorStatus.TextColor3         = C.subtext
+floorStatus.Font               = Enum.Font.GothamSemibold
+floorStatus.TextSize           = 13
+floorStatus.Text               = "Étage actuel : —"
+floorStatus.BorderSizePixel    = 0
 corner(floorStatus, 9)
 
-makeToggle(floorPage, "Auto Floor Cycle", 2, function(btn, state)
+makeToggle(floorPage, "Auto Floor Cycle", 2, function(_, state)
     _G.AutoFloorCycle = state
     if state then task.spawn(function()
         while _G.AutoFloorCycle do
             for i = 1, #floorPositions do
                 if not _G.AutoFloorCycle then break end
-                floorStatus.Text = "Étage actuel: " .. i .. " / " .. #floorPositions
+                floorStatus.Text = "Étage actuel : " .. i .. " / " .. #floorPositions
+                floorStatus.TextColor3 = C.green
                 pcall(function() hrp.CFrame = CFrame.new(floorPositions[i]) end)
                 task.wait(10)
             end
         end
-        floorStatus.Text = "Étage actuel: —"
+        floorStatus.Text = "Étage actuel : —"
+        floorStatus.TextColor3 = C.subtext
     end) end
 end)
 
 sectionLabel(floorPage, "TÉLÉPORTATION RAPIDE", 5)
 
 for i, pos in ipairs(floorPositions) do
-    makeActionBtn(floorPage, "→ Téléporter Étage " .. i, 10 + i, function()
+    makeActionBtn(floorPage, "→  Étage " .. i, 10 + i, function()
         pcall(function() hrp.CFrame = CFrame.new(pos) end)
+        floorStatus.Text = "Étage actuel : " .. i .. " / " .. #floorPositions
+        floorStatus.TextColor3 = C.green
     end)
 end
 
 -- ============================================================
---  TAB: INFO
+--  TAB : INFO
 -- ============================================================
-local infoPage = pages["Info"]
-
--- Info card helper
 local function infoCard(parent, order, key, value)
     local card = Instance.new("Frame", parent)
-    card.LayoutOrder = order
-    card.Size = UDim2.new(1, 0, 0, 46)
-    card.BackgroundColor3 = C.card
-    card.BorderSizePixel = 0
+    card.LayoutOrder        = order
+    card.Size               = UDim2.new(1, 0, 0, 52)
+    card.BackgroundColor3   = C.card
+    card.BorderSizePixel    = 0
     corner(card, 9)
     stroke(card, C.divider, 1)
 
     local k = Instance.new("TextLabel", card)
-    k.Size = UDim2.new(0.5, 0, 0.5, 0)
-    k.Position = UDim2.new(0, 10, 0, 4)
+    k.Size                  = UDim2.new(1, -16, 0, 20)
+    k.Position              = UDim2.new(0, 12, 0, 8)
     k.BackgroundTransparency = 1
-    k.Text = key
-    k.TextColor3 = C.subtext
-    k.Font = Enum.Font.Gotham
-    k.TextSize = 11
-    k.TextXAlignment = Enum.TextXAlignment.Left
+    k.Text                  = key
+    k.TextColor3            = C.subtext
+    k.Font                  = Enum.Font.Gotham
+    k.TextSize              = 10
+    k.TextXAlignment        = Enum.TextXAlignment.Left
 
     local v = Instance.new("TextLabel", card)
-    v.Size = UDim2.new(1, -20, 0.5, 0)
-    v.Position = UDim2.new(0, 10, 0.5, -2)
+    v.Size                  = UDim2.new(1, -16, 0, 20)
+    v.Position              = UDim2.new(0, 12, 0, 26)
     v.BackgroundTransparency = 1
-    v.Text = value
-    v.TextColor3 = C.white
-    v.Font = Enum.Font.GothamBold
-    v.TextSize = 13
-    v.TextXAlignment = Enum.TextXAlignment.Left
+    v.Text                  = value
+    v.TextColor3            = C.white
+    v.Font                  = Enum.Font.GothamBold
+    v.TextSize              = 13
+    v.TextXAlignment        = Enum.TextXAlignment.Left
 
     return card
 end
 
 sectionLabel(infoPage, "SCRIPT", 0)
-infoCard(infoPage, 1, "Script",  "Speed Escape for Brainrots")
-infoCard(infoPage, 2, "Version", "v2.0 [2026-02-27]")
-infoCard(infoPage, 3, "Auteur",  "LunaMoon Hub")
-infoCard(infoPage, 4, "Credits", "Scriptyyz")
+infoCard(infoPage, 1,  "Nom du script",  "Speed Escape for Brainrots")
+infoCard(infoPage, 2,  "Version",        "v2.0  —  2026-02-27")
+infoCard(infoPage, 3,  "Hub",            "LunaMoon Hub")
+infoCard(infoPage, 4,  "Crédits",        "Scriptyyz")
 
 sectionLabel(infoPage, "SUPPORT", 10)
-infoCard(infoPage, 11, "Discord",  "discord.gg/lunamoon")
-infoCard(infoPage, 12, "Serveur",  "LunaMoon Official")
-infoCard(infoPage, 13, "Support",  "#support-scripts")
+infoCard(infoPage, 11, "Discord",        "discord.gg/lunamoon")
+infoCard(infoPage, 12, "Serveur",        "LunaMoon Official")
+infoCard(infoPage, 13, "Salon support",  "#support-scripts")
 
 sectionLabel(infoPage, "STATUT", 20)
-infoCard(infoPage, 21, "Jeu",  "Speed Escape for Brainrots")
-infoCard(infoPage, 22, "Status", "✅ Fonctionnel")
-infoCard(infoPage, 23, "Anti-Kick", "Actif (egg anim disabled)")
+infoCard(infoPage, 21, "Jeu cible",      "Speed Escape for Brainrots")
+infoCard(infoPage, 22, "État",           "✅  Fonctionnel")
+infoCard(infoPage, 23, "Egg Animations", "🔇  Désactivées au démarrage")
 
 -- ============================================================
---  MINIMIZE LOGIC
+--  MINIMIZE
 -- ============================================================
 local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
     MinBtn.Text = minimized and "□" or "─"
     if minimized then
-        tween(Win, {Size = UDim2.new(0, 560, 0, 46)}, 0.3)
-        Body.Visible = false
+        tween(Win, { Size = UDim2.new(0, 560, 0, 46) }, 0.3)
+        task.delay(0.15, function() Body.Visible = false end)
     else
         Body.Visible = true
-        tween(Win, {Size = UDim2.new(0, 560, 0, 390)}, 0.3)
+        tween(Win, { Size = UDim2.new(0, 560, 0, 400) }, 0.3)
     end
 end)
 
 -- ============================================================
---  BOOT: show first tab
+--  DÉMARRAGE : onglet par défaut
 -- ============================================================
 switchTab("Automation")
 
-print("[LunaMoonHub] Loaded successfully.")
+print("[LunaMoonHub v2.0] Chargé avec succès ✓")
