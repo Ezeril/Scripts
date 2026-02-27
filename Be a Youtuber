@@ -1,115 +1,234 @@
--- SPEED ESCAPE FOR BRAINROTS - COMPACT VERSION [2026-02-15]
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local MinimizeBtn = Instance.new("TextButton")
-local Footer = Instance.new("TextLabel")
-local Container = Instance.new("ScrollingFrame")
-local UIListLayout = Instance.new("UIListLayout")
+-- ==========================================
+-- 🌙 LUNA MOON - PREMIUM AUTOMATION
+-- ==========================================
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+-- Nettoyage si le script est relancé
+if CoreGui:FindFirstChild("LunaMoonGUI") then
+    CoreGui.LunaMoonGUI:Destroy()
+end
 
 -- ============================
--- CLEAN MODERN UI SETUP
+-- THEME & PALETTE LUNAIRE
 -- ============================
+local Theme = {
+    Background = Color3.fromRGB(15, 18, 28),
+    Header = Color3.fromRGB(22, 26, 40),
+    ButtonOff = Color3.fromRGB(30, 35, 55),
+    ButtonOn = Color3.fromRGB(138, 115, 255), -- Violet lunaire
+    ButtonHover = Color3.fromRGB(40, 45, 70),
+    Text = Color3.fromRGB(240, 245, 255),
+    SubText = Color3.fromRGB(130, 140, 160),
+    Stroke = Color3.fromRGB(45, 50, 75),
+    NotifBG = Color3.fromRGB(20, 24, 35)
+}
 
+-- ============================
+-- CREATION DE L'UI PRINCIPALE
+-- ============================
 local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local MinimizeBtn = Instance.new("TextButton")
-local Footer = Instance.new("TextLabel")
-local Container = Instance.new("ScrollingFrame")
-local UIListLayout = Instance.new("UIListLayout")
+ScreenGui.Name = "LunaMoonGUI"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
 
-ScreenGui.Parent = game.CoreGui
-
--- MAIN FRAME
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.Position = UDim2.new(0.1, 0, 0.35, 0)
-MainFrame.Size = UDim2.new(0, 260, 0, 380)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.BackgroundColor3 = Theme.Background
+MainFrame.Position = UDim2.new(0.5, -130, 0.5, -200)
+MainFrame.Size = UDim2.new(0, 260, 0, 400)
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.ClipsDescendants = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+local MainStroke = Instance.new("UIStroke", MainFrame)
+MainStroke.Color = Theme.Stroke
+MainStroke.Thickness = 1
 
-local mainCorner = Instance.new("UICorner", MainFrame)
-mainCorner.CornerRadius = UDim.new(0, 14)
+-- Ombre portée douce
+local Shadow = Instance.new("ImageLabel", MainFrame)
+Shadow.ZIndex = -1
+Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+Shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+Shadow.Size = UDim2.new(1, 40, 1, 40)
+Shadow.BackgroundTransparency = 1
+Shadow.Image = "rbxassetid://6015897843"
+Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency = 0.5
+Shadow.ScaleType = Enum.ScaleType.Slice
+Shadow.SliceCenter = Rect.new(49, 49, 450, 450)
 
--- DROP SHADOW
-local shadow = Instance.new("ImageLabel", MainFrame)
-shadow.ZIndex = -1
-shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-shadow.Size = UDim2.new(1, 30, 1, 30)
-shadow.Image = "rbxassetid://6015897843"
-shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-shadow.ImageTransparency = 0.4
-shadow.ScaleType = Enum.ScaleType.Slice
-shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+-- Header (Barre de titre)
+local Header = Instance.new("Frame", MainFrame)
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = Theme.Header
+Header.BorderSizePixel = 0
+Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
+local HeaderBottom = Instance.new("Frame", Header)
+HeaderBottom.Size = UDim2.new(1, 0, 0, 12)
+HeaderBottom.Position = UDim2.new(0, 0, 1, -12)
+HeaderBottom.BackgroundColor3 = Theme.Header
+HeaderBottom.BorderSizePixel = 0
+local HeaderStroke = Instance.new("UIStroke", Header)
+HeaderStroke.Color = Theme.Stroke
+HeaderStroke.Thickness = 1
 
--- TITLE BAR
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 42)
-Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Title.Text = "LarpySahurSkid"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+local Title = Instance.new("TextLabel", Header)
+Title.Size = UDim2.new(1, -40, 1, 0)
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "🌙 LunaMoon"
+Title.TextColor3 = Theme.Text
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 17
+Title.TextSize = 16
+Title.XAlignment = Enum.TextXAlignment.Left
 
-local titleCorner = Instance.new("UICorner", Title)
-titleCorner.CornerRadius = UDim.new(0, 14)
-
--- MINIMIZE BUTTON
-MinimizeBtn.Parent = MainFrame
-MinimizeBtn.Size = UDim2.new(0, 32, 0, 32)
-MinimizeBtn.Position = UDim2.new(1, -40, 0, 5)
+local MinimizeBtn = Instance.new("TextButton", Header)
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -35, 0.5, -15)
 MinimizeBtn.BackgroundTransparency = 1
-MinimizeBtn.Text = "▼"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.Text = "−"
+MinimizeBtn.TextColor3 = Theme.SubText
 MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.TextSize = 20
+MinimizeBtn.TextSize = 22
 
--- FOOTER
-Footer.Parent = MainFrame
-Footer.Size = UDim2.new(1, 0, 0, 26)
-Footer.Position = UDim2.new(0, 0, 1, -26)
-Footer.BackgroundTransparency = 1
-Footer.Text = "Credits to Scriptyyz"
-Footer.TextColor3 = Color3.fromRGB(180, 180, 180)
-Footer.Font = Enum.Font.GothamSemibold
-Footer.TextSize = 12
-
--- BUTTON CONTAINER
-Container.Parent = MainFrame
-Container.Position = UDim2.new(0, 10, 0, 50)
+-- Conteneur des boutons
+local Container = Instance.new("ScrollingFrame", MainFrame)
+Container.Position = UDim2.new(0, 10, 0, 55)
 Container.Size = UDim2.new(1, -20, 1, -85)
 Container.BackgroundTransparency = 1
-Container.ScrollBarThickness = 0
+Container.ScrollBarThickness = 2
+Container.ScrollBarImageColor3 = Theme.Stroke
 Container.CanvasSize = UDim2.new(0, 0, 0, 0)
 Container.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
-UIListLayout.Parent = Container
-UIListLayout.Padding = UDim.new(0, 6)
+local UIListLayout = Instance.new("UIListLayout", Container)
+UIListLayout.Padding = UDim.new(0, 8)
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local function createButton(txt, order, callback)
-    local btn = Instance.new("TextButton", Container)
-    btn.Size = UDim2.new(1, 0, 0, 34)
-    btn.LayoutOrder = order
-    btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    btn.Text = txt
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.GothamSemibold
-    btn.TextSize = 14
+-- Footer
+local Footer = Instance.new("TextLabel", MainFrame)
+Footer.Size = UDim2.new(1, 0, 0, 20)
+Footer.Position = UDim2.new(0, 0, 1, -25)
+Footer.BackgroundTransparency = 1
+Footer.Text = "Made for Brainrots • Clean UI"
+Footer.TextColor3 = Theme.SubText
+Footer.Font = Enum.Font.GothamMedium
+Footer.TextSize = 11
 
-    local corner = Instance.new("UICorner", btn)
-    corner.CornerRadius = UDim.new(0, 10)
+-- ============================
+-- SYSTEME DE NOTIFICATIONS
+-- ============================
+local NotifContainer = Instance.new("Frame", ScreenGui)
+NotifContainer.Size = UDim2.new(0, 250, 1, -50)
+NotifContainer.Position = UDim2.new(1, -270, 0, 20)
+NotifContainer.BackgroundTransparency = 1
+local NotifLayout = Instance.new("UIListLayout", NotifContainer)
+NotifLayout.SortOrder = Enum.SortOrder.LayoutOrder
+NotifLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+NotifLayout.Padding = UDim.new(0, 10)
 
-    btn.MouseButton1Click:Connect(function()
-        callback(btn)
+local function SendNotification(title, text, duration)
+    local Notif = Instance.new("Frame", NotifContainer)
+    Notif.Size = UDim2.new(1, 0, 0, 60)
+    Notif.BackgroundColor3 = Theme.NotifBG
+    Notif.BackgroundTransparency = 1
+    Instance.new("UICorner", Notif).CornerRadius = UDim.new(0, 8)
+    local NStroke = Instance.new("UIStroke", Notif)
+    NStroke.Color = Theme.ButtonOn
+    NStroke.Thickness = 1
+    NStroke.Transparency = 1
+
+    local NTitle = Instance.new("TextLabel", Notif)
+    NTitle.Size = UDim2.new(1, -20, 0, 20)
+    NTitle.Position = UDim2.new(0, 10, 0, 10)
+    NTitle.BackgroundTransparency = 1
+    NTitle.Text = title
+    NTitle.TextColor3 = Theme.ButtonOn
+    NTitle.Font = Enum.Font.GothamBold
+    NTitle.TextSize = 14
+    NTitle.XAlignment = Enum.TextXAlignment.Left
+    NTitle.TextTransparency = 1
+
+    local NText = Instance.new("TextLabel", Notif)
+    NText.Size = UDim2.new(1, -20, 0, 20)
+    NText.Position = UDim2.new(0, 10, 0, 30)
+    NText.BackgroundTransparency = 1
+    NText.Text = text
+    NText.TextColor3 = Theme.Text
+    NText.Font = Enum.Font.GothamMedium
+    NText.TextSize = 12
+    NText.XAlignment = Enum.TextXAlignment.Left
+    NText.TextTransparency = 1
+
+    -- Animation d'entrée
+    TweenService:Create(Notif, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+    TweenService:Create(NStroke, TweenInfo.new(0.3), {Transparency = 0}):Play()
+    TweenService:Create(NTitle, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+    TweenService:Create(NText, TweenInfo.new(0.3), {TextTransparency = 0}):Play()
+
+    task.delay(duration or 3, function()
+        -- Animation de sortie
+        TweenService:Create(Notif, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+        TweenService:Create(NStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+        TweenService:Create(NTitle, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        TweenService:Create(NText, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+        task.wait(0.3)
+        Notif:Destroy()
     end)
-
-    return btn
 end
 
--- VARIABLES
+-- ============================
+-- SYSTEME DE BOUTONS ANIME
+-- ============================
+local function CreateButton(text, order, callback, isToggle)
+    local Btn = Instance.new("TextButton", Container)
+    Btn.Size = UDim2.new(1, -5, 0, 36)
+    Btn.LayoutOrder = order
+    Btn.BackgroundColor3 = Theme.ButtonOff
+    Btn.Text = text
+    Btn.TextColor3 = Theme.Text
+    Btn.Font = Enum.Font.GothamSemibold
+    Btn.TextSize = 13
+    Btn.AutoButtonColor = false
+
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    local BtnStroke = Instance.new("UIStroke", Btn)
+    BtnStroke.Color = Theme.Stroke
+    BtnStroke.Thickness = 1
+
+    local toggled = false
+
+    Btn.MouseEnter:Connect(function()
+        if not toggled then TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ButtonHover}):Play() end
+    end)
+
+    Btn.MouseLeave:Connect(function()
+        if not toggled then TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ButtonOff}):Play() end
+    end)
+
+    Btn.MouseButton1Click:Connect(function()
+        if isToggle then
+            toggled = not toggled
+            local targetColor = toggled and Theme.ButtonOn or Theme.ButtonHover
+            TweenService:Create(Btn, TweenInfo.new(0.3), {BackgroundColor3 = targetColor}):Play()
+            BtnStroke.Color = toggled and Theme.ButtonOn or Theme.Stroke
+        else
+            TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Theme.ButtonOn}):Play()
+            task.wait(0.1)
+            TweenService:Create(Btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.ButtonHover}):Play()
+        end
+        callback(toggled)
+    end)
+    
+    return Btn
+end
+
+-- ============================
+-- VARIABLES GLOBALES
+-- ============================
 _G.AutoCollect = false
 _G.AutoUpload = false
 _G.AutoClaim = false
@@ -117,269 +236,259 @@ _G.AutoRebirth = false
 _G.AutoUpgrades = false
 _G.AutoBuy = false
 _G.SelectedYoutuber = ""
+_G.AutoFloorCycle = false
+_G.SmartAutoRebirth = false
+_G.AutoSubmit = false
+_G.AutoBulkHatch = false
 
-local player = game.Players.LocalPlayer
-local events = game:GetService("ReplicatedStorage"):WaitForChild("events")
+local events = ReplicatedStorage:WaitForChild("events", 5)
 
--- ================================
---  EGG ANIMATION REMOVAL (DELAYED)
--- ================================
+-- ============================
+-- FONCTIONNALITÉS (LOGIQUE)
+-- ============================
 
+-- Suppression des animations d'oeufs (Discret)
 task.spawn(function()
-    -- Wait for the game to finish connecting its animation handlers
     task.wait(3)
-
-    local events = game:GetService("ReplicatedStorage"):WaitForChild("events")
-
-    local animationEvents = {
-        "hatchExclusiveEgg",
-        "hatchEventEgg",
-        "hatchPet",
-        "showEgg",
-        "eggAnimation"
-    }
-
-    for _, name in ipairs(animationEvents) do
-        local ev = events:FindFirstChild(name)
-        if ev and ev.OnClientEvent then
-            for _, conn in pairs(getconnections(ev.OnClientEvent)) do
-                conn:Disconnect()
+    local animationEvents = {"hatchExclusiveEgg", "hatchEventEgg", "hatchPet", "showEgg", "eggAnimation"}
+    if events then
+        for _, name in ipairs(animationEvents) do
+            local ev = events:FindFirstChild(name)
+            if ev and ev.OnClientEvent then
+                for _, conn in pairs(getconnections(ev.OnClientEvent)) do conn:Disconnect() end
             end
-            print("[EggAnim] Disconnected:", name)
         end
     end
-
-    print("Egg animations disabled (delayed mode).")
 end)
 
--- FEATURES IN ORDER
+-- 1. Auto Collect
+CreateButton("Auto Collect", 1, function(state)
+    _G.AutoCollect = state
+    if _G.AutoCollect then
+        task.spawn(function()
+            while _G.AutoCollect do
+                for _, p in pairs(workspace.Plots:GetChildren()) do
+                    local builds = p:FindFirstChild("Builds")
+                    if builds then
+                        for _, item in pairs(builds:GetDescendants()) do
+                            if _G.AutoCollect and item:IsA("TouchTransmitter") then
+                                local part = item.Parent
+                                if part and part:IsA("BasePart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                    firetouchinterest(player.Character.HumanoidRootPart, part, 0)
+                                    task.wait(0.05)
+                                    firetouchinterest(player.Character.HumanoidRootPart, part, 1)
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.8)
+            end
+        end)
+    end
+end, true)
 
-_G.AutoFloorCycle = false
+-- 2. Auto Upload
+CreateButton("Auto Upload", 2, function(state)
+    _G.AutoUpload = state
+    if _G.AutoUpload then
+        task.spawn(function()
+            while _G.AutoUpload do
+                pcall(function() events.uploadAll:FireServer() end)
+                task.wait(3)
+            end
+        end)
+    end
+end, true)
 
-local player = game.Players.LocalPlayer
-local char = player.Character or player.CharacterAdded:Wait()
-local hrp = char:WaitForChild("HumanoidRootPart")
+-- 3. Auto Claim
+CreateButton("Auto Claim", 3, function(state)
+    _G.AutoClaim = state
+    if _G.AutoClaim then
+        task.spawn(function()
+            while _G.AutoClaim do
+                pcall(function() events.claimAll:FireServer() end)
+                task.wait(3)
+            end
+        end)
+    end
+end, true)
 
+-- 4. Smart Auto Rebirth
+local function getHighestAffordable()
+    local rebirthMenu = player.PlayerGui.ScreenGui.menus:FindFirstChild("rebirthMenu")
+    if not rebirthMenu then return nil, 0 end
+    
+    local cash = player.leaderstats.Cash.Value
+    local bestAmount, bestButton = 0, nil
+
+    for _, btn in pairs(rebirthMenu.container:GetChildren()) do
+        if btn:IsA("TextButton") then
+            local amount = tonumber(btn.rebirths.Text:match("%+(%d+)"))
+            local cost = tonumber(btn.cost.Text:match("%$(%d+)"))
+            if amount and cost and cash >= cost and amount > bestAmount then
+                bestAmount = amount
+                bestButton = btn
+            end
+        end
+    end
+    return bestButton, bestAmount
+end
+
+CreateButton("Smart Auto Rebirth", 4, function(state)
+    _G.SmartAutoRebirth = state
+    if _G.SmartAutoRebirth then
+        task.spawn(function()
+            while _G.SmartAutoRebirth do
+                local bestButton, amount = getHighestAffordable()
+                if bestButton and amount > 0 then
+                    pcall(function() 
+                        events.rebirth:FireServer(amount) 
+                        SendNotification("🌙 Smart Rebirth", "Rebirth effectué : +"..amount, 4)
+                    end)
+                end
+                task.wait(2)
+            end
+        end)
+    end
+end, true)
+
+-- 5. Auto Upgrades
+local upgradeList = {"views", "luck", "viralChance", "rebirthButtons", "uploadTime"}
+CreateButton("Auto Upgrades", 5, function(state)
+    _G.AutoUpgrades = state
+    if _G.AutoUpgrades then
+        task.spawn(function()
+            while _G.AutoUpgrades do
+                for _, upg in pairs(upgradeList) do
+                    if not _G.AutoUpgrades then break end
+                    pcall(function() events.buyUpgrade:FireServer(upg) end)
+                    task.wait(0.5)
+                end
+                task.wait(3)
+            end
+        end)
+    end
+end, true)
+
+-- 6. Auto Buy Youtuber
+CreateButton("Auto Buy Youtuber", 6, function(state)
+    _G.AutoBuy = state
+    if _G.AutoBuy then
+        task.spawn(function()
+            while _G.AutoBuy do
+                if _G.SelectedYoutuber ~= "" then
+                    pcall(function() events.buyYoutuber:FireServer(_G.SelectedYoutuber) end)
+                end
+                task.wait(2)
+            end
+        end)
+    end
+end, true)
+
+-- 7. Input Youtuber ID
+local InputBox = Instance.new("TextBox", Container)
+InputBox.LayoutOrder = 7
+InputBox.Size = UDim2.new(1, -5, 0, 36)
+InputBox.BackgroundColor3 = Theme.Background
+InputBox.PlaceholderText = "ID Youtuber (ex: 123)..."
+InputBox.Text = ""
+InputBox.TextColor3 = Theme.Text
+InputBox.Font = Enum.Font.GothamMedium
+InputBox.TextSize = 12
+Instance.new("UICorner", InputBox).CornerRadius = UDim.new(0, 6)
+local InputStroke = Instance.new("UIStroke", InputBox)
+InputStroke.Color = Theme.Stroke
+InputStroke.Thickness = 1
+
+InputBox.Changed:Connect(function()
+    _G.SelectedYoutuber = InputBox.Text
+end)
+
+-- 8. Auto Submit
+CreateButton("Auto Submit", 8, function(state)
+    _G.AutoSubmit = state
+    if _G.AutoSubmit then
+        task.spawn(function()
+            while _G.AutoSubmit do
+                pcall(function() events.submitAll:FireServer() end)
+                task.wait(3)
+            end
+        end)
+    end
+end, true)
+
+-- 9. Auto Bulk Hatch
+CreateButton("Auto Bulk Hatch", 9, function(state)
+    _G.AutoBulkHatch = state
+    if _G.AutoBulkHatch then
+        task.spawn(function()
+            while _G.AutoBulkHatch do
+                pcall(function()
+                    local cratesLabel = player.PlayerGui.ScreenGui.menus.eventMenu.balance.crates
+                    local crates = tonumber(cratesLabel.Text:match("%d+")) or 0
+                    if crates > 0 then
+                        events.openEventEgg:FireServer(math.min(crates, 10000))
+                    end
+                end)
+                task.wait(1)
+            end
+        end)
+    end
+end, true)
+
+-- 10. Auto Floor Cycle
 local floorPositions = {
-    Vector3.new(-477.35833740234375, 11.39998722076416, -1931.170654296875),
-    Vector3.new(-475.4379577636719, 38.24997329711914, -1936.069091796875),
-    Vector3.new(-476.86102294921875, 65.5998764038086, -1931.540283203125),
-    Vector3.new(-473.6367492675781, 92.69976806640625, -1937.2435302734375),
-    Vector3.new(-475.9712219238281, 118.70933532714844, -1931.321044921875),
-    Vector3.new(-476.06878662109375, 145.29953002929688, -1934.2862548828125)
+    Vector3.new(-477.3, 11.4, -1931.2), Vector3.new(-475.4, 38.2, -1936.1),
+    Vector3.new(-476.9, 65.6, -1931.5), Vector3.new(-473.6, 92.7, -1937.2),
+    Vector3.new(-476.0, 118.7, -1931.3), Vector3.new(-476.1, 145.3, -1934.3)
 }
-
-createButton("Auto Floor Cycle: OFF", 50, function(btn)
-    _G.AutoFloorCycle = not _G.AutoFloorCycle
-    btn.Text = _G.AutoFloorCycle and "Auto Floor Cycle: ON" or "Auto Floor Cycle: OFF"
-
+CreateButton("Auto Floor Cycle", 10, function(state)
+    _G.AutoFloorCycle = state
     if _G.AutoFloorCycle then
         task.spawn(function()
             while _G.AutoFloorCycle do
                 for i = 1, #floorPositions do
                     if not _G.AutoFloorCycle then break end
-
-                    -- Move HRP gently to the floor center
                     pcall(function()
-                        hrp.CFrame = CFrame.new(floorPositions[i])
+                        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then hrp.CFrame = CFrame.new(floorPositions[i]) end
                     end)
-
-                    task.wait(10) -- your required load time
+                    task.wait(10)
                 end
             end
         end)
     end
-end)
+end, true)
 
+-- 11. Sell All (Simple Bouton)
+CreateButton("Sell All Youtubers 💰", 11, function()
+    pcall(function() 
+        events.sellAll:FireServer() 
+        SendNotification("💰 Vente Réussie", "Tous tes YouTubers ont été vendus.", 3)
+    end)
+end, false)
 
-createButton("Auto Collect: OFF", 1, function(btn) 
-    _G.AutoCollect = not _G.AutoCollect 
-    btn.Text = _G.AutoCollect and "Auto Collect: ON" or "Auto Collect: OFF" 
-    if _G.AutoCollect then task.spawn(function() while _G.AutoCollect do for _, p in pairs(workspace.Plots:GetChildren()) do local builds = p:FindFirstChild("Builds") if builds then for _, item in pairs(builds:GetDescendants()) do if _G.AutoCollect and item:IsA("TouchTransmitter") then local part = item.Parent if part and part:IsA("BasePart") then firetouchinterest(player.Character.HumanoidRootPart, part, 0) task.wait(0.05) firetouchinterest(player.Character.HumanoidRootPart, part, 1) end end end end end task.wait(0.8) end end) end 
-end)
-
-createButton("Auto Upload: OFF", 2, function(btn) 
-    _G.AutoUpload = not _G.AutoUpload 
-    btn.Text = _G.AutoUpload and "Auto Upload: ON" or "Auto Upload: OFF" 
-    if _G.AutoUpload then task.spawn(function() while _G.AutoUpload do pcall(function() events.uploadAll:FireServer() end) task.wait(3) end end) end 
-end)
-
-createButton("Auto Claim: OFF", 3, function(btn) 
-    _G.AutoClaim = not _G.AutoClaim 
-    btn.Text = _G.AutoClaim and "Auto Claim: ON" or "Auto Claim: OFF" 
-    if _G.AutoClaim then task.spawn(function() while _G.AutoClaim do pcall(function() events.claimAll:FireServer() end) task.wait(3) end end) end 
-end)
-
-_G.SmartAutoRebirth = false
-
-local rebirthMenu = player.PlayerGui.ScreenGui.menus.rebirthMenu
-local container = rebirthMenu.container
-
-local function getButtonData(btn)
-    local amountText = btn.rebirths.Text -- "+5 Rebirths"
-    local amount = tonumber(amountText:match("%+(%d+)"))
-    if not amount then return end
-
-    local costText = btn.cost.Text -- "Costs: $12345"
-    local cost = tonumber(costText:match("%$(%d+)"))
-    if not cost then return end
-
-    return amount, cost
-end
-
-local function getHighestAffordable()
-    local cash = player.leaderstats.Cash.Value
-
-    local bestAmount = 0
-    local bestButton = nil
-
-    for _, btn in pairs(container:GetChildren()) do
-        if btn:IsA("TextButton") then
-            local amount, cost = getButtonData(btn)
-            if amount and cost then
-                if cash >= cost and amount > bestAmount then
-                    bestAmount = amount
-                    bestButton = btn
-                end
-            end
-        end
-    end
-
-    return bestButton, bestAmount
-end
-
-createButton("Smart Auto Rebirth: OFF", 9, function(btn)
-    _G.SmartAutoRebirth = not _G.SmartAutoRebirth
-    btn.Text = _G.SmartAutoRebirth and "Smart Auto Rebirth: ON" or "Smart Auto Rebirth: OFF"
-
-    if _G.SmartAutoRebirth then
-        task.spawn(function()
-            while _G.SmartAutoRebirth do
-
-                local bestButton, amount = getHighestAffordable()
-
-                if bestButton then
-                    print("[Smart Rebirth] Rebirthing with +" .. amount)
-                    events.rebirth:FireServer(amount)
-                end
-
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
-local upgradeList = {"views", "luck", "viralChance", "rebirthButtons", "uploadTime"}
-createButton("Auto Upgrades: OFF", 5, function(btn) 
-    _G.AutoUpgrades = not _G.AutoUpgrades 
-    btn.Text = _G.AutoUpgrades and "Auto Upgrades: ON" or "Auto Upgrades: OFF" 
-    if _G.AutoUpgrades then task.spawn(function() while _G.AutoUpgrades do for _, upg in pairs(upgradeList) do if not _G.AutoUpgrades then break end pcall(function() events.buyUpgrade:FireServer(upg) end) task.wait(1) end task.wait(5) end end) end 
-end)
-
-createButton("Auto Buy: OFF", 6, function(btn)
-    _G.AutoBuy = not _G.AutoBuy
-    btn.Text = _G.AutoBuy and "Auto Buy: ON" or "Auto Buy: OFF"
-    if _G.AutoBuy then task.spawn(function() while _G.AutoBuy do if _G.SelectedYoutuber ~= "" then pcall(function() events.buyYoutuber:FireServer(_G.SelectedYoutuber) end) end task.wait(2) end end) end
-end)
-
-_G.AutoSubmit = false
-
-createButton("Auto Submit: OFF", 8, function(btn)
-    _G.AutoSubmit = not _G.AutoSubmit
-    btn.Text = _G.AutoSubmit and "Auto Submit: ON" or "Auto Submit: OFF"
-
-    if _G.AutoSubmit then
-        task.spawn(function()
-            while _G.AutoSubmit do
-                pcall(function()
-                    events.submitAll:FireServer()
-                end)
-                task.wait(3)
-            end
-        end)
-    end
-end)
-
--- AUTO BULK HATCH (FINAL)
-
-_G.AutoBulkHatch = false
-local BATCH = 10000
-
-local player = game.Players.LocalPlayer
-
-local cratesLabel = player:WaitForChild("PlayerGui")
-    :WaitForChild("ScreenGui")
-    :WaitForChild("menus")
-    :WaitForChild("eventMenu")
-    :WaitForChild("balance")
-    :WaitForChild("crates")  -- lowercase c
-
-local openEventEgg = game:GetService("ReplicatedStorage")
-    :WaitForChild("events")
-    :WaitForChild("openEventEgg")
-
-local function getCrates()
-    local text = cratesLabel.Text
-    if not text then return 0 end
-
-    local num = tonumber(text:match("%d+"))
-    return num or 0
-end
-
-createButton("Auto Bulk Hatch: OFF", 10, function(btn)
-    _G.AutoBulkHatch = not _G.AutoBulkHatch
-    btn.Text = _G.AutoBulkHatch and "Auto Bulk Hatch: ON" or "Auto Bulk Hatch: OFF"
-
-    if _G.AutoBulkHatch then
-        task.spawn(function()
-            while _G.AutoBulkHatch do
-                local crates = getCrates()
-
-                if crates > 0 then
-                    local toOpen = math.min(crates, BATCH)
-                    print("[Bulk Hatch] Opening", toOpen, "eggs")
-                    openEventEgg:FireServer(toOpen)
-                end
-
-                task.wait(1)
-            end
-        end)
-    end
-end)
-
--- ================================
--- SELL ALL BUTTON
--- ================================
-
-local events = game:GetService("ReplicatedStorage"):WaitForChild("events")
-
-createButton("Sell All Youtubers", 999, function(btn)
-    print("[SellAll] Selling everything...")
-    events.sellAll:FireServer()
-end)
-
--- INPUT BOX (DIRECTLY BELOW AUTO BUY)
-local Input = Instance.new("TextBox", Container)
-Input.LayoutOrder = 7
-Input.Size = UDim2.new(1, 0, 0, 32)
-Input.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Input.PlaceholderText = "Enter Youtuber ID..."
-Input.Text = ""
-Input.TextColor3 = Color3.fromRGB(255, 255, 255)
-Input.Font = Enum.Font.GothamBold
-Input.TextSize = 13
-Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 8)
-
-Input.Changed:Connect(function()
-    _G.SelectedYoutuber = Input.Text
-end)
-
--- MINIMIZE
+-- ============================
+-- MINIMISATION FLUIDE
+-- ============================
 local minimized = false
 MinimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
-    MainFrame:TweenSize(minimized and UDim2.new(0, 250, 0, 40) or UDim2.new(0, 250, 0, 360), "Out", "Quart", 0.3, true)
-    Container.Visible = not minimized
-    Footer.Visible = not minimized
-    MinimizeBtn.Text = minimized and "▲" or "▼"
+    local targetSize = minimized and UDim2.new(0, 260, 0, 45) or UDim2.new(0, 260, 0, 400)
+    
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = targetSize}):Play()
+    
+    -- Fade out/in du contenu
+    for _, item in pairs({Container, Footer}) do
+        item.Visible = true
+        TweenService:Create(item, TweenInfo.new(0.2), {GroupTransparency = minimized and 1 or 0}):Play()
+    end
+    
+    MinimizeBtn.Text = minimized and "+" or "−"
+    task.wait(0.2)
+    if minimized then Container.Visible = false; Footer.Visible = false end
 end)
+
+-- Notification de bienvenue
+SendNotification("🌙 LunaMoon", "Interface chargée avec succès !", 4)
