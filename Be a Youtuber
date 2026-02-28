@@ -1,5 +1,5 @@
 -- ============================================================
---  LUNAMOON HUB v2.5 - Dynamic Floors & Animated UI
+--  LUNAMOON HUB v2.6 - Ultimate Edition (English, Animated, Floors & Codes)
 -- ============================================================
 
 -- CLEANUP
@@ -25,8 +25,8 @@ _G.AutoUpload       = false
 _G.AutoClaim        = false
 _G.AutoSubmit       = false
 _G.AutoUpgrades     = false
-_G.AutoBuy          = false
 _G.AutoBuyHouse     = false
+_G.AutoBuy          = false
 _G.AutoBulkHatch    = false
 _G.AutoFloorCycle   = false
 _G.SmartAutoRebirth = false
@@ -34,7 +34,7 @@ _G.SelectedYoutuber = ""
 _G.WalkSpeed        = 16
 
 -- ============================================================
---  PALETTE MONOCHROME
+--  MONOCHROME PALETTE
 -- ============================================================
 local C = {
     bg         = Color3.fromRGB(15, 15, 15),
@@ -69,7 +69,7 @@ local function stroke(parent, color, thickness)
     return s
 end
 
--- BORDURE AVEC GRADIENT ANIMÉ
+-- ANIMATED GRADIENT STROKE
 local function animatedStroke(parent, thickness)
     local s = Instance.new("UIStroke", parent)
     s.Color = Color3.fromRGB(255, 255, 255)
@@ -78,9 +78,9 @@ local function animatedStroke(parent, thickness)
     
     local grad = Instance.new("UIGradient", s)
     grad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),   -- Blanc
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)), -- Gris
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))       -- Noir
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),   -- White
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)), -- Gray
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))       -- Black
     })
     
     task.spawn(function()
@@ -135,7 +135,7 @@ Win.ClipsDescendants = false
 corner(Win, 14)
 animatedStroke(Win, 1.5)
 
--- OMBRE
+-- SHADOW
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
@@ -168,6 +168,7 @@ TopPatch.BackgroundColor3 = C.sidebar
 TopPatch.BorderSizePixel  = 0
 TopPatch.ZIndex           = 2
 
+-- TOP LOGO (Optional, keeping it based on previous script)
 local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
@@ -191,7 +192,7 @@ local TopSub = Instance.new("TextLabel", TopBar)
 TopSub.Position           = UDim2.new(0, 48, 0, 26)
 TopSub.Size               = UDim2.new(0, 250, 0, 14)
 TopSub.BackgroundTransparency = 1
-TopSub.Text               = "Speed Escape for Brainrots (F8 to Hide)"
+TopSub.Text               = "Be a Youtuber (F8 to Hide)"
 TopSub.TextColor3         = C.subtext
 TopSub.Font               = Enum.Font.Gotham
 TopSub.TextSize           = 11
@@ -273,10 +274,23 @@ SideList.HorizontalAlignment  = Enum.HorizontalAlignment.Center
 SideList.VerticalAlignment    = Enum.VerticalAlignment.Top
 applyPadding(Sidebar, 12, 12, 8, 8)
 
+-- SIDEBAR LOGO
+local SideLogoContainer = Instance.new("Frame", Sidebar)
+SideLogoContainer.Size = UDim2.new(1, 0, 0, 80)
+SideLogoContainer.BackgroundTransparency = 1
+SideLogoContainer.LayoutOrder = -1 -- Forces it to the very top
+
+local SideLogo = Instance.new("ImageLabel", SideLogoContainer)
+SideLogo.Size = UDim2.new(0, 64, 0, 64)
+SideLogo.Position = UDim2.new(0.5, 0, 0.5, 0)
+SideLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+SideLogo.BackgroundTransparency = 1
+SideLogo.Image = "rbxassetid://131711664935136"
+
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.5"
+SideVer.Text               = "v2.6"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -370,7 +384,7 @@ local floorPage = tabs["Floor"].page
 local infoPage  = tabs["Info"].page
 
 -- ============================================================
---  COMPOSANTS RÉUTILISABLES
+--  REUSABLE COMPONENTS
 -- ============================================================
 local function sectionLabel(parent, text, order)
     local f = Instance.new("Frame", parent)
@@ -472,7 +486,7 @@ end
 -- ============================================================
 --  TAB : AUTOMATION
 -- ============================================================
-sectionLabel(autoPage, "COLLECTE & UPLOAD", 0)
+sectionLabel(autoPage, "COLLECT & UPLOAD", 0)
 
 makeToggle(autoPage, "Auto Collect", 1, function(_, state)
     _G.AutoCollect = state
@@ -571,7 +585,6 @@ makeToggle(autoPage, "Auto Upgrades", 12, function(_, state)
     end) end
 end)
 
--- NOUVEAU : Auto Buy House (basé sur ta trouvaille du module)
 makeToggle(autoPage, "Auto Buy House", 13, function(_, state)
     _G.AutoBuyHouse = state
     if state then task.spawn(function()
@@ -584,7 +597,7 @@ end)
 
 sectionLabel(autoPage, "YOUTUBERS", 20)
 
-local inputYT = makeInput(autoPage, "Entrer l'ID du Youtuber...", 21)
+local inputYT = makeInput(autoPage, "Enter Youtuber ID...", 21)
 inputYT:GetPropertyChangedSignal("Text"):Connect(function()
     _G.SelectedYoutuber = inputYT.Text
 end)
@@ -631,6 +644,30 @@ makeToggle(autoPage, "Auto Bulk Hatch", 31, function(_, state)
     end) end
 end)
 
+sectionLabel(autoPage, "PROMO CODES", 40)
+
+local knownCodes = {
+    "release", "secretcode", "20klikes", "30klikes", 
+    "50klikes", "100klikes", "mutations", "200klikes"
+}
+
+makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
+    if not player:IsInGroup(476287845) then
+        warn("[LunaMoon] WARNING: You must join the game's Roblox group for codes to work!")
+    end
+    
+    task.spawn(function()
+        for _, code in ipairs(knownCodes) do
+            local safeCode = string.lower(code)
+            pcall(function()
+                events.redeemCode:FireServer(safeCode)
+            end)
+            task.wait(0.5)
+        end
+        print("[LunaMoon] All codes have been sent to the server!")
+    end)
+end)
+
 task.spawn(function()
     task.wait(3)
     for _, name in ipairs({"hatchExclusiveEgg","hatchEventEgg","hatchPet","showEgg","eggAnimation"}) do
@@ -646,7 +683,7 @@ end)
 -- ============================================================
 --  TAB : SPEED
 -- ============================================================
-sectionLabel(speedPage, "VITESSE DU PERSONNAGE", 0)
+sectionLabel(speedPage, "CHARACTER SPEED", 0)
 
 local speedDisplay = Instance.new("TextLabel", speedPage)
 speedDisplay.LayoutOrder       = 1
@@ -655,7 +692,7 @@ speedDisplay.BackgroundColor3  = C.card
 speedDisplay.TextColor3        = C.white
 speedDisplay.Font              = Enum.Font.GothamBold
 speedDisplay.TextSize          = 24
-speedDisplay.Text              = "⚡  Speed : 16"
+speedDisplay.Text              = "⚡  Speed: 16"
 speedDisplay.BorderSizePixel   = 0
 corner(speedDisplay, 9)
 stroke(speedDisplay, C.divider, 1)
@@ -667,19 +704,19 @@ jumpDisplay.BackgroundColor3   = C.card
 jumpDisplay.TextColor3         = C.white
 jumpDisplay.Font               = Enum.Font.GothamBold
 jumpDisplay.TextSize           = 24
-jumpDisplay.Text               = "↑  Jump  : 50"
+jumpDisplay.Text               = "↑  Jump: 50"
 jumpDisplay.BorderSizePixel    = 0
 corner(jumpDisplay, 9)
 stroke(jumpDisplay, C.divider, 1)
 
 local function applySpeed(val)
     _G.WalkSpeed = val
-    speedDisplay.Text = "⚡  Speed : " .. val
+    speedDisplay.Text = "⚡  Speed: " .. val
     pcall(function() player.Character.Humanoid.WalkSpeed = val end)
 end
 
 local function applyJump(val)
-    jumpDisplay.Text = "↑  Jump  : " .. val
+    jumpDisplay.Text = "↑  Jump: " .. val
     pcall(function() player.Character.Humanoid.JumpPower = val end)
 end
 
@@ -716,9 +753,9 @@ end
 
 makePresetsRow(speedPage, 2, {16, 50, 100, 200}, applySpeed)
 
-sectionLabel(speedPage, "VITESSE PERSONNALISÉE", 3)
-local speedInput = makeInput(speedPage, "Valeur (ex: 150)", 4)
-makeActionBtn(speedPage, "✓  Appliquer la vitesse", 5, function()
+sectionLabel(speedPage, "CUSTOM SPEED", 3)
+local speedInput = makeInput(speedPage, "Value (ex: 150)", 4)
+makeActionBtn(speedPage, "✓  Apply Speed", 5, function()
     local val = tonumber(speedInput.Text)
     if val and val > 0 and val <= 10000 then applySpeed(val) end
 end)
@@ -726,14 +763,14 @@ end)
 sectionLabel(speedPage, "JUMP POWER", 7)
 makePresetsRow(speedPage, 8, {50, 100, 200, 500}, applyJump)
 
-sectionLabel(speedPage, "JUMP PERSONNALISÉ", 9)
-local jumpInput = makeInput(speedPage, "Valeur (ex: 200)", 10)
-makeActionBtn(speedPage, "✓  Appliquer le jump", 11, function()
+sectionLabel(speedPage, "CUSTOM JUMP", 9)
+local jumpInput = makeInput(speedPage, "Value (ex: 200)", 10)
+makeActionBtn(speedPage, "✓  Apply Jump", 11, function()
     local val = tonumber(jumpInput.Text)
     if val and val > 0 and val <= 10000 then applyJump(val) end
 end)
 
-makeActionBtn(speedPage, "↩  Reset tout", 12, function()
+makeActionBtn(speedPage, "↩  Reset All", 12, function()
     applySpeed(16)
     applyJump(50)
     speedInput.Text = ""
@@ -741,9 +778,8 @@ makeActionBtn(speedPage, "↩  Reset tout", 12, function()
 end)
 
 -- ============================================================
---  TAB : FLOOR (DYNAMIQUE SELON L'ARCHITECTURE DU JEU)
+--  TAB : FLOOR (DYNAMIC FLOOR SCRIPT ARCHITECTURE)
 -- ============================================================
--- 1. On récupère dynamiquement la liste de tous tes étages
 local function getMyFloors()
     local tempVals = player:FindFirstChild("tempValues")
     if not tempVals then return {} end
@@ -758,7 +794,6 @@ local function getMyFloors()
                 if floorsFolder then
                     local allFloors = floorsFolder:GetChildren()
                     
-                    -- On trie les étages de bas en haut (selon leur position Y)
                     table.sort(allFloors, function(a, b)
                         local posA = a:IsA("Model") and (a.PrimaryPart and a.PrimaryPart.Position.Y or a:GetModelCFrame().Y) or a.Position.Y
                         local posB = b:IsA("Model") and (b.PrimaryPart and b.PrimaryPart.Position.Y or b:GetModelCFrame().Y) or b.Position.Y
@@ -773,7 +808,6 @@ local function getMyFloors()
     return {}
 end
 
--- 2. Fonction de téléportation sur l'étage sélectionné
 local function teleportToFloor(index, floorsList)
     local targetFloor = floorsList[index]
     if targetFloor then
@@ -787,7 +821,6 @@ local function teleportToFloor(index, floorsList)
             end
             
             if targetCFrame then
-                -- On ajoute +3 sur l'axe Y pour ne pas être coincé dans le sol
                 hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
             end
         end
@@ -803,7 +836,7 @@ floorStatus.BackgroundColor3   = C.card
 floorStatus.TextColor3         = C.subtext
 floorStatus.Font               = Enum.Font.GothamSemibold
 floorStatus.TextSize           = 13
-floorStatus.Text               = "Recherche d'étages..."
+floorStatus.Text               = "Searching for floors..."
 floorStatus.BorderSizePixel    = 0
 corner(floorStatus, 9)
 
@@ -815,34 +848,33 @@ makeToggle(floorPage, "Auto Floor Cycle", 2, function(_, state)
             if #floors > 0 then
                 for i = 1, #floors do
                     if not _G.AutoFloorCycle then break end
-                    floorStatus.Text = "Étage actuel : " .. i .. " / " .. #floors
+                    floorStatus.Text = "Current Floor: " .. i .. " / " .. #floors
                     floorStatus.TextColor3 = C.accent
                     pcall(function() teleportToFloor(i, floors) end)
                     task.wait(10)
                 end
             else
-                floorStatus.Text = "Aucun étage trouvé."
+                floorStatus.Text = "No floors found."
                 task.wait(2)
             end
         end
-        floorStatus.Text = "Étage actuel : —"
+        floorStatus.Text = "Current Floor: —"
         floorStatus.TextColor3 = C.subtext
     end) end
 end)
 
--- Boutons rapides générés pour un maximum de 10 étages
-sectionLabel(floorPage, "TÉLÉPORTATION RAPIDE", 5)
+sectionLabel(floorPage, "FAST TELEPORT", 5)
 
 for i = 1, 10 do
-    makeActionBtn(floorPage, "→  Étage " .. i, 10 + i, function()
+    makeActionBtn(floorPage, "→  Floor " .. i, 10 + i, function()
         local floors = getMyFloors()
         if floors[i] then
             pcall(function() teleportToFloor(i, floors) end)
-            floorStatus.Text = "Téléporté : Étage " .. i .. " / " .. #floors
+            floorStatus.Text = "Teleported: Floor " .. i .. " / " .. #floors
             floorStatus.TextColor3 = C.accent
         else
-            floorStatus.Text = "Étage " .. i .. " non débloqué !"
-            floorStatus.TextColor3 = Color3.fromRGB(200, 50, 50) -- Rouge si pas d'étage
+            floorStatus.Text = "Floor " .. i .. " not unlocked!"
+            floorStatus.TextColor3 = Color3.fromRGB(200, 50, 50)
         end
     end)
 end
@@ -883,13 +915,13 @@ local function infoCard(parent, order, key, value)
 end
 
 sectionLabel(infoPage, "SCRIPT", 0)
-infoCard(infoPage, 1,  "Nom",     "Speed Escape for Brainrots")
-infoCard(infoPage, 2,  "Version", "v2.5  —  Dynamic Floors Edit")
+infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
+infoCard(infoPage, 2,  "Version", "v2.6  —  Ultimate Edition")
 infoCard(infoPage, 3,  "Hub",     "LunaMoon Hub")
-infoCard(infoPage, 4,  "Crédits", "Scriptyyz")
+infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
 sectionLabel(infoPage, "SUPPORT", 10)
-infoCard(infoPage, 11, "Raccourci", "Touche F8 ou Clique sur le Logo")
+infoCard(infoPage, 11, "Shortcut", "F8 Key or Click Logo")
 
 -- ============================================================
 --  MINIMIZE LOGIC
@@ -910,7 +942,7 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
---  BOUTON FLOTTANT (OUVERTURE)
+--  FLOATING BUTTON (OPEN UI)
 -- ============================================================
 local OpenBtn = Instance.new("ImageButton", ScreenGui)
 OpenBtn.Name             = "OpenBtn"
@@ -936,7 +968,7 @@ local function toggleUI(forceState)
     OpenBtn.Visible = not isVisible
 end
 
--- Connexions pour ouvrir/fermer l'UI
+-- Open/Close UI Connections
 CloseBtn.MouseButton1Click:Connect(function() toggleUI(false) end)
 OpenBtn.MouseButton1Click:Connect(function() toggleUI(true) end)
 
@@ -947,8 +979,8 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 -- ============================================================
---  DÉMARRAGE
+--  STARTUP
 -- ============================================================
 switchTab("Automation")
 
-print("[LunaMoonHub v2.5] Chargé - Système d'étages dynamique activé ✓")
+print("[LunaMoonHub v2.6] All modules loaded successfully ✓")
