@@ -1,10 +1,10 @@
 -- ============================================================
---  LUNAMOON HUB v2.6 - Ultimate Edition (English, Animated, Floors & Codes)
+--  COMET HUB v2.7 - Ultimate Edition (English, Animated, Floors & Codes Fix)
 -- ============================================================
 
 -- CLEANUP
-if game.CoreGui:FindFirstChild("LunaMoonHub") then
-    game.CoreGui:FindFirstChild("LunaMoonHub"):Destroy()
+if game.CoreGui:FindFirstChild("Comet Hub") then
+    game.CoreGui:FindFirstChild("Comet Hub"):Destroy()
 end
 
 -- SERVICES
@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
 local RunService        = game:GetService("RunService")
+local StarterGui       = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
@@ -114,7 +115,7 @@ end
 --  ROOT GUI
 -- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name            = "LunaMoonHub"
+ScreenGui.Name            = "CometHub"
 ScreenGui.ResetOnSpawn    = false
 ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent          = game.CoreGui
@@ -168,12 +169,12 @@ TopPatch.BackgroundColor3 = C.sidebar
 TopPatch.BorderSizePixel  = 0
 TopPatch.ZIndex           = 2
 
--- TOP LOGO (Optional, keeping it based on previous script)
+-- TOP LOGO
 local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://129928619995803"
+Logo.Image                = "rbxassetid://131711664935136"
 Logo.ImageColor3          = C.accent
 Logo.ZIndex               = 3
 
@@ -181,7 +182,7 @@ local TopTitle = Instance.new("TextLabel", TopBar)
 TopTitle.Position         = UDim2.new(0, 48, 0, 5)
 TopTitle.Size             = UDim2.new(0, 250, 0, 20)
 TopTitle.BackgroundTransparency = 1
-TopTitle.Text             = "LunaMoon Hub"
+TopTitle.Text             = "Comet Hub"
 TopTitle.TextColor3       = C.white
 TopTitle.Font             = Enum.Font.GothamBold
 TopTitle.TextSize         = 15
@@ -274,23 +275,12 @@ SideList.HorizontalAlignment  = Enum.HorizontalAlignment.Center
 SideList.VerticalAlignment    = Enum.VerticalAlignment.Top
 applyPadding(Sidebar, 12, 12, 8, 8)
 
--- SIDEBAR LOGO
-local SideLogoContainer = Instance.new("Frame", Sidebar)
-SideLogoContainer.Size = UDim2.new(1, 0, 0, 80)
-SideLogoContainer.BackgroundTransparency = 1
-SideLogoContainer.LayoutOrder = -1 -- Forces it to the very top
-
-local SideLogo = Instance.new("ImageLabel", SideLogoContainer)
-SideLogo.Size = UDim2.new(0, 64, 0, 64)
-SideLogo.Position = UDim2.new(0.5, 0, 0.5, 0)
-SideLogo.AnchorPoint = Vector2.new(0.5, 0.5)
-SideLogo.BackgroundTransparency = 1
-SideLogo.Image = "rbxassetid://131711664935136"
+-- Side Logo was removed here per request
 
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.6"
+SideVer.Text               = "v2.7"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -350,7 +340,8 @@ local function makeTabBtn(def, index)
     btn.BackgroundTransparency = 1
     btn.Text                 = def.icon .. "  " .. def.name
     btn.TextColor3           = C.subtext
-    btn.Font                 = Enum.Font.GothamSemibold
+    btn.Font
+             = Enum.Font.GothamSemibold
     btn.TextSize             = 12
     btn.TextXAlignment       = Enum.TextXAlignment.Left
     btn.BorderSizePixel      = 0
@@ -652,8 +643,18 @@ local knownCodes = {
 }
 
 makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
+    -- Roblox group verification (ID: 476287845)
     if not player:IsInGroup(476287845) then
-        warn("[LunaMoon] WARNING: You must join the game's Roblox group for codes to work!")
+        -- Native Roblox Notification for Popup
+        StarterGui:SetCore("SendNotification", {
+            Title = "GROUP REQUIRED!",
+            Text = "WARNING: You must join the game's Roblox group for codes to work!",
+            Duration = 5,
+            Icon = "rbxassetid://129928619995803" -- Hub Logo as Icon
+        })
+        
+        warn("[Comet] WARNING: You must join the game's Roblox group for codes to work!")
+        return -- STOP here, don't redeem codes
     end
     
     task.spawn(function()
@@ -664,7 +665,7 @@ makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
             end)
             task.wait(0.5)
         end
-        print("[LunaMoon] All codes have been sent to the server!")
+        print("[Comet] All codes have been sent to the server!")
     end)
 end)
 
@@ -704,7 +705,7 @@ jumpDisplay.BackgroundColor3   = C.card
 jumpDisplay.TextColor3         = C.white
 jumpDisplay.Font               = Enum.Font.GothamBold
 jumpDisplay.TextSize           = 24
-jumpDisplay.Text               = "↑  Jump: 50"
+jumpDisplay.Text              = "↑  Jump: 50"
 jumpDisplay.BorderSizePixel    = 0
 corner(jumpDisplay, 9)
 stroke(jumpDisplay, C.divider, 1)
@@ -916,8 +917,8 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v2.6  —  Ultimate Edition")
-infoCard(infoPage, 3,  "Hub",     "LunaMoon Hub")
+infoCard(infoPage, 2,  "Version", "v2.7  —  Ultimate Edition")
+infoCard(infoPage, 3,  "Hub",     "Comet Hub")
 infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
 sectionLabel(infoPage, "SUPPORT", 10)
@@ -983,4 +984,4 @@ end)
 -- ============================================================
 switchTab("Automation")
 
-print("[LunaMoonHub v2.6] All modules loaded successfully ✓")
+print("[CometHub v2.7] Hub loaded successfully ✓")
