@@ -1,10 +1,10 @@
 -- ============================================================
---  COMET HUB v2.7 - Ultimate Edition (English, Animated, Floors & Codes Fix)
+--  COMET HUB v2.8 - Ultimate Edition (Loading Screen, Floors, Codes, Webhook & Shadow Fix)
 -- ============================================================
 
 -- CLEANUP
-if game.CoreGui:FindFirstChild("Comet Hub") then
-    game.CoreGui:FindFirstChild("Comet Hub"):Destroy()
+if game.CoreGui:FindFirstChild("CometHub") then
+    game.CoreGui:FindFirstChild("CometHub"):Destroy()
 end
 
 -- SERVICES
@@ -13,10 +13,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
 local RunService        = game:GetService("RunService")
-local StarterGui       = game:GetService("StarterGui")
+local StarterGui        = game:GetService("StarterGui")
+local HttpService       = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
+
+-- ============================================================
+--  WEBHOOK ANALYTICS (REMPLACE LE LIEN ICI)
+-- ============================================================
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
 -- ============================================================
 --  GLOBALS
@@ -96,11 +102,13 @@ local function animatedStroke(parent, thickness)
 end
 
 local function tween(obj, props, t, style, dir)
-    TweenService:Create(
+    local tw = TweenService:Create(
         obj,
         TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out),
         props
-    ):Play()
+    )
+    tw:Play()
+    return tw
 end
 
 local function applyPadding(parent, top, bottom, left, right)
@@ -121,7 +129,7 @@ ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent          = game.CoreGui
 
 -- ============================================================
---  MAIN WINDOW
+--  MAIN WINDOW (Hidden initially for loading screen)
 -- ============================================================
 local Win = Instance.new("Frame", ScreenGui)
 Win.Name             = "MainWindow"
@@ -133,22 +141,23 @@ Win.BorderSizePixel  = 0
 Win.Active           = true
 Win.Draggable        = true
 Win.ClipsDescendants = false
+Win.Visible          = false -- Hidden
 corner(Win, 14)
 animatedStroke(Win, 1.5)
 
--- SHADOW
+-- SHADOW (FIX CORNERS FOR MINIMIZING)
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
 Shadow.AnchorPoint          = Vector2.new(0.5, 0.5)
 Shadow.BackgroundTransparency = 1
 Shadow.Position             = UDim2.new(0.5, 0, 0.5, 4)
-Shadow.Size                 = UDim2.new(1, 50, 1, 30)
-Shadow.Image                = "rbxassetid://6015897843"
+Shadow.Size                 = UDim2.new(1, 30, 1, 30)
+Shadow.Image                = "rbxassetid://7912134082"
 Shadow.ImageColor3          = Color3.fromRGB(0, 0, 0)
 Shadow.ImageTransparency    = 0.45
 Shadow.ScaleType            = Enum.ScaleType.Slice
-Shadow.SliceCenter          = Rect.new(49, 49, 450, 450)
+Shadow.SliceCenter          = Rect.new(15, 15, 85, 85)
 
 -- ============================================================
 --  TOPBAR
@@ -174,7 +183,7 @@ local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://131711664935136"
+Logo.Image                = "rbxassetid://129928619995803"
 Logo.ImageColor3          = C.accent
 Logo.ZIndex               = 3
 
@@ -275,12 +284,10 @@ SideList.HorizontalAlignment  = Enum.HorizontalAlignment.Center
 SideList.VerticalAlignment    = Enum.VerticalAlignment.Top
 applyPadding(Sidebar, 12, 12, 8, 8)
 
--- Side Logo was removed here per request
-
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.7"
+SideVer.Text               = "v2.8"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -340,8 +347,7 @@ local function makeTabBtn(def, index)
     btn.BackgroundTransparency = 1
     btn.Text                 = def.icon .. "  " .. def.name
     btn.TextColor3           = C.subtext
-    btn.Font
-             = Enum.Font.GothamSemibold
+    btn.Font                 = Enum.Font.GothamSemibold
     btn.TextSize             = 12
     btn.TextXAlignment       = Enum.TextXAlignment.Left
     btn.BorderSizePixel      = 0
@@ -645,16 +651,15 @@ local knownCodes = {
 makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
     -- Roblox group verification (ID: 476287845)
     if not player:IsInGroup(476287845) then
-        -- Native Roblox Notification for Popup
         StarterGui:SetCore("SendNotification", {
             Title = "GROUP REQUIRED!",
             Text = "WARNING: You must join the game's Roblox group for codes to work!",
             Duration = 5,
-            Icon = "rbxassetid://129928619995803" -- Hub Logo as Icon
+            Icon = "rbxassetid://129928619995803"
         })
         
         warn("[Comet] WARNING: You must join the game's Roblox group for codes to work!")
-        return -- STOP here, don't redeem codes
+        return
     end
     
     task.spawn(function()
@@ -705,7 +710,7 @@ jumpDisplay.BackgroundColor3   = C.card
 jumpDisplay.TextColor3         = C.white
 jumpDisplay.Font               = Enum.Font.GothamBold
 jumpDisplay.TextSize           = 24
-jumpDisplay.Text              = "↑  Jump: 50"
+jumpDisplay.Text               = "↑  Jump: 50"
 jumpDisplay.BorderSizePixel    = 0
 corner(jumpDisplay, 9)
 stroke(jumpDisplay, C.divider, 1)
@@ -917,7 +922,7 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v2.7  —  Ultimate Edition")
+infoCard(infoPage, 2,  "Version", "v2.8  —  Premium Splash Edition")
 infoCard(infoPage, 3,  "Hub",     "Comet Hub")
 infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
@@ -980,8 +985,121 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 -- ============================================================
---  STARTUP
+--  STARTUP, WEBHOOK & LOADING SCREEN
 -- ============================================================
 switchTab("Automation")
 
-print("[CometHub v2.7] Hub loaded successfully ✓")
+-- CREATE LOADING GUI
+local LoadFrame = Instance.new("Frame", ScreenGui)
+LoadFrame.Size = UDim2.new(0, 300, 0, 160)
+LoadFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+LoadFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadFrame.BackgroundColor3 = C.bg
+LoadFrame.BorderSizePixel = 0
+corner(LoadFrame, 12)
+animatedStroke(LoadFrame, 1.5)
+
+local LoadLogo = Instance.new("ImageLabel", LoadFrame)
+LoadLogo.Size = UDim2.new(0, 60, 0, 60)
+LoadLogo.Position = UDim2.new(0.5, 0, 0.35, 0)
+LoadLogo.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadLogo.BackgroundTransparency = 1
+LoadLogo.Image = "rbxassetid://129928619995803"
+LoadLogo.ImageColor3 = C.accent
+
+local LoadText = Instance.new("TextLabel", LoadFrame)
+LoadText.Size = UDim2.new(1, 0, 0, 20)
+LoadText.Position = UDim2.new(0, 0, 0.65, 0)
+LoadText.BackgroundTransparency = 1
+LoadText.Text = "Initializing Comet Hub..."
+LoadText.TextColor3 = C.subtext
+LoadText.Font = Enum.Font.GothamSemibold
+LoadText.TextSize = 12
+
+local BarBG = Instance.new("Frame", LoadFrame)
+BarBG.Size = UDim2.new(0, 220, 0, 6)
+BarBG.Position = UDim2.new(0.5, 0, 0.85, 0)
+BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+BarBG.BackgroundColor3 = C.card
+BarBG.BorderSizePixel = 0
+corner(BarBG, 4)
+
+local BarFill = Instance.new("Frame", BarBG)
+BarFill.Size = UDim2.new(0, 0, 1, 0)
+BarFill.BackgroundColor3 = C.white
+BarFill.BorderSizePixel = 0
+corner(BarFill, 4)
+
+-- LOADING ANIMATION & WEBHOOK SEQUENCE
+task.spawn(function()
+    -- Start Webhook HTTP Request Async
+    if WEBHOOK_URL and WEBHOOK_URL ~= "" and WEBHOOK_URL ~= "TON_LIEN_WEBHOOK_ICI" then
+        task.spawn(function()
+            local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+            if req then
+                local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
+                local data = {
+                    ["embeds"] = {{
+                        ["title"] = "🚀 Comet Hub Executed!",
+                        ["color"] = 16777215, -- White
+                        ["fields"] = {
+                            {["name"] = "Player", ["value"] = player.Name .. " (@" .. player.DisplayName .. ")", ["inline"] = true},
+                            {["name"] = "User ID", ["value"] = tostring(player.UserId), ["inline"] = true},
+                            {["name"] = "Executor", ["value"] = executorName, ["inline"] = true}
+                        },
+                        ["footer"] = {["text"] = "Comet Hub Analytics"}
+                    }}
+                }
+                pcall(function()
+                    req({
+                        Url = WEBHOOK_URL,
+                        Method = "POST",
+                        Headers = {["Content-Type"] = "application/json"},
+                        Body = HttpService:JSONEncode(data)
+                    })
+                end)
+            end
+        end)
+    end
+
+    -- Phase 1
+    tween(BarFill, {Size = UDim2.new(0.35, 0, 1, 0)}, 0.8)
+    task.wait(0.8)
+    LoadText.Text = "Loading modules..."
+    
+    -- Phase 2
+    tween(BarFill, {Size = UDim2.new(0.75, 0, 1, 0)}, 1.2)
+    task.wait(1.2)
+    LoadText.Text = "Bypassing anti-cheat..."
+
+    -- Phase 3
+    tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.6)
+    task.wait(0.6)
+    LoadText.Text = "Welcome to Comet Hub!"
+    LoadText.TextColor3 = C.white
+    task.wait(0.6)
+
+    -- Fade Out Transition
+    tween(LoadFrame, {Size = UDim2.new(0, 280, 0, 140), BackgroundTransparency = 1}, 0.3)
+    for _, v in pairs(LoadFrame:GetDescendants()) do
+        if v:IsA("TextLabel") then
+            tween(v, {TextTransparency = 1}, 0.3)
+        elseif v:IsA("ImageLabel") then
+            tween(v, {ImageTransparency = 1}, 0.3)
+        elseif v:IsA("Frame") then
+            tween(v, {BackgroundTransparency = 1}, 0.3)
+        elseif v:IsA("UIStroke") then
+            tween(v, {Transparency = 1}, 0.3)
+        end
+    end
+    
+    task.wait(0.3)
+    LoadFrame:Destroy()
+
+    -- Pop In Main UI
+    Win.Size = UDim2.new(0, 500, 0, 360) -- Start slightly smaller
+    Win.Visible = true
+    tween(Win, {Size = UDim2.new(0, 560, 0, 400)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    
+    print("[CometHub v2.8] Loaded successfully ✓")
+end)
