@@ -110,7 +110,7 @@ Win.ClipsDescendants = false
 corner(Win, 14)
 stroke(Win, C.divider, 1.2)
 
--- OMBRE
+-- OMBRE (Ne pas modifier cet ID, c'est l'image de l'ombre)
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
@@ -118,7 +118,7 @@ Shadow.AnchorPoint          = Vector2.new(0.5, 0.5)
 Shadow.BackgroundTransparency = 1
 Shadow.Position             = UDim2.new(0.5, 0, 0.5, 4)
 Shadow.Size                 = UDim2.new(1, 50, 1, 30)
-Shadow.Image                = "rbxassetid://129928619995803"
+Shadow.Image                = "rbxassetid://6015897843"
 Shadow.ImageColor3          = Color3.fromRGB(0, 0, 0)
 Shadow.ImageTransparency    = 0.45
 Shadow.ScaleType            = Enum.ScaleType.Slice
@@ -148,7 +148,7 @@ local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://109198952055830"
+Logo.Image                = "rbxassetid://129928619995803" -- TON NOUVEAU LOGO ICI
 Logo.ImageColor3          = C.accent
 Logo.ZIndex               = 3
 
@@ -172,7 +172,7 @@ TopSub.TextColor3         = C.subtext
 TopSub.Font               = Enum.Font.Gotham
 TopSub.TextSize           = 11
 TopSub.TextXAlignment     = Enum.TextXAlignment.Left
-TopSub.ZIndex             = 3
+TopSub.ZIndex           = 3
 
 -- Close
 local CloseBtn = Instance.new("TextButton", TopBar)
@@ -844,7 +844,7 @@ OpenBtn.Name             = "OpenBtn"
 OpenBtn.Size             = UDim2.new(0, 46, 0, 46)
 OpenBtn.Position         = UDim2.new(0, 20, 0.5, -23)
 OpenBtn.BackgroundColor3 = C.sidebar
-OpenBtn.Image            = "rbxassetid://6015897843"
+OpenBtn.Image            = "rbxassetid://129928619995803" -- TON NOUVEAU LOGO ICI
 OpenBtn.ImageColor3      = C.accent
 OpenBtn.Visible          = false
 OpenBtn.Active           = true
