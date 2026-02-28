@@ -12,6 +12,7 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
+local RunService        = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
@@ -32,24 +33,22 @@ _G.SelectedYoutuber = ""
 _G.WalkSpeed        = 16
 
 -- ============================================================
---  PALETTE MONOCHROME (Noir, Gris, Blanc)
+--  PALETTE MONOCHROME
 -- ============================================================
 local C = {
-    bg         = Color3.fromRGB(15, 15, 15),     -- Fond principal (Très sombre)
-    sidebar    = Color3.fromRGB(20, 20, 20),     -- Sidebar et Topbar
+    bg         = Color3.fromRGB(15, 15, 15),
+    sidebar    = Color3.fromRGB(20, 20, 20),
     panel      = Color3.fromRGB(25, 25, 25),
-    card       = Color3.fromRGB(30, 30, 30),     -- Fond des boutons
-    cardHover  = Color3.fromRGB(45, 45, 45),     -- Survol des boutons
-    accent     = Color3.fromRGB(255, 255, 255),  -- Blanc pur
-    accentGlow = Color3.fromRGB(150, 150, 150),  -- Gris moyen pour les bordures
-    text       = Color3.fromRGB(240, 240, 240),  -- Texte clair
-    subtext    = Color3.fromRGB(130, 130, 130),  -- Texte secondaire (Gris)
-    
-    toggleOn   = Color3.fromRGB(255, 255, 255),  -- Toggle Activé (Blanc)
-    toggleOff  = Color3.fromRGB(60, 60, 60),     -- Toggle Désactivé (Gris foncé)
-    
+    card       = Color3.fromRGB(30, 30, 30),
+    cardHover  = Color3.fromRGB(45, 45, 45),
+    accent     = Color3.fromRGB(255, 255, 255),
+    accentGlow = Color3.fromRGB(150, 150, 150),
+    text       = Color3.fromRGB(240, 240, 240),
+    subtext    = Color3.fromRGB(130, 130, 130),
+    toggleOn   = Color3.fromRGB(255, 255, 255),
+    toggleOff  = Color3.fromRGB(60, 60, 60),
     white      = Color3.fromRGB(255, 255, 255),
-    divider    = Color3.fromRGB(40, 40, 40),     -- Séparateurs
+    divider    = Color3.fromRGB(40, 40, 40),
 }
 
 -- ============================================================
@@ -66,6 +65,32 @@ local function stroke(parent, color, thickness)
     s.Color        = color or C.accentGlow
     s.Thickness    = thickness or 1
     s.Transparency = 0.55
+    return s
+end
+
+-- NOUVEAU HELPER : Bordure avec Gradient Animé
+local function animatedStroke(parent, thickness)
+    local s = Instance.new("UIStroke", parent)
+    s.Color = Color3.fromRGB(255, 255, 255) -- Le blanc sert de base pour le gradient
+    s.Thickness = thickness or 1.5
+    s.Transparency = 0.1 -- Plus visible pour bien voir l'effet
+    
+    local grad = Instance.new("UIGradient", s)
+    grad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),   -- Blanc
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)), -- Gris
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))       -- Noir
+    })
+    
+    -- Animation de rotation en boucle
+    task.spawn(function()
+        local rotation = 0
+        RunService.Heartbeat:Connect(function(dt)
+            rotation = (rotation + dt * 45) % 360 -- Vitesse de rotation (45)
+            grad.Rotation = rotation
+        end)
+    end)
+    
     return s
 end
 
@@ -95,7 +120,7 @@ ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent          = game.CoreGui
 
 -- ============================================================
---  MAIN WINDOW  560 × 400
+--  MAIN WINDOW
 -- ============================================================
 local Win = Instance.new("Frame", ScreenGui)
 Win.Name             = "MainWindow"
@@ -108,9 +133,9 @@ Win.Active           = true
 Win.Draggable        = true
 Win.ClipsDescendants = false
 corner(Win, 14)
-stroke(Win, C.divider, 1.2)
+animatedStroke(Win, 1.5) -- <-- Application du Gradient Animé ici
 
--- OMBRE (Ne pas modifier cet ID, c'est l'image de l'ombre)
+-- OMBRE
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
@@ -125,7 +150,7 @@ Shadow.ScaleType            = Enum.ScaleType.Slice
 Shadow.SliceCenter          = Rect.new(49, 49, 450, 450)
 
 -- ============================================================
---  TOPBAR  (46 px)
+--  TOPBAR
 -- ============================================================
 local TopBar = Instance.new("Frame", Win)
 TopBar.Size             = UDim2.new(1, 0, 0, 46)
@@ -136,7 +161,6 @@ TopBar.ZIndex           = 2
 local TopCorner = Instance.new("UICorner", TopBar)
 TopCorner.CornerRadius = UDim.new(0, 14)
 
--- Patch bas de la topbar
 local TopPatch = Instance.new("Frame", TopBar)
 TopPatch.Size             = UDim2.new(1, 0, 0, 14)
 TopPatch.Position         = UDim2.new(0, 0, 1, -14)
@@ -148,7 +172,7 @@ local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://129928619995803" -- TON NOUVEAU LOGO ICI
+Logo.Image                = "rbxassetid://129928619995803"
 Logo.ImageColor3          = C.accent
 Logo.ZIndex               = 3
 
@@ -172,9 +196,8 @@ TopSub.TextColor3         = C.subtext
 TopSub.Font               = Enum.Font.Gotham
 TopSub.TextSize           = 11
 TopSub.TextXAlignment     = Enum.TextXAlignment.Left
-TopSub.ZIndex           = 3
+TopSub.ZIndex             = 3
 
--- Close
 local CloseBtn = Instance.new("TextButton", TopBar)
 CloseBtn.Name             = "CloseBtn"
 CloseBtn.ZIndex           = 10
@@ -190,7 +213,6 @@ corner(CloseBtn, 7)
 CloseBtn.MouseEnter:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.cardHover }) end)
 CloseBtn.MouseLeave:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.card }) end)
 
--- Minimize
 local MinBtn = Instance.new("TextButton", TopBar)
 MinBtn.ZIndex             = 10
 MinBtn.Size               = UDim2.new(0, 28, 0, 28)
@@ -216,23 +238,21 @@ Body.BorderSizePixel     = 0
 Body.ClipsDescendants    = true
 
 -- ============================================================
---  SIDEBAR (AVEC COIN ARRONDI EN BAS À GAUCHE)
+--  SIDEBAR
 -- ============================================================
 local Sidebar = Instance.new("Frame", Body)
 Sidebar.Size             = UDim2.new(0, 130, 1, 0)
 Sidebar.Position         = UDim2.new(0, 0, 0, 0)
 Sidebar.BackgroundColor3 = C.sidebar
 Sidebar.BorderSizePixel  = 0
-corner(Sidebar, 14) -- Arrondit tous les coins
+corner(Sidebar, 14)
 
--- Patch Haut : on remet un carré pour coller parfaitement à la TopBar
 local SidePatchTop = Instance.new("Frame", Body)
 SidePatchTop.Size             = UDim2.new(0, 130, 0, 14)
 SidePatchTop.Position         = UDim2.new(0, 0, 0, 0)
 SidePatchTop.BackgroundColor3 = C.sidebar
 SidePatchTop.BorderSizePixel  = 0
 
--- Patch Bas-Droite : on remet un carré pour coller parfaitement au VDivider et au contenu
 local SidePatchBR = Instance.new("Frame", Body)
 SidePatchBR.Size             = UDim2.new(0, 14, 0, 14)
 SidePatchBR.Position         = UDim2.new(0, 116, 1, -14)
@@ -710,12 +730,16 @@ makeActionBtn(speedPage, "↩  Reset tout", 12, function()
 end)
 
 -- ============================================================
---  TAB : FLOOR
+--  TAB : FLOOR (CORRIGÉ GRÂCE À L'EXPLORATEUR)
 -- ============================================================
 local function getMyPlot()
-    for _, p in pairs(workspace.Plots:GetChildren()) do
-        if p:FindFirstChild("Owner") and p.Owner.Value == player then
-            return p
+    -- On va chercher le plot actuel dans le dossier tempValues du joueur
+    local tempVals = player:FindFirstChild("tempValues")
+    if tempVals then
+        local currentPlot = tempVals:FindFirstChild("currentPlot")
+        -- currentPlot est une ObjectValue, on renvoie donc l'objet qu'elle cible (Value)
+        if currentPlot and currentPlot.Value then
+            return currentPlot.Value
         end
     end
     return nil
@@ -811,7 +835,7 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Nom",     "Speed Escape for Brainrots")
-infoCard(infoPage, 2,  "Version", "v2.2  —  Monochrome Edition")
+infoCard(infoPage, 2,  "Version", "v2.3  —  Monochrome + Animated")
 infoCard(infoPage, 3,  "Hub",     "LunaMoon Hub")
 infoCard(infoPage, 4,  "Crédits", "Scriptyyz")
 
@@ -837,20 +861,20 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
---  BOUTON FLOTTANT (OUVERTURE) & LOGIQUE D'AFFICHAGE
+--  BOUTON FLOTTANT (OUVERTURE)
 -- ============================================================
 local OpenBtn = Instance.new("ImageButton", ScreenGui)
 OpenBtn.Name             = "OpenBtn"
 OpenBtn.Size             = UDim2.new(0, 46, 0, 46)
 OpenBtn.Position         = UDim2.new(0, 20, 0.5, -23)
 OpenBtn.BackgroundColor3 = C.sidebar
-OpenBtn.Image            = "rbxassetid://129928619995803" -- TON NOUVEAU LOGO ICI
+OpenBtn.Image            = "rbxassetid://129928619995803"
 OpenBtn.ImageColor3      = C.accent
 OpenBtn.Visible          = false
 OpenBtn.Active           = true
 OpenBtn.Draggable        = true
 corner(OpenBtn, 12)
-stroke(OpenBtn, C.divider, 1)
+animatedStroke(OpenBtn, 1.5) -- <-- Application du Gradient Animé ici
 applyPadding(OpenBtn, 8, 8, 8, 8)
 
 local function toggleUI(forceState)
@@ -874,8 +898,8 @@ UserInputService.InputBegan:Connect(function(input, gpe)
 end)
 
 -- ============================================================
---  DÉMARRAGE : onglet par défaut
+--  DÉMARRAGE
 -- ============================================================
 switchTab("Automation")
 
-print("[LunaMoonHub v2.2] Mode Monochrome chargé ✓")
+print("[LunaMoonHub v2.3] Mode Gradient Animé chargé ✓")
