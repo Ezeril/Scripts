@@ -1,6 +1,5 @@
 -- ============================================================
---  LUNAMOON HUB v2.1 - Speed Escape for Brainrots (Fixes)
---  Design: Sidebar + Categories + Speed Control
+--  LUNAMOON HUB v2.2 - Monochrome Edition & Fixes
 -- ============================================================
 
 -- CLEANUP
@@ -33,22 +32,25 @@ _G.SelectedYoutuber = ""
 _G.WalkSpeed        = 16
 
 -- ============================================================
---  PALETTE  (LunaMoon Dark + Silver-Purple)
+--  PALETTE MONOCHROME (Noir, Gris, Blanc)
 -- ============================================================
 local C = {
-    bg         = Color3.fromRGB(12,  12,  18),
-    sidebar    = Color3.fromRGB(18,  18,  28),
-    panel      = Color3.fromRGB(22,  22,  34),
-    card       = Color3.fromRGB(30,  30,  46),
-    cardHover  = Color3.fromRGB(40,  40,  62),
-    accent     = Color3.fromRGB(180, 180, 210),
-    accentGlow = Color3.fromRGB(140, 120, 220),
-    text       = Color3.fromRGB(240, 240, 255),
-    subtext    = Color3.fromRGB(140, 140, 170),
-    green      = Color3.fromRGB(80,  220, 130),
-    red        = Color3.fromRGB(220, 80,  90),
+    bg         = Color3.fromRGB(15, 15, 15),     -- Fond principal (Très sombre)
+    sidebar    = Color3.fromRGB(20, 20, 20),     -- Sidebar et Topbar
+    panel      = Color3.fromRGB(25, 25, 25),
+    card       = Color3.fromRGB(30, 30, 30),     -- Fond des boutons
+    cardHover  = Color3.fromRGB(45, 45, 45),     -- Survol des boutons
+    accent     = Color3.fromRGB(255, 255, 255),  -- Blanc pur
+    accentGlow = Color3.fromRGB(150, 150, 150),  -- Gris moyen pour les bordures
+    text       = Color3.fromRGB(240, 240, 240),  -- Texte clair
+    subtext    = Color3.fromRGB(130, 130, 130),  -- Texte secondaire (Gris)
+    
+    -- Pour respecter le monochrome, on remplace le vert/rouge par du blanc/gris
+    toggleOn   = Color3.fromRGB(255, 255, 255),  -- Toggle Activé (Blanc)
+    toggleOff  = Color3.fromRGB(60, 60, 60),     -- Toggle Désactivé (Gris foncé)
+    
     white      = Color3.fromRGB(255, 255, 255),
-    divider    = Color3.fromRGB(40,  40,  60),
+    divider    = Color3.fromRGB(40, 40, 40),     -- Séparateurs
 }
 
 -- ============================================================
@@ -105,13 +107,11 @@ Win.BackgroundColor3 = C.bg
 Win.BorderSizePixel = 0
 Win.Active          = true
 Win.Draggable       = true
-Win.ClipsDescendants = false -- Changé pour l'ombre
+Win.ClipsDescendants = false
 corner(Win, 14)
-stroke(Win, C.accentGlow, 1.2)
+stroke(Win, C.divider, 1.2)
 
--- ============================================================
---  DROP SHADOW (Maintenant enfant de Win)
--- ============================================================
+-- OMBRE
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
@@ -137,6 +137,8 @@ TopBar.ZIndex           = 2
 local TopCorner = Instance.new("UICorner", TopBar)
 TopCorner.CornerRadius = UDim.new(0, 14)
 
+-- Ce patch sert à rendre le bas de la topbar plat.
+-- Il sera masqué lors de la minimisation pour avoir des bords arrondis.
 local TopPatch = Instance.new("Frame", TopBar)
 TopPatch.Size             = UDim2.new(1, 0, 0, 14)
 TopPatch.Position         = UDim2.new(0, 0, 1, -14)
@@ -149,7 +151,7 @@ Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
 Logo.Image                = "rbxassetid://6015897843"
-Logo.ImageColor3          = C.accentGlow
+Logo.ImageColor3          = C.accent -- Logo en blanc
 Logo.ZIndex               = 3
 
 local TopTitle = Instance.new("TextLabel", TopBar)
@@ -174,35 +176,39 @@ TopSub.TextSize           = 11
 TopSub.TextXAlignment     = Enum.TextXAlignment.Left
 TopSub.ZIndex             = 3
 
--- Close
+-- Close (Bouton Gris foncé avec un "X" simple)
 local CloseBtn = Instance.new("TextButton", TopBar)
 CloseBtn.Name             = "CloseBtn"
-CloseBtn.ZIndex           = 10 -- Corrigé pour s'afficher par dessus
+CloseBtn.ZIndex           = 10
 CloseBtn.Size             = UDim2.new(0, 28, 0, 28)
 CloseBtn.Position         = UDim2.new(1, -38, 0.5, -14)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 70)
-CloseBtn.Text             = "✕"
+CloseBtn.BackgroundColor3 = C.card
+CloseBtn.Text             = "X"
 CloseBtn.TextColor3       = C.white
 CloseBtn.Font             = Enum.Font.GothamBold
 CloseBtn.TextSize         = 13
 CloseBtn.BorderSizePixel  = 0
 corner(CloseBtn, 7)
 CloseBtn.MouseButton1Click:Connect(function() Win.Visible = false end)
+CloseBtn.MouseEnter:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.cardHover }) end)
+CloseBtn.MouseLeave:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.card }) end)
 
--- Minimize
+-- Minimize (Bouton avec un "-" simple)
 local MinBtn = Instance.new("TextButton", TopBar)
 MinBtn.ZIndex             = 10
 MinBtn.Size               = UDim2.new(0, 28, 0, 28)
 MinBtn.Position           = UDim2.new(1, -72, 0.5, -14)
 MinBtn.BackgroundColor3   = C.card
-MinBtn.Text               = "─"
-MinBtn.TextColor3         = C.subtext
+MinBtn.Text               = "-"
+MinBtn.TextColor3         = C.white
 MinBtn.Font               = Enum.Font.GothamBold
-MinBtn.TextSize           = 14
+MinBtn.TextSize           = 16
 MinBtn.BorderSizePixel    = 0
 corner(MinBtn, 7)
+MinBtn.MouseEnter:Connect(function() tween(MinBtn, { BackgroundColor3 = C.cardHover }) end)
+MinBtn.MouseLeave:Connect(function() tween(MinBtn, { BackgroundColor3 = C.card }) end)
 
--- TOUCHE F8 POUR AFFICHER/CACHER
+-- TOUCHE F8
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.F8 then
         Win.Visible = not Win.Visible
@@ -220,7 +226,7 @@ Body.BorderSizePixel     = 0
 Body.ClipsDescendants    = true
 
 -- ============================================================
---  SIDEBAR  (130 px de large)
+--  SIDEBAR
 -- ============================================================
 local Sidebar = Instance.new("Frame", Body)
 Sidebar.Size             = UDim2.new(0, 130, 1, 0)
@@ -244,8 +250,8 @@ applyPadding(Sidebar, 12, 12, 8, 8)
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.1"
-SideVer.TextColor3         = Color3.fromRGB(80, 80, 110)
+SideVer.Text               = "v2.2"
+SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
 SideVer.TextXAlignment     = Enum.TextXAlignment.Center
@@ -340,7 +346,6 @@ local infoPage  = tabs["Info"].page
 -- ============================================================
 --  COMPOSANTS RÉUTILISABLES
 -- ============================================================
-
 local function sectionLabel(parent, text, order)
     local f = Instance.new("Frame", parent)
     f.LayoutOrder          = order or 0
@@ -372,20 +377,21 @@ local function makeToggle(parent, text, order, callback)
     corner(btn, 9)
     stroke(btn, C.divider, 1)
 
+    -- Indicateur Monochrome (Gris / Blanc)
     local dot = Instance.new("Frame", btn)
     dot.Size               = UDim2.new(0, 8, 0, 8)
     dot.Position           = UDim2.new(1, -18, 0.5, -4)
-    dot.BackgroundColor3   = C.red
+    dot.BackgroundColor3   = C.toggleOff
     dot.BorderSizePixel    = 0
     corner(dot, 8)
 
     local active = false
     btn.MouseButton1Click:Connect(function()
         active = not active
-        tween(dot,  { BackgroundColor3 = active and C.green or C.red })
+        tween(dot,  { BackgroundColor3 = active and C.toggleOn or C.toggleOff })
         tween(btn,  {
-            BackgroundColor3 = active and Color3.fromRGB(22, 36, 26) or C.card,
-            TextColor3       = active and C.green or C.text,
+            BackgroundColor3 = active and Color3.fromRGB(40, 40, 40) or C.card,
+            TextColor3       = active and C.white or C.text,
         })
         callback(btn, active)
     end)
@@ -411,7 +417,7 @@ local function makeActionBtn(parent, text, order, callback)
     btn.TextSize           = 13
     btn.BorderSizePixel    = 0
     corner(btn, 9)
-    stroke(btn, C.accentGlow, 1)
+    stroke(btn, C.divider, 1)
 
     btn.MouseButton1Click:Connect(callback)
     btn.MouseEnter:Connect(function() tween(btn, { BackgroundColor3 = C.cardHover }) end)
@@ -589,7 +595,6 @@ makeToggle(autoPage, "Auto Bulk Hatch", 31, function(_, state)
     end) end
 end)
 
--- Suppression animations oeufs (délayée)
 task.spawn(function()
     task.wait(3)
     for _, name in ipairs({"hatchExclusiveEgg","hatchEventEgg","hatchPet","showEgg","eggAnimation"}) do
@@ -617,7 +622,7 @@ speedDisplay.TextSize          = 24
 speedDisplay.Text              = "⚡  Speed : 16"
 speedDisplay.BorderSizePixel   = 0
 corner(speedDisplay, 9)
-stroke(speedDisplay, C.accentGlow, 1)
+stroke(speedDisplay, C.divider, 1)
 
 local jumpDisplay = Instance.new("TextLabel", speedPage)
 jumpDisplay.LayoutOrder        = 6
@@ -629,7 +634,7 @@ jumpDisplay.TextSize           = 24
 jumpDisplay.Text               = "↑  Jump  : 50"
 jumpDisplay.BorderSizePixel    = 0
 corner(jumpDisplay, 9)
-stroke(jumpDisplay, C.accentGlow, 1)
+stroke(jumpDisplay, C.divider, 1)
 
 local function applySpeed(val)
     _G.WalkSpeed = val
@@ -692,7 +697,7 @@ makeActionBtn(speedPage, "✓  Appliquer le jump", 11, function()
     if val and val > 0 and val <= 10000 then applyJump(val) end
 end)
 
-makeActionBtn(speedPage, "↩  Reset tout (Speed 16 / Jump 50)", 12, function()
+makeActionBtn(speedPage, "↩  Reset tout", 12, function()
     applySpeed(16)
     applyJump(50)
     speedInput.Text = ""
@@ -700,10 +705,8 @@ makeActionBtn(speedPage, "↩  Reset tout (Speed 16 / Jump 50)", 12, function()
 end)
 
 -- ============================================================
---  TAB : FLOOR (Fix TP Dynamique)
+--  TAB : FLOOR
 -- ============================================================
-
--- Fonction pour trouver le terrain du joueur actuel
 local function getMyPlot()
     for _, p in pairs(workspace.Plots:GetChildren()) do
         if p:FindFirstChild("Owner") and p.Owner.Value == player then
@@ -713,7 +716,6 @@ local function getMyPlot()
     return nil
 end
 
--- Offsets de hauteur (Y) pour les différents étages relatifs au plot
 local RELATIVE_FLOORS = { 0, 26.8, 54.2, 81.3, 107.3, 133.9 }
 
 local function teleportToFloor(index)
@@ -721,7 +723,6 @@ local function teleportToFloor(index)
     if plot then
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            -- On prend la position du plot et on ajoute l'étage en hauteur (+3 pour pas bloquer dans le sol)
             local baseCFrame = plot.PrimaryPart and plot.PrimaryPart.CFrame or plot:GetModelCFrame()
             hrp.CFrame = baseCFrame * CFrame.new(0, RELATIVE_FLOORS[index] + 3, 0)
         end
@@ -748,7 +749,7 @@ makeToggle(floorPage, "Auto Floor Cycle", 2, function(_, state)
             for i = 1, #RELATIVE_FLOORS do
                 if not _G.AutoFloorCycle then break end
                 floorStatus.Text = "Étage actuel : " .. i .. " / " .. #RELATIVE_FLOORS
-                floorStatus.TextColor3 = C.green
+                floorStatus.TextColor3 = C.accent
                 pcall(function() teleportToFloor(i) end)
                 task.wait(10)
             end
@@ -764,7 +765,7 @@ for i = 1, #RELATIVE_FLOORS do
     makeActionBtn(floorPage, "→  Étage " .. i, 10 + i, function()
         pcall(function() teleportToFloor(i) end)
         floorStatus.Text = "Étage actuel : " .. i .. " / " .. #RELATIVE_FLOORS
-        floorStatus.TextColor3 = C.green
+        floorStatus.TextColor3 = C.accent
     end)
 end
 
@@ -804,33 +805,30 @@ local function infoCard(parent, order, key, value)
 end
 
 sectionLabel(infoPage, "SCRIPT", 0)
-infoCard(infoPage, 1,  "Nom du script",  "Speed Escape for Brainrots")
-infoCard(infoPage, 2,  "Version",        "v2.1  —  (Fixes Appliqués)")
-infoCard(infoPage, 3,  "Hub",            "LunaMoon Hub")
-infoCard(infoPage, 4,  "Crédits",        "Scriptyyz")
+infoCard(infoPage, 1,  "Nom",     "Speed Escape for Brainrots")
+infoCard(infoPage, 2,  "Version", "v2.2  —  Monochrome Edition")
+infoCard(infoPage, 3,  "Hub",     "LunaMoon Hub")
+infoCard(infoPage, 4,  "Crédits", "Scriptyyz")
 
 sectionLabel(infoPage, "SUPPORT", 10)
-infoCard(infoPage, 11, "Raccourci UI",   "Touche F8 pour Afficher/Cacher")
-infoCard(infoPage, 12, "Discord",        "discord.gg/lunamoon")
-infoCard(infoPage, 13, "Salon support",  "#support-scripts")
-
-sectionLabel(infoPage, "STATUT", 20)
-infoCard(infoPage, 21, "Jeu cible",      "Speed Escape for Brainrots")
-infoCard(infoPage, 22, "État",           "✅  Fonctionnel")
-infoCard(infoPage, 23, "Egg Animations", "🔇  Désactivées au démarrage")
+infoCard(infoPage, 11, "Raccourci", "Touche F8 pour Afficher/Cacher")
 
 -- ============================================================
---  MINIMIZE
+--  MINIMIZE LOGIC (FIX: Bords arrondis)
 -- ============================================================
 local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
-    MinBtn.Text = minimized and "□" or "─"
+    MinBtn.Text = minimized and "+" or "-"
     if minimized then
+        -- On masque le patch qui rendait le bas plat
+        TopPatch.Visible = false
         tween(Win, { Size = UDim2.new(0, 560, 0, 46) }, 0.3)
         task.delay(0.15, function() Body.Visible = false end)
     else
         Body.Visible = true
+        -- On remet le patch pour rattacher au menu principal
+        TopPatch.Visible = true
         tween(Win, { Size = UDim2.new(0, 560, 0, 400) }, 0.3)
     end
 end)
@@ -840,4 +838,4 @@ end)
 -- ============================================================
 switchTab("Automation")
 
-print("[LunaMoonHub v2.1] Chargé avec succès ✓ | Appuie sur F8 pour masquer/afficher")
+print("[LunaMoonHub v2.2] Mode Monochrome chargé ✓")
