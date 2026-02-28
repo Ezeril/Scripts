@@ -1,5 +1,5 @@
 -- ============================================================
---  LUNAMOON HUB v2.2 - Monochrome Edition & Fixes
+--  LUNAMOON HUB v2.5 - Dynamic Floors & Animated UI
 -- ============================================================
 
 -- CLEANUP
@@ -26,6 +26,7 @@ _G.AutoClaim        = false
 _G.AutoSubmit       = false
 _G.AutoUpgrades     = false
 _G.AutoBuy          = false
+_G.AutoBuyHouse     = false
 _G.AutoBulkHatch    = false
 _G.AutoFloorCycle   = false
 _G.SmartAutoRebirth = false
@@ -68,12 +69,12 @@ local function stroke(parent, color, thickness)
     return s
 end
 
--- NOUVEAU HELPER : Bordure avec Gradient Animé
+-- BORDURE AVEC GRADIENT ANIMÉ
 local function animatedStroke(parent, thickness)
     local s = Instance.new("UIStroke", parent)
-    s.Color = Color3.fromRGB(255, 255, 255) -- Le blanc sert de base pour le gradient
+    s.Color = Color3.fromRGB(255, 255, 255)
     s.Thickness = thickness or 1.5
-    s.Transparency = 0.1 -- Plus visible pour bien voir l'effet
+    s.Transparency = 0.1
     
     local grad = Instance.new("UIGradient", s)
     grad.Color = ColorSequence.new({
@@ -82,11 +83,10 @@ local function animatedStroke(parent, thickness)
         ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))       -- Noir
     })
     
-    -- Animation de rotation en boucle
     task.spawn(function()
         local rotation = 0
         RunService.Heartbeat:Connect(function(dt)
-            rotation = (rotation + dt * 45) % 360 -- Vitesse de rotation (45)
+            rotation = (rotation + dt * 45) % 360
             grad.Rotation = rotation
         end)
     end)
@@ -133,7 +133,7 @@ Win.Active           = true
 Win.Draggable        = true
 Win.ClipsDescendants = false
 corner(Win, 14)
-animatedStroke(Win, 1.5) -- <-- Application du Gradient Animé ici
+animatedStroke(Win, 1.5)
 
 -- OMBRE
 local Shadow = Instance.new("ImageLabel", Win)
@@ -276,7 +276,7 @@ applyPadding(Sidebar, 12, 12, 8, 8)
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.2"
+SideVer.Text               = "v2.5"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -571,6 +571,17 @@ makeToggle(autoPage, "Auto Upgrades", 12, function(_, state)
     end) end
 end)
 
+-- NOUVEAU : Auto Buy House (basé sur ta trouvaille du module)
+makeToggle(autoPage, "Auto Buy House", 13, function(_, state)
+    _G.AutoBuyHouse = state
+    if state then task.spawn(function()
+        while _G.AutoBuyHouse do
+            pcall(function() events.buyHouse:FireServer(player) end)
+            task.wait(2)
+        end
+    end) end
+end)
+
 sectionLabel(autoPage, "YOUTUBERS", 20)
 
 local inputYT = makeInput(autoPage, "Entrer l'ID du Youtuber...", 21)
@@ -730,30 +741,55 @@ makeActionBtn(speedPage, "↩  Reset tout", 12, function()
 end)
 
 -- ============================================================
---  TAB : FLOOR (CORRIGÉ GRÂCE À L'EXPLORATEUR)
+--  TAB : FLOOR (DYNAMIQUE SELON L'ARCHITECTURE DU JEU)
 -- ============================================================
-local function getMyPlot()
-    -- On va chercher le plot actuel dans le dossier tempValues du joueur
+-- 1. On récupère dynamiquement la liste de tous tes étages
+local function getMyFloors()
     local tempVals = player:FindFirstChild("tempValues")
-    if tempVals then
-        local currentPlot = tempVals:FindFirstChild("currentPlot")
-        -- currentPlot est une ObjectValue, on renvoie donc l'objet qu'elle cible (Value)
-        if currentPlot and currentPlot.Value then
-            return currentPlot.Value
+    if not tempVals then return {} end
+    
+    local currentPlot = tempVals:FindFirstChild("currentPlot")
+    if currentPlot and type(currentPlot.Value) == "string" and currentPlot.Value ~= "" then
+        local plotInstance = workspace:WaitForChild("Plots"):FindFirstChild(currentPlot.Value)
+        if plotInstance then
+            local building = plotInstance:FindFirstChild("Building")
+            if building then
+                local floorsFolder = building:FindFirstChild("floors")
+                if floorsFolder then
+                    local allFloors = floorsFolder:GetChildren()
+                    
+                    -- On trie les étages de bas en haut (selon leur position Y)
+                    table.sort(allFloors, function(a, b)
+                        local posA = a:IsA("Model") and (a.PrimaryPart and a.PrimaryPart.Position.Y or a:GetModelCFrame().Y) or a.Position.Y
+                        local posB = b:IsA("Model") and (b.PrimaryPart and b.PrimaryPart.Position.Y or b:GetModelCFrame().Y) or b.Position.Y
+                        return posA < posB
+                    end)
+                    
+                    return allFloors
+                end
+            end
         end
     end
-    return nil
+    return {}
 end
 
-local RELATIVE_FLOORS = { 0, 26.8, 54.2, 81.3, 107.3, 133.9 }
-
-local function teleportToFloor(index)
-    local plot = getMyPlot()
-    if plot then
+-- 2. Fonction de téléportation sur l'étage sélectionné
+local function teleportToFloor(index, floorsList)
+    local targetFloor = floorsList[index]
+    if targetFloor then
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            local baseCFrame = plot.PrimaryPart and plot.PrimaryPart.CFrame or plot:GetModelCFrame()
-            hrp.CFrame = baseCFrame * CFrame.new(0, RELATIVE_FLOORS[index] + 3, 0)
+            local targetCFrame
+            if targetFloor:IsA("Model") then
+                targetCFrame = targetFloor.PrimaryPart and targetFloor.PrimaryPart.CFrame or targetFloor:GetModelCFrame()
+            elseif targetFloor:IsA("BasePart") then
+                targetCFrame = targetFloor.CFrame
+            end
+            
+            if targetCFrame then
+                -- On ajoute +3 sur l'axe Y pour ne pas être coincé dans le sol
+                hrp.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+            end
         end
     end
 end
@@ -767,7 +803,7 @@ floorStatus.BackgroundColor3   = C.card
 floorStatus.TextColor3         = C.subtext
 floorStatus.Font               = Enum.Font.GothamSemibold
 floorStatus.TextSize           = 13
-floorStatus.Text               = "Étage actuel : —"
+floorStatus.Text               = "Recherche d'étages..."
 floorStatus.BorderSizePixel    = 0
 corner(floorStatus, 9)
 
@@ -775,12 +811,18 @@ makeToggle(floorPage, "Auto Floor Cycle", 2, function(_, state)
     _G.AutoFloorCycle = state
     if state then task.spawn(function()
         while _G.AutoFloorCycle do
-            for i = 1, #RELATIVE_FLOORS do
-                if not _G.AutoFloorCycle then break end
-                floorStatus.Text = "Étage actuel : " .. i .. " / " .. #RELATIVE_FLOORS
-                floorStatus.TextColor3 = C.accent
-                pcall(function() teleportToFloor(i) end)
-                task.wait(10)
+            local floors = getMyFloors()
+            if #floors > 0 then
+                for i = 1, #floors do
+                    if not _G.AutoFloorCycle then break end
+                    floorStatus.Text = "Étage actuel : " .. i .. " / " .. #floors
+                    floorStatus.TextColor3 = C.accent
+                    pcall(function() teleportToFloor(i, floors) end)
+                    task.wait(10)
+                end
+            else
+                floorStatus.Text = "Aucun étage trouvé."
+                task.wait(2)
             end
         end
         floorStatus.Text = "Étage actuel : —"
@@ -788,13 +830,20 @@ makeToggle(floorPage, "Auto Floor Cycle", 2, function(_, state)
     end) end
 end)
 
+-- Boutons rapides générés pour un maximum de 10 étages
 sectionLabel(floorPage, "TÉLÉPORTATION RAPIDE", 5)
 
-for i = 1, #RELATIVE_FLOORS do
+for i = 1, 10 do
     makeActionBtn(floorPage, "→  Étage " .. i, 10 + i, function()
-        pcall(function() teleportToFloor(i) end)
-        floorStatus.Text = "Étage actuel : " .. i .. " / " .. #RELATIVE_FLOORS
-        floorStatus.TextColor3 = C.accent
+        local floors = getMyFloors()
+        if floors[i] then
+            pcall(function() teleportToFloor(i, floors) end)
+            floorStatus.Text = "Téléporté : Étage " .. i .. " / " .. #floors
+            floorStatus.TextColor3 = C.accent
+        else
+            floorStatus.Text = "Étage " .. i .. " non débloqué !"
+            floorStatus.TextColor3 = Color3.fromRGB(200, 50, 50) -- Rouge si pas d'étage
+        end
     end)
 end
 
@@ -835,7 +884,7 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Nom",     "Speed Escape for Brainrots")
-infoCard(infoPage, 2,  "Version", "v2.3  —  Monochrome + Animated")
+infoCard(infoPage, 2,  "Version", "v2.5  —  Dynamic Floors Edit")
 infoCard(infoPage, 3,  "Hub",     "LunaMoon Hub")
 infoCard(infoPage, 4,  "Crédits", "Scriptyyz")
 
@@ -874,7 +923,7 @@ OpenBtn.Visible          = false
 OpenBtn.Active           = true
 OpenBtn.Draggable        = true
 corner(OpenBtn, 12)
-animatedStroke(OpenBtn, 1.5) -- <-- Application du Gradient Animé ici
+animatedStroke(OpenBtn, 1.5)
 applyPadding(OpenBtn, 8, 8, 8, 8)
 
 local function toggleUI(forceState)
@@ -902,4 +951,4 @@ end)
 -- ============================================================
 switchTab("Automation")
 
-print("[LunaMoonHub v2.3] Mode Gradient Animé chargé ✓")
+print("[LunaMoonHub v2.5] Chargé - Système d'étages dynamique activé ✓")
