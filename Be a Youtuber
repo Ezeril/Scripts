@@ -148,7 +148,7 @@ local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://6015897843"
+Logo.Image                = "rbxassetid://109198952055830"
 Logo.ImageColor3          = C.accent
 Logo.ZIndex               = 3
 
