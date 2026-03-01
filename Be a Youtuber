@@ -22,7 +22,7 @@ local events = ReplicatedStorage:WaitForChild("events")
 -- ============================================================
 --  WEBHOOK ANALYTICS (REMPLACE LE LIEN ICI)
 -- ============================================================
-local WEBHOOK_URL = "TON_LIEN_WEBHOOK_ICI"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
 -- ============================================================
 --  GLOBALS
