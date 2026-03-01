@@ -1,5 +1,5 @@
 -- ============================================================
---  COMET HUB v2.8 - Ultimate Edition (Loading Screen, Floors, Codes, Webhook & Shadow Fix)
+--  COMET HUB v2.9 - Ultimate Edition (Loading, Floors, Codes & Perfect Shadow)
 -- ============================================================
 
 -- CLEANUP
@@ -145,7 +145,7 @@ Win.Visible          = false -- Hidden
 corner(Win, 14)
 animatedStroke(Win, 1.5)
 
--- SHADOW (FIX CORNERS FOR MINIMIZING)
+-- SHADOW (Disparaîtra au minimize pour être 100% propre)
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
@@ -178,17 +178,8 @@ TopPatch.BackgroundColor3 = C.sidebar
 TopPatch.BorderSizePixel  = 0
 TopPatch.ZIndex           = 2
 
--- TOP LOGO
-local Logo = Instance.new("ImageLabel", TopBar)
-Logo.Size                 = UDim2.new(0, 28, 0, 28)
-Logo.Position             = UDim2.new(0, 12, 0.5, -14)
-Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://129928619995803"
-Logo.ImageColor3          = C.accent
-Logo.ZIndex               = 3
-
 local TopTitle = Instance.new("TextLabel", TopBar)
-TopTitle.Position         = UDim2.new(0, 48, 0, 5)
+TopTitle.Position         = UDim2.new(0, 16, 0, 5) -- Décalé à gauche car plus de logo
 TopTitle.Size             = UDim2.new(0, 250, 0, 20)
 TopTitle.BackgroundTransparency = 1
 TopTitle.Text             = "Comet Hub"
@@ -199,7 +190,7 @@ TopTitle.TextXAlignment   = Enum.TextXAlignment.Left
 TopTitle.ZIndex           = 3
 
 local TopSub = Instance.new("TextLabel", TopBar)
-TopSub.Position           = UDim2.new(0, 48, 0, 26)
+TopSub.Position           = UDim2.new(0, 16, 0, 26) -- Décalé à gauche car plus de logo
 TopSub.Size               = UDim2.new(0, 250, 0, 14)
 TopSub.BackgroundTransparency = 1
 TopSub.Text               = "Be a Youtuber (F8 to Hide)"
@@ -287,7 +278,7 @@ applyPadding(Sidebar, 12, 12, 8, 8)
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.8"
+SideVer.Text               = "v2.9"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -649,13 +640,12 @@ local knownCodes = {
 }
 
 makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
-    -- Roblox group verification (ID: 476287845)
     if not player:IsInGroup(476287845) then
         StarterGui:SetCore("SendNotification", {
             Title = "GROUP REQUIRED!",
             Text = "WARNING: You must join the game's Roblox group for codes to work!",
             Duration = 5,
-            Icon = "rbxassetid://129928619995803"
+            Icon = "rbxassetid://131711664935136"
         })
         
         warn("[Comet] WARNING: You must join the game's Roblox group for codes to work!")
@@ -922,7 +912,7 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v2.8  —  Premium Splash Edition")
+infoCard(infoPage, 2,  "Version", "v2.9  —  Premium Splash Edition")
 infoCard(infoPage, 3,  "Hub",     "Comet Hub")
 infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
@@ -930,7 +920,7 @@ sectionLabel(infoPage, "SUPPORT", 10)
 infoCard(infoPage, 11, "Shortcut", "F8 Key or Click Logo")
 
 -- ============================================================
---  MINIMIZE LOGIC
+--  MINIMIZE LOGIC (AVEC FONDU DE L'OMBRE)
 -- ============================================================
 local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
@@ -939,11 +929,13 @@ MinBtn.MouseButton1Click:Connect(function()
     if minimized then
         TopPatch.Visible = false
         tween(Win, { Size = UDim2.new(0, 560, 0, 46) }, 0.3)
+        tween(Shadow, { ImageTransparency = 1 }, 0.3) -- Rend l'ombre complètement invisible
         task.delay(0.15, function() Body.Visible = false end)
     else
         Body.Visible = true
         TopPatch.Visible = true
         tween(Win, { Size = UDim2.new(0, 560, 0, 400) }, 0.3)
+        tween(Shadow, { ImageTransparency = 0.45 }, 0.3) -- Fait réapparaître l'ombre
     end
 end)
 
@@ -1004,7 +996,7 @@ LoadLogo.Size = UDim2.new(0, 60, 0, 60)
 LoadLogo.Position = UDim2.new(0.5, 0, 0.35, 0)
 LoadLogo.AnchorPoint = Vector2.new(0.5, 0.5)
 LoadLogo.BackgroundTransparency = 1
-LoadLogo.Image = "rbxassetid://129928619995803"
+LoadLogo.Image = "rbxassetid://131711664935136"
 LoadLogo.ImageColor3 = C.accent
 
 local LoadText = Instance.new("TextLabel", LoadFrame)
@@ -1101,5 +1093,5 @@ task.spawn(function()
     Win.Visible = true
     tween(Win, {Size = UDim2.new(0, 560, 0, 400)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     
-    print("[CometHub v2.8] Loaded successfully ✓")
+    print("[CometHub v2.9] Loaded successfully ✓")
 end)
