@@ -1,13 +1,11 @@
 -- ============================================================
---  COMET HUB v2.9 - Ultimate Edition (Loading, Floors, Codes & Perfect Shadow)
+--  COMET HUB v3.0 - Ultimate Edition
 -- ============================================================
 
--- CLEANUP
 if game.CoreGui:FindFirstChild("CometHub") then
     game.CoreGui:FindFirstChild("CometHub"):Destroy()
 end
 
--- SERVICES
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
@@ -20,7 +18,7 @@ local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
 
 -- ============================================================
---  WEBHOOK ANALYTICS (REMPLACE LE LIEN ICI)
+--  WEBHOOK ANALYTICS
 -- ============================================================
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
@@ -76,7 +74,6 @@ local function stroke(parent, color, thickness)
     return s
 end
 
--- ANIMATED GRADIENT STROKE
 local function animatedStroke(parent, thickness)
     local s = Instance.new("UIStroke", parent)
     s.Color = Color3.fromRGB(255, 255, 255)
@@ -145,19 +142,18 @@ Win.Visible          = false -- Hidden
 corner(Win, 14)
 animatedStroke(Win, 1.5)
 
--- SHADOW (Disparaîtra au minimize pour être 100% propre)
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
 Shadow.AnchorPoint          = Vector2.new(0.5, 0.5)
 Shadow.BackgroundTransparency = 1
 Shadow.Position             = UDim2.new(0.5, 0, 0.5, 4)
-Shadow.Size                 = UDim2.new(1, 30, 1, 30)
-Shadow.Image                = "rbxassetid://7912134082"
+Shadow.Size                 = UDim2.new(1, 60, 1, 60) 
+Shadow.Image                = "rbxassetid://6015897843"
 Shadow.ImageColor3          = Color3.fromRGB(0, 0, 0)
 Shadow.ImageTransparency    = 0.45
 Shadow.ScaleType            = Enum.ScaleType.Slice
-Shadow.SliceCenter          = Rect.new(15, 15, 85, 85)
+Shadow.SliceCenter          = Rect.new(49, 49, 450, 450)
 
 -- ============================================================
 --  TOPBAR
@@ -178,8 +174,16 @@ TopPatch.BackgroundColor3 = C.sidebar
 TopPatch.BorderSizePixel  = 0
 TopPatch.ZIndex           = 2
 
+local Logo = Instance.new("ImageLabel", TopBar)
+Logo.Size                 = UDim2.new(0, 28, 0, 28)
+Logo.Position             = UDim2.new(0, 12, 0.5, -14)
+Logo.BackgroundTransparency = 1
+Logo.Image                = "rbxassetid://131711664935136"
+Logo.ImageColor3          = C.accent
+Logo.ZIndex               = 3
+
 local TopTitle = Instance.new("TextLabel", TopBar)
-TopTitle.Position         = UDim2.new(0, 16, 0, 5) -- Décalé à gauche car plus de logo
+TopTitle.Position         = UDim2.new(0, 48, 0, 5)
 TopTitle.Size             = UDim2.new(0, 250, 0, 20)
 TopTitle.BackgroundTransparency = 1
 TopTitle.Text             = "Comet Hub"
@@ -190,7 +194,7 @@ TopTitle.TextXAlignment   = Enum.TextXAlignment.Left
 TopTitle.ZIndex           = 3
 
 local TopSub = Instance.new("TextLabel", TopBar)
-TopSub.Position           = UDim2.new(0, 16, 0, 26) -- Décalé à gauche car plus de logo
+TopSub.Position           = UDim2.new(0, 48, 0, 26)
 TopSub.Size               = UDim2.new(0, 250, 0, 14)
 TopSub.BackgroundTransparency = 1
 TopSub.Text               = "Be a Youtuber (F8 to Hide)"
@@ -278,7 +282,7 @@ applyPadding(Sidebar, 12, 12, 8, 8)
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v2.9"
+SideVer.Text               = "v3.0"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -634,18 +638,14 @@ end)
 
 sectionLabel(autoPage, "PROMO CODES", 40)
 
-local knownCodes = {
-    "release", "secretcode", "20klikes", "30klikes", 
-    "50klikes", "100klikes", "mutations", "200klikes"
-}
-
 makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
+    -- Verification du groupe Roblox
     if not player:IsInGroup(476287845) then
         StarterGui:SetCore("SendNotification", {
             Title = "GROUP REQUIRED!",
             Text = "WARNING: You must join the game's Roblox group for codes to work!",
             Duration = 5,
-            Icon = "rbxassetid://131711664935136"
+            Icon = "rbxassetid://129928619995803"
         })
         
         warn("[Comet] WARNING: You must join the game's Roblox group for codes to work!")
@@ -653,14 +653,28 @@ makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
     end
     
     task.spawn(function()
-        for _, code in ipairs(knownCodes) do
-            local safeCode = string.lower(code)
-            pcall(function()
-                events.redeemCode:FireServer(safeCode)
-            end)
-            task.wait(0.5)
+        local success, codesModule = pcall(function()
+            return require(ReplicatedStorage:WaitForChild("Modules", 5):WaitForChild("codes", 5))
+        end)
+
+        if success and type(codesModule) == "table" then
+            for code, data in pairs(codesModule) do
+                -- On verifie si le code est considere comme "actif" dans le module
+                local isActive = type(data) == "table" and data[4] == true
+                
+                -- Si oui, ou si la structure est differente, on essaye quand meme
+                if isActive or type(data) ~= "table" then
+                    local safeCode = string.lower(tostring(code))
+                    pcall(function()
+                        events.redeemCode:FireServer(safeCode)
+                    end)
+                    task.wait(0.5) -- Eviter le kick pour spam
+                end
+            end
+            print("[Comet] All dynamic codes have been sent to the server!")
+        else
+            warn("[Comet] Failed to load codes module dynamically.")
         end
-        print("[Comet] All codes have been sent to the server!")
     end)
 end)
 
@@ -774,7 +788,7 @@ makeActionBtn(speedPage, "↩  Reset All", 12, function()
 end)
 
 -- ============================================================
---  TAB : FLOOR (DYNAMIC FLOOR SCRIPT ARCHITECTURE)
+--  TAB : FLOOR 
 -- ============================================================
 local function getMyFloors()
     local tempVals = player:FindFirstChild("tempValues")
@@ -912,7 +926,7 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v2.9  —  Premium Splash Edition")
+infoCard(infoPage, 2,  "Version", "v3.0  —  Auto-Update Edition")
 infoCard(infoPage, 3,  "Hub",     "Comet Hub")
 infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
@@ -929,7 +943,7 @@ MinBtn.MouseButton1Click:Connect(function()
     if minimized then
         TopPatch.Visible = false
         tween(Win, { Size = UDim2.new(0, 560, 0, 46) }, 0.3)
-        tween(Shadow, { ImageTransparency = 1 }, 0.3) -- Rend l'ombre complètement invisible
+        tween(Shadow, { ImageTransparency = 1 }, 0.3) -- Rend l'ombre invisible
         task.delay(0.15, function() Body.Visible = false end)
     else
         Body.Visible = true
@@ -947,7 +961,7 @@ OpenBtn.Name             = "OpenBtn"
 OpenBtn.Size             = UDim2.new(0, 46, 0, 46)
 OpenBtn.Position         = UDim2.new(0, 20, 0.5, -23)
 OpenBtn.BackgroundColor3 = C.sidebar
-OpenBtn.Image            = "rbxassetid://129928619995803"
+OpenBtn.Image            = "rbxassetid://131711664935136"
 OpenBtn.ImageColor3      = C.accent
 OpenBtn.Visible          = false
 OpenBtn.Active           = true
@@ -1022,7 +1036,6 @@ BarFill.BackgroundColor3 = C.white
 BarFill.BorderSizePixel = 0
 corner(BarFill, 4)
 
--- LOADING ANIMATION & WEBHOOK SEQUENCE
 task.spawn(function()
     -- Start Webhook HTTP Request Async
     if WEBHOOK_URL and WEBHOOK_URL ~= "" and WEBHOOK_URL ~= "TON_LIEN_WEBHOOK_ICI" then
@@ -1054,24 +1067,20 @@ task.spawn(function()
         end)
     end
 
-    -- Phase 1
     tween(BarFill, {Size = UDim2.new(0.35, 0, 1, 0)}, 0.8)
     task.wait(0.8)
     LoadText.Text = "Loading modules..."
     
-    -- Phase 2
     tween(BarFill, {Size = UDim2.new(0.75, 0, 1, 0)}, 1.2)
     task.wait(1.2)
     LoadText.Text = "Bypassing anti-cheat..."
 
-    -- Phase 3
     tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.6)
     task.wait(0.6)
     LoadText.Text = "Welcome to Comet Hub!"
     LoadText.TextColor3 = C.white
     task.wait(0.6)
 
-    -- Fade Out Transition
     tween(LoadFrame, {Size = UDim2.new(0, 280, 0, 140), BackgroundTransparency = 1}, 0.3)
     for _, v in pairs(LoadFrame:GetDescendants()) do
         if v:IsA("TextLabel") then
@@ -1088,10 +1097,9 @@ task.spawn(function()
     task.wait(0.3)
     LoadFrame:Destroy()
 
-    -- Pop In Main UI
     Win.Size = UDim2.new(0, 500, 0, 360) -- Start slightly smaller
     Win.Visible = true
     tween(Win, {Size = UDim2.new(0, 560, 0, 400)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     
-    print("[CometHub v2.9] Loaded successfully ✓")
+    print("[CometHub v3.0] Loaded successfully ✓")
 end)
