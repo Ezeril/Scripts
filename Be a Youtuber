@@ -1,11 +1,13 @@
 -- ============================================================
---  COMET HUB v3.0 - Ultimate Edition
+--  COMET HUB v3.1 - Ultimate Edition (Advanced Webhook & Custom OpenBtn)
 -- ============================================================
 
+-- CLEANUP
 if game.CoreGui:FindFirstChild("CometHub") then
     game.CoreGui:FindFirstChild("CometHub"):Destroy()
 end
 
+-- SERVICES
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
@@ -18,9 +20,9 @@ local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
 
 -- ============================================================
---  WEBHOOK ANALYTICS
+--  WEBHOOK ANALYTICS (REMPLACE LE LIEN ICI)
 -- ============================================================
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
+local WEBHOOK_URL = "TON_LIEN_WEBHOOK_ICI"
 
 -- ============================================================
 --  GLOBALS
@@ -74,6 +76,7 @@ local function stroke(parent, color, thickness)
     return s
 end
 
+-- ANIMATED GRADIENT STROKE
 local function animatedStroke(parent, thickness)
     local s = Instance.new("UIStroke", parent)
     s.Color = Color3.fromRGB(255, 255, 255)
@@ -142,6 +145,7 @@ Win.Visible          = false -- Hidden
 corner(Win, 14)
 animatedStroke(Win, 1.5)
 
+-- SHADOW (FIX MATHEMATIQUE DES COINS ARRONDIS)
 local Shadow = Instance.new("ImageLabel", Win)
 Shadow.Name                 = "Shadow"
 Shadow.ZIndex               = -1
@@ -174,6 +178,7 @@ TopPatch.BackgroundColor3 = C.sidebar
 TopPatch.BorderSizePixel  = 0
 TopPatch.ZIndex           = 2
 
+-- TOP LOGO
 local Logo = Instance.new("ImageLabel", TopBar)
 Logo.Size                 = UDim2.new(0, 28, 0, 28)
 Logo.Position             = UDim2.new(0, 12, 0.5, -14)
@@ -183,7 +188,7 @@ Logo.ImageColor3          = C.accent
 Logo.ZIndex               = 3
 
 local TopTitle = Instance.new("TextLabel", TopBar)
-TopTitle.Position         = UDim2.new(0, 48, 0, 5)
+TopTitle.Position         = UDim2.new(0, 48, 0, 5) -- Décalé pour faire de la place au logo
 TopTitle.Size             = UDim2.new(0, 250, 0, 20)
 TopTitle.BackgroundTransparency = 1
 TopTitle.Text             = "Comet Hub"
@@ -194,7 +199,7 @@ TopTitle.TextXAlignment   = Enum.TextXAlignment.Left
 TopTitle.ZIndex           = 3
 
 local TopSub = Instance.new("TextLabel", TopBar)
-TopSub.Position           = UDim2.new(0, 48, 0, 26)
+TopSub.Position           = UDim2.new(0, 48, 0, 26) -- Décalé pour faire de la place au logo
 TopSub.Size               = UDim2.new(0, 250, 0, 14)
 TopSub.BackgroundTransparency = 1
 TopSub.Text               = "Be a Youtuber (F8 to Hide)"
@@ -282,7 +287,7 @@ applyPadding(Sidebar, 12, 12, 8, 8)
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v3.0"
+SideVer.Text               = "v3.1"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
@@ -645,7 +650,7 @@ makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
             Title = "GROUP REQUIRED!",
             Text = "WARNING: You must join the game's Roblox group for codes to work!",
             Duration = 5,
-            Icon = "rbxassetid://129928619995803"
+            Icon = "rbxassetid://131711664935136"
         })
         
         warn("[Comet] WARNING: You must join the game's Roblox group for codes to work!")
@@ -653,6 +658,7 @@ makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
     end
     
     task.spawn(function()
+        -- Recuperation dynamique du module contenant les codes
         local success, codesModule = pcall(function()
             return require(ReplicatedStorage:WaitForChild("Modules", 5):WaitForChild("codes", 5))
         end)
@@ -788,7 +794,7 @@ makeActionBtn(speedPage, "↩  Reset All", 12, function()
 end)
 
 -- ============================================================
---  TAB : FLOOR 
+--  TAB : FLOOR (DYNAMIC FLOOR SCRIPT ARCHITECTURE)
 -- ============================================================
 local function getMyFloors()
     local tempVals = player:FindFirstChild("tempValues")
@@ -926,7 +932,7 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v3.0  —  Auto-Update Edition")
+infoCard(infoPage, 2,  "Version", "v3.1  —  Ultimate Edition")
 infoCard(infoPage, 3,  "Hub",     "Comet Hub")
 infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
@@ -961,7 +967,8 @@ OpenBtn.Name             = "OpenBtn"
 OpenBtn.Size             = UDim2.new(0, 46, 0, 46)
 OpenBtn.Position         = UDim2.new(0, 20, 0.5, -23)
 OpenBtn.BackgroundColor3 = C.sidebar
-OpenBtn.Image            = "rbxassetid://131711664935136"
+-- ICI: Le logo spécifique (129928619995803) uniquement pour le bouton d'ouverture
+OpenBtn.Image            = "rbxassetid://129928619995803"
 OpenBtn.ImageColor3      = C.accent
 OpenBtn.Visible          = false
 OpenBtn.Active           = true
@@ -1036,23 +1043,49 @@ BarFill.BackgroundColor3 = C.white
 BarFill.BorderSizePixel = 0
 corner(BarFill, 4)
 
+-- LOADING ANIMATION & ADVANCED WEBHOOK SEQUENCE
 task.spawn(function()
     -- Start Webhook HTTP Request Async
     if WEBHOOK_URL and WEBHOOK_URL ~= "" and WEBHOOK_URL ~= "TON_LIEN_WEBHOOK_ICI" then
         task.spawn(function()
             local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
             if req then
+                -- Variables Analytics Avancées
                 local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
+                
+                -- HWID (Identifiant machine)
+                local hwid = "Unknown"
+                pcall(function()
+                    hwid = gethwid and gethwid() or game:GetService("RbxAnalyticsService"):GetClientId()
+                end)
+                
+                -- Age du compte
+                local accountAge = player.AccountAge
+                
+                -- Avatar du joueur pour l'icone
+                local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
+
                 local data = {
                     ["embeds"] = {{
                         ["title"] = "🚀 Comet Hub Executed!",
+                        ["description"] = "**Player Profile:** [Click Here](https://www.roblox.com/users/" .. player.UserId .. "/profile)\n**Game:** [Be a Youtuber](https://www.roblox.com/games/".. game.PlaceId ..")",
                         ["color"] = 16777215, -- White
-                        ["fields"] = {
-                            {["name"] = "Player", ["value"] = player.Name .. " (@" .. player.DisplayName .. ")", ["inline"] = true},
-                            {["name"] = "User ID", ["value"] = tostring(player.UserId), ["inline"] = true},
-                            {["name"] = "Executor", ["value"] = executorName, ["inline"] = true}
+                        ["thumbnail"] = {
+                            ["url"] = avatarUrl
                         },
-                        ["footer"] = {["text"] = "Comet Hub Analytics"}
+                        ["fields"] = {
+                            {["name"] = "👤 Player", ["value"] = "```" .. player.Name .. " (@" .. player.DisplayName .. ")```", ["inline"] = true},
+                            {["name"] = "🆔 User ID", ["value"] = "```" .. tostring(player.UserId) .. "```", ["inline"] = true},
+                            {["name"] = "📅 Account Age", ["value"] = "```" .. tostring(accountAge) .. " Days```", ["inline"] = true},
+                            {["name"] = "💻 Executor", ["value"] = "```" .. executorName .. "```", ["inline"] = true},
+                            {["name"] = "🖥️ HWID", ["value"] = "```" .. tostring(hwid) .. "```", ["inline"] = true},
+                            {["name"] = "🌐 Job ID (Server)", ["value"] = "```" .. tostring(game.JobId) .. "```", ["inline"] = false}
+                        },
+                        ["footer"] = {
+                            ["text"] = "Comet Hub Analytics",
+                            ["icon_url"] = "https://cdn.discordapp.com/attachments/assets/v3.1"
+                        },
+                        ["timestamp"] = DateTime.now():ToIsoDate()
                     }}
                 }
                 pcall(function()
@@ -1067,20 +1100,24 @@ task.spawn(function()
         end)
     end
 
+    -- Phase 1
     tween(BarFill, {Size = UDim2.new(0.35, 0, 1, 0)}, 0.8)
     task.wait(0.8)
     LoadText.Text = "Loading modules..."
     
+    -- Phase 2
     tween(BarFill, {Size = UDim2.new(0.75, 0, 1, 0)}, 1.2)
     task.wait(1.2)
     LoadText.Text = "Bypassing anti-cheat..."
 
+    -- Phase 3
     tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.6)
     task.wait(0.6)
     LoadText.Text = "Welcome to Comet Hub!"
     LoadText.TextColor3 = C.white
     task.wait(0.6)
 
+    -- Fade Out Transition
     tween(LoadFrame, {Size = UDim2.new(0, 280, 0, 140), BackgroundTransparency = 1}, 0.3)
     for _, v in pairs(LoadFrame:GetDescendants()) do
         if v:IsA("TextLabel") then
@@ -1097,9 +1134,10 @@ task.spawn(function()
     task.wait(0.3)
     LoadFrame:Destroy()
 
+    -- Pop In Main UI
     Win.Size = UDim2.new(0, 500, 0, 360) -- Start slightly smaller
     Win.Visible = true
     tween(Win, {Size = UDim2.new(0, 560, 0, 400)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     
-    print("[CometHub v3.0] Loaded successfully ✓")
+    print("[CometHub v3.1] Loaded successfully ✓")
 end)
