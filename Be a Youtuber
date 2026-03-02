@@ -1,3 +1,7 @@
+-- ============================================================
+--  COMET HUB v3.2 - Ultimate Edition (Auto Quests & Mobile Optimized)
+-- ============================================================
+
 if game.CoreGui:FindFirstChild("CometHub") then
     game.CoreGui:FindFirstChild("CometHub"):Destroy()
 end
