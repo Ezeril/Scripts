@@ -1,5 +1,5 @@
 -- ============================================================
---  COMET HUB v3.1 - Ultimate Edition
+--  COMET HUB v3.2 - Ultimate Edition (Auto Quests & Mobile Optimized)
 -- ============================================================
 
 if game.CoreGui:FindFirstChild("CometHub") then
@@ -17,14 +17,8 @@ local HttpService       = game:GetService("HttpService")
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
 
--- ============================================================
---  WEBHOOK ANALYTICS
--- ============================================================
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
--- ============================================================
---  GLOBALS
--- ============================================================
 _G.AutoCollect      = false
 _G.AutoUpload       = false
 _G.AutoClaim        = false
@@ -34,13 +28,11 @@ _G.AutoBuyHouse     = false
 _G.AutoBuy          = false
 _G.AutoBulkHatch    = false
 _G.AutoFloorCycle   = false
+_G.AutoQuest        = false
 _G.SmartAutoRebirth = false
 _G.SelectedYoutuber = ""
 _G.WalkSpeed        = 16
 
--- ============================================================
---  MONOCHROME PALETTE
--- ============================================================
 local C = {
     bg         = Color3.fromRGB(15, 15, 15),
     sidebar    = Color3.fromRGB(20, 20, 20),
@@ -57,9 +49,6 @@ local C = {
     divider    = Color3.fromRGB(40, 40, 40),
 }
 
--- ============================================================
---  HELPERS
--- ============================================================
 local function corner(parent, radius)
     local c = Instance.new("UICorner", parent)
     c.CornerRadius = UDim.new(0, radius or 10)
@@ -74,7 +63,6 @@ local function stroke(parent, color, thickness)
     return s
 end
 
--- ANIMATED GRADIENT STROKE
 local function animatedStroke(parent, thickness)
     local s = Instance.new("UIStroke", parent)
     s.Color = Color3.fromRGB(255, 255, 255)
@@ -83,9 +71,9 @@ local function animatedStroke(parent, thickness)
     
     local grad = Instance.new("UIGradient", s)
     grad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),   -- White
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)), -- Gray
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))       -- Black
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))
     })
     
     task.spawn(function()
@@ -117,18 +105,12 @@ local function applyPadding(parent, top, bottom, left, right)
     p.PaddingRight  = UDim.new(0, right  or 0)
 end
 
--- ============================================================
---  ROOT GUI
--- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name            = "CometHub"
 ScreenGui.ResetOnSpawn    = false
 ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent          = game.CoreGui
 
--- ============================================================
---  MAIN WINDOW 
--- ============================================================
 local Win = Instance.new("Frame", ScreenGui)
 Win.Name             = "MainWindow"
 Win.AnchorPoint      = Vector2.new(0.5, 0.5)
@@ -156,9 +138,6 @@ Shadow.ImageTransparency    = 0.45
 Shadow.ScaleType            = Enum.ScaleType.Slice
 Shadow.SliceCenter          = Rect.new(49, 49, 450, 450)
 
--- ============================================================
---  TOPBAR
--- ============================================================
 local TopBar = Instance.new("Frame", Win)
 TopBar.Size             = UDim2.new(1, 0, 0, 46)
 TopBar.BackgroundColor3 = C.sidebar
@@ -234,9 +213,6 @@ corner(MinBtn, 7)
 MinBtn.MouseEnter:Connect(function() tween(MinBtn, { BackgroundColor3 = C.cardHover }) end)
 MinBtn.MouseLeave:Connect(function() tween(MinBtn, { BackgroundColor3 = C.card }) end)
 
--- ============================================================
---  BODY
--- ============================================================
 local Body = Instance.new("Frame", Win)
 Body.Position            = UDim2.new(0, 0, 0, 46)
 Body.Size                = UDim2.new(1, 0, 1, -46)
@@ -244,9 +220,6 @@ Body.BackgroundTransparency = 1
 Body.BorderSizePixel     = 0
 Body.ClipsDescendants    = true
 
--- ============================================================
---  SIDEBAR
--- ============================================================
 local Sidebar = Instance.new("Frame", Body)
 Sidebar.Size             = UDim2.new(0, 130, 1, 0)
 Sidebar.Position         = UDim2.new(0, 0, 0, 0)
@@ -283,16 +256,13 @@ applyPadding(Sidebar, 12, 12, 8, 8)
 local SideVer = Instance.new("TextLabel", Sidebar)
 SideVer.Size               = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v3.1"
+SideVer.Text               = "v3.2"
 SideVer.TextColor3         = C.subtext
 SideVer.Font               = Enum.Font.Gotham
 SideVer.TextSize           = 10
 SideVer.TextXAlignment     = Enum.TextXAlignment.Center
 SideVer.LayoutOrder        = 999
 
--- ============================================================
---  CONTENT AREA
--- ============================================================
 local Content = Instance.new("Frame", Body)
 Content.Position         = UDim2.new(0, 131, 0, 0)
 Content.Size             = UDim2.new(1, -131, 1, 0)
@@ -300,9 +270,6 @@ Content.BackgroundTransparency = 1
 Content.BorderSizePixel  = 0
 Content.ClipsDescendants = true
 
--- ============================================================
---  TAB FACTORY
--- ============================================================
 local tabs = {}
 
 local TAB_DEFS = {
@@ -376,9 +343,6 @@ local speedPage = tabs["Speed"].page
 local floorPage = tabs["Floor"].page
 local infoPage  = tabs["Info"].page
 
--- ============================================================
---  REUSABLE COMPONENTS
--- ============================================================
 local function sectionLabel(parent, text, order)
     local f = Instance.new("Frame", parent)
     f.LayoutOrder          = order or 0
@@ -476,9 +440,6 @@ local function makeInput(parent, placeholder, order)
     return box
 end
 
--- ============================================================
---  TAB : AUTOMATION
--- ============================================================
 sectionLabel(autoPage, "COLLECT & UPLOAD", 0)
 
 makeToggle(autoPage, "Auto Collect", 1, function(_, state)
@@ -531,6 +492,29 @@ makeToggle(autoPage, "Auto Submit", 4, function(_, state)
         while _G.AutoSubmit do
             pcall(function() events.submitAll:FireServer() end)
             task.wait(3)
+        end
+    end) end
+end)
+
+sectionLabel(autoPage, "QUESTS", 5)
+
+makeToggle(autoPage, "Auto Claim Quests", 6, function(_, state)
+    _G.AutoQuest = state
+    if state then task.spawn(function()
+        while _G.AutoQuest do
+            if events:FindFirstChild("claimQuest") then
+                -- Optimisation : petites pauses pour éviter le crash/rate limit
+                for i = 1, 35 do
+                    pcall(function() events.claimQuest:FireServer("Story", i) end)
+                    task.wait(0.05) 
+                end
+                
+                for i = 1, 25 do
+                    pcall(function() events.claimQuest:FireServer("Daily", i) end)
+                    task.wait(0.05)
+                end
+            end
+            task.wait(10) -- Pause saine de 10s entre les vérifications globales
         end
     end) end
 end)
@@ -607,7 +591,7 @@ makeToggle(autoPage, "Auto Buy Youtuber", 22, function(_, state)
     end) end
 end)
 
-makeActionBtn(autoPage, "⚠  Sell All Youtubers", 23, function()
+makeActionBtn(autoPage, "Sell All Youtubers", 23, function()
     pcall(function() events.sellAll:FireServer() end)
 end)
 
@@ -639,7 +623,7 @@ end)
 
 sectionLabel(autoPage, "PROMO CODES", 40)
 
-makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
+makeActionBtn(autoPage, "Redeem All Codes", 41, function()
     if not player:IsInGroup(476287845) then
         StarterGui:SetCore("SendNotification", {
             Title = "GROUP REQUIRED!",
@@ -647,8 +631,6 @@ makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
             Duration = 5,
             Icon = "rbxassetid://131711664935136"
         })
-        
-        warn("[Comet] WARNING: You must join the game's Roblox group for codes to work!")
         return
     end
     
@@ -669,9 +651,6 @@ makeActionBtn(autoPage, "🎁 Redeem All Codes", 41, function()
                     task.wait(0.5)
                 end
             end
-            print("[Comet] All dynamic codes have been sent to the server!")
-        else
-            warn("[Comet] Failed to load codes module dynamically.")
         end
     end)
 end)
@@ -688,9 +667,6 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
---  TAB : SPEED
--- ============================================================
 sectionLabel(speedPage, "CHARACTER SPEED", 0)
 
 local speedDisplay = Instance.new("TextLabel", speedPage)
@@ -700,7 +676,7 @@ speedDisplay.BackgroundColor3  = C.card
 speedDisplay.TextColor3        = C.white
 speedDisplay.Font              = Enum.Font.GothamBold
 speedDisplay.TextSize          = 24
-speedDisplay.Text              = "⚡  Speed: 16"
+speedDisplay.Text              = "⚡ Speed: 16"
 speedDisplay.BorderSizePixel   = 0
 corner(speedDisplay, 9)
 stroke(speedDisplay, C.divider, 1)
@@ -712,19 +688,19 @@ jumpDisplay.BackgroundColor3   = C.card
 jumpDisplay.TextColor3         = C.white
 jumpDisplay.Font               = Enum.Font.GothamBold
 jumpDisplay.TextSize           = 24
-jumpDisplay.Text               = "↑  Jump: 50"
+jumpDisplay.Text               = "↑ Jump: 50"
 jumpDisplay.BorderSizePixel    = 0
 corner(jumpDisplay, 9)
 stroke(jumpDisplay, C.divider, 1)
 
 local function applySpeed(val)
     _G.WalkSpeed = val
-    speedDisplay.Text = "⚡  Speed: " .. val
+    speedDisplay.Text = "⚡ Speed: " .. val
     pcall(function() player.Character.Humanoid.WalkSpeed = val end)
 end
 
 local function applyJump(val)
-    jumpDisplay.Text = "↑  Jump: " .. val
+    jumpDisplay.Text = "↑ Jump: " .. val
     pcall(function() player.Character.Humanoid.JumpPower = val end)
 end
 
@@ -763,7 +739,7 @@ makePresetsRow(speedPage, 2, {16, 50, 100, 200}, applySpeed)
 
 sectionLabel(speedPage, "CUSTOM SPEED", 3)
 local speedInput = makeInput(speedPage, "Value (ex: 150)", 4)
-makeActionBtn(speedPage, "✓  Apply Speed", 5, function()
+makeActionBtn(speedPage, "✓ Apply Speed", 5, function()
     local val = tonumber(speedInput.Text)
     if val and val > 0 and val <= 10000 then applySpeed(val) end
 end)
@@ -773,21 +749,18 @@ makePresetsRow(speedPage, 8, {50, 100, 200, 500}, applyJump)
 
 sectionLabel(speedPage, "CUSTOM JUMP", 9)
 local jumpInput = makeInput(speedPage, "Value (ex: 200)", 10)
-makeActionBtn(speedPage, "✓  Apply Jump", 11, function()
+makeActionBtn(speedPage, "✓ Apply Jump", 11, function()
     local val = tonumber(jumpInput.Text)
     if val and val > 0 and val <= 10000 then applyJump(val) end
 end)
 
-makeActionBtn(speedPage, "↩  Reset All", 12, function()
+makeActionBtn(speedPage, "↩ Reset All", 12, function()
     applySpeed(16)
     applyJump(50)
     speedInput.Text = ""
     jumpInput.Text  = ""
 end)
 
--- ============================================================
---  TAB : FLOOR 
--- ============================================================
 local function getMyFloors()
     local tempVals = player:FindFirstChild("tempValues")
     if not tempVals then return {} end
@@ -874,7 +847,7 @@ end)
 sectionLabel(floorPage, "FAST TELEPORT", 5)
 
 for i = 1, 10 do
-    makeActionBtn(floorPage, "→  Floor " .. i, 10 + i, function()
+    makeActionBtn(floorPage, "→ Floor " .. i, 10 + i, function()
         local floors = getMyFloors()
         if floors[i] then
             pcall(function() teleportToFloor(i, floors) end)
@@ -887,9 +860,6 @@ for i = 1, 10 do
     end)
 end
 
--- ============================================================
---  TAB : INFO
--- ============================================================
 local function infoCard(parent, order, key, value)
     local card = Instance.new("Frame", parent)
     card.LayoutOrder        = order
@@ -924,16 +894,13 @@ end
 
 sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v3.1  —  Ultimate Edition")
+infoCard(infoPage, 2,  "Version", "v3.2")
 infoCard(infoPage, 3,  "Hub",     "Comet Hub")
 infoCard(infoPage, 4,  "Credits", "noxis.lua")
 
 sectionLabel(infoPage, "SUPPORT", 10)
 infoCard(infoPage, 11, "Shortcut", "F8 Key or Click Logo")
 
--- ============================================================
---  MINIMIZE LOGIC 
--- ============================================================
 local minimized = false
 MinBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -951,9 +918,6 @@ MinBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- ============================================================
---  FLOATING BUTTON 
--- ============================================================
 local OpenBtn = Instance.new("ImageButton", ScreenGui)
 OpenBtn.Name             = "OpenBtn"
 OpenBtn.Size             = UDim2.new(0, 46, 0, 46)
@@ -987,9 +951,6 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- ============================================================
---  STARTUP, WEBHOOK & LOADING SCREEN
--- ============================================================
 switchTab("Automation")
 
 local LoadFrame = Instance.new("Frame", ScreenGui)
@@ -1066,7 +1027,6 @@ task.spawn(function()
                         },
                         ["footer"] = {
                             ["text"] = "Comet Hub Analytics",
-                            ["icon_url"] = "https://cdn.discordapp.com/attachments/assets/v3.1"
                         },
                         ["timestamp"] = DateTime.now():ToIsoDate()
                     }}
@@ -1116,6 +1076,4 @@ task.spawn(function()
     Win.Size = UDim2.new(0, 500, 0, 360)
     Win.Visible = true
     tween(Win, {Size = UDim2.new(0, 560, 0, 400)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-    
-    print("[CometHub v3.1] Loaded successfully ✓")
 end)
