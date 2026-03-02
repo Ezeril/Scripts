@@ -503,18 +503,16 @@ makeToggle(autoPage, "Auto Claim Quests", 6, function(_, state)
     if state then task.spawn(function()
         while _G.AutoQuest do
             if events:FindFirstChild("claimQuest") then
-                -- Optimisation : petites pauses pour éviter le crash/rate limit
-                for i = 1, 35 do
-                    pcall(function() events.claimQuest:FireServer("Story", i) end)
-                    task.wait(0.05) 
-                end
+                pcall(function() events.claimQuest:FireServer(1) end)
+                task.wait(0.1)
                 
-                for i = 1, 25 do
-                    pcall(function() events.claimQuest:FireServer("Daily", i) end)
-                    task.wait(0.05)
-                end
+                pcall(function() events.claimQuest:FireServer(2) end)
+                task.wait(0.1)
+                
+                pcall(function() events.claimQuest:FireServer("Daily") end)
+                task.wait(0.1)
             end
-            task.wait(10) -- Pause saine de 10s entre les vérifications globales
+            task.wait(10)
         end
     end) end
 end)
