@@ -1,52 +1,48 @@
--- ============================================================
---  COMET HUB v3.2 - Ultimate Edition (Auto Quests & Mobile Optimized)
--- ============================================================
-
 if game.CoreGui:FindFirstChild("CometHub") then
     game.CoreGui:FindFirstChild("CometHub"):Destroy()
 end
 
-local Players           = game:GetService("Players")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService      = game:GetService("TweenService")
-local UserInputService  = game:GetService("UserInputService")
-local RunService        = game:GetService("RunService")
-local StarterGui        = game:GetService("StarterGui")
-local HttpService       = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
-_G.AutoCollect      = false
-_G.AutoUpload       = false
-_G.AutoClaim        = false
-_G.AutoSubmit       = false
-_G.AutoUpgrades     = false
-_G.AutoBuyHouse     = false
-_G.AutoBuy          = false
-_G.AutoBulkHatch    = false
-_G.AutoFloorCycle   = false
-_G.AutoQuest        = false
+_G.AutoCollect = false
+_G.AutoUpload = false
+_G.AutoClaim = false
+_G.AutoSubmit = false
+_G.AutoUpgrades = false
+_G.AutoBuyHouse = false
+_G.AutoBuy = false
+_G.AutoBulkHatch = false
+_G.AutoFloorCycle = false
+_G.AutoQuest = false
 _G.SmartAutoRebirth = false
 _G.SelectedYoutuber = ""
-_G.WalkSpeed        = 16
+_G.WalkSpeed = 16
 
 local C = {
-    bg         = Color3.fromRGB(15, 15, 15),
-    sidebar    = Color3.fromRGB(20, 20, 20),
-    panel      = Color3.fromRGB(25, 25, 25),
-    card       = Color3.fromRGB(30, 30, 30),
-    cardHover  = Color3.fromRGB(45, 45, 45),
-    accent     = Color3.fromRGB(255, 255, 255),
+    bg = Color3.fromRGB(15, 15, 15),
+    sidebar = Color3.fromRGB(20, 20, 20),
+    panel = Color3.fromRGB(25, 25, 25),
+    card = Color3.fromRGB(30, 30, 30),
+    cardHover = Color3.fromRGB(45, 45, 45),
+    accent = Color3.fromRGB(255, 255, 255),
     accentGlow = Color3.fromRGB(150, 150, 150),
-    text       = Color3.fromRGB(240, 240, 240),
-    subtext    = Color3.fromRGB(130, 130, 130),
-    toggleOn   = Color3.fromRGB(255, 255, 255),
-    toggleOff  = Color3.fromRGB(60, 60, 60),
-    white      = Color3.fromRGB(255, 255, 255),
-    divider    = Color3.fromRGB(40, 40, 40),
+    text = Color3.fromRGB(240, 240, 240),
+    subtext = Color3.fromRGB(130, 130, 130),
+    toggleOn = Color3.fromRGB(255, 255, 255),
+    toggleOff = Color3.fromRGB(60, 60, 60),
+    white = Color3.fromRGB(255, 255, 255),
+    divider = Color3.fromRGB(40, 40, 40),
 }
 
 local function corner(parent, radius)
@@ -57,8 +53,8 @@ end
 
 local function stroke(parent, color, thickness)
     local s = Instance.new("UIStroke", parent)
-    s.Color        = color or C.accentGlow
-    s.Thickness    = thickness or 1
+    s.Color = color or C.accentGlow
+    s.Thickness = thickness or 1
     s.Transparency = 0.55
     return s
 end
@@ -99,175 +95,175 @@ end
 
 local function applyPadding(parent, top, bottom, left, right)
     local p = Instance.new("UIPadding", parent)
-    p.PaddingTop    = UDim.new(0, top    or 0)
+    p.PaddingTop = UDim.new(0, top or 0)
     p.PaddingBottom = UDim.new(0, bottom or 0)
-    p.PaddingLeft   = UDim.new(0, left   or 0)
-    p.PaddingRight  = UDim.new(0, right  or 0)
+    p.PaddingLeft = UDim.new(0, left or 0)
+    p.PaddingRight = UDim.new(0, right or 0)
 end
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name            = "CometHub"
-ScreenGui.ResetOnSpawn    = false
-ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent          = game.CoreGui
+ScreenGui.Name = "CometHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = game.CoreGui
 
 local Win = Instance.new("Frame", ScreenGui)
-Win.Name             = "MainWindow"
-Win.AnchorPoint      = Vector2.new(0.5, 0.5)
-Win.Position         = UDim2.new(0.5, 0, 0.5, 0)
-Win.Size             = UDim2.new(0, 560, 0, 400)
+Win.Name = "MainWindow"
+Win.AnchorPoint = Vector2.new(0.5, 0.5)
+Win.Position = UDim2.new(0.5, 0, 0.5, 0)
+Win.Size = UDim2.new(0, 560, 0, 400)
 Win.BackgroundColor3 = C.bg
-Win.BorderSizePixel  = 0
-Win.Active           = true
-Win.Draggable        = true
+Win.BorderSizePixel = 0
+Win.Active = true
+Win.Draggable = true
 Win.ClipsDescendants = false
-Win.Visible          = false 
+Win.Visible = false 
 corner(Win, 14)
 animatedStroke(Win, 1.5)
 
 local Shadow = Instance.new("ImageLabel", Win)
-Shadow.Name                 = "Shadow"
-Shadow.ZIndex               = -1
-Shadow.AnchorPoint          = Vector2.new(0.5, 0.5)
+Shadow.Name = "Shadow"
+Shadow.ZIndex = -1
+Shadow.AnchorPoint = Vector2.new(0.5, 0.5)
 Shadow.BackgroundTransparency = 1
-Shadow.Position             = UDim2.new(0.5, 0, 0.5, 4)
-Shadow.Size                 = UDim2.new(1, 60, 1, 60) 
-Shadow.Image                = "rbxassetid://6015897843"
-Shadow.ImageColor3          = Color3.fromRGB(0, 0, 0)
-Shadow.ImageTransparency    = 0.45
-Shadow.ScaleType            = Enum.ScaleType.Slice
-Shadow.SliceCenter          = Rect.new(49, 49, 450, 450)
+Shadow.Position = UDim2.new(0.5, 0, 0.5, 3)
+Shadow.Size = UDim2.new(1, 26, 1, 26) 
+Shadow.Image = "rbxassetid://4735431565"
+Shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.ImageTransparency = 0.4
+Shadow.ScaleType = Enum.ScaleType.Slice
+Shadow.SliceCenter = Rect.new(16, 16, 84, 84)
 
 local TopBar = Instance.new("Frame", Win)
-TopBar.Size             = UDim2.new(1, 0, 0, 46)
+TopBar.Size = UDim2.new(1, 0, 0, 46)
 TopBar.BackgroundColor3 = C.sidebar
-TopBar.BorderSizePixel  = 0
-TopBar.ZIndex           = 2
+TopBar.BorderSizePixel = 0
+TopBar.ZIndex = 2
 
 local TopCorner = Instance.new("UICorner", TopBar)
 TopCorner.CornerRadius = UDim.new(0, 14)
 
 local TopPatch = Instance.new("Frame", TopBar)
-TopPatch.Size             = UDim2.new(1, 0, 0, 14)
-TopPatch.Position         = UDim2.new(0, 0, 1, -14)
+TopPatch.Size = UDim2.new(1, 0, 0, 14)
+TopPatch.Position = UDim2.new(0, 0, 1, -14)
 TopPatch.BackgroundColor3 = C.sidebar
-TopPatch.BorderSizePixel  = 0
-TopPatch.ZIndex           = 2
+TopPatch.BorderSizePixel = 0
+TopPatch.ZIndex = 2
 
 local Logo = Instance.new("ImageLabel", TopBar)
-Logo.Size                 = UDim2.new(0, 28, 0, 28)
-Logo.Position             = UDim2.new(0, 12, 0.5, -14)
+Logo.Size = UDim2.new(0, 28, 0, 28)
+Logo.Position = UDim2.new(0, 12, 0.5, -14)
 Logo.BackgroundTransparency = 1
-Logo.Image                = "rbxassetid://131711664935136"
-Logo.ImageColor3          = C.accent
-Logo.ZIndex               = 3
+Logo.Image = "rbxassetid://131711664935136"
+Logo.ImageColor3 = C.accent
+Logo.ZIndex = 3
 
 local TopTitle = Instance.new("TextLabel", TopBar)
-TopTitle.Position         = UDim2.new(0, 48, 0, 5)
-TopTitle.Size             = UDim2.new(0, 250, 0, 20)
+TopTitle.Position = UDim2.new(0, 48, 0, 5)
+TopTitle.Size = UDim2.new(0, 250, 0, 20)
 TopTitle.BackgroundTransparency = 1
-TopTitle.Text             = "Comet Hub"
-TopTitle.TextColor3       = C.white
-TopTitle.Font             = Enum.Font.GothamBold
-TopTitle.TextSize         = 15
-TopTitle.TextXAlignment   = Enum.TextXAlignment.Left
-TopTitle.ZIndex           = 3
+TopTitle.Text = "Comet Hub"
+TopTitle.TextColor3 = C.white
+TopTitle.Font = Enum.Font.GothamBold
+TopTitle.TextSize = 15
+TopTitle.TextXAlignment = Enum.TextXAlignment.Left
+TopTitle.ZIndex = 3
 
 local TopSub = Instance.new("TextLabel", TopBar)
-TopSub.Position           = UDim2.new(0, 48, 0, 26)
-TopSub.Size               = UDim2.new(0, 250, 0, 14)
+TopSub.Position = UDim2.new(0, 48, 0, 26)
+TopSub.Size = UDim2.new(0, 250, 0, 14)
 TopSub.BackgroundTransparency = 1
-TopSub.Text               = "Be a Youtuber (F8 to Hide)"
-TopSub.TextColor3         = C.subtext
-TopSub.Font               = Enum.Font.Gotham
-TopSub.TextSize           = 11
-TopSub.TextXAlignment     = Enum.TextXAlignment.Left
-TopSub.ZIndex             = 3
+TopSub.Text = "Be a Youtuber (F8 to Hide)"
+TopSub.TextColor3 = C.subtext
+TopSub.Font = Enum.Font.Gotham
+TopSub.TextSize = 11
+TopSub.TextXAlignment = Enum.TextXAlignment.Left
+TopSub.ZIndex = 3
 
 local CloseBtn = Instance.new("TextButton", TopBar)
-CloseBtn.Name             = "CloseBtn"
-CloseBtn.ZIndex           = 10
-CloseBtn.Size             = UDim2.new(0, 28, 0, 28)
-CloseBtn.Position         = UDim2.new(1, -38, 0.5, -14)
+CloseBtn.Name = "CloseBtn"
+CloseBtn.ZIndex = 10
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -38, 0.5, -14)
 CloseBtn.BackgroundColor3 = C.card
-CloseBtn.Text             = "X"
-CloseBtn.TextColor3       = C.white
-CloseBtn.Font             = Enum.Font.GothamBold
-CloseBtn.TextSize         = 13
-CloseBtn.BorderSizePixel  = 0
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = C.white
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 13
+CloseBtn.BorderSizePixel = 0
 corner(CloseBtn, 7)
 CloseBtn.MouseEnter:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.cardHover }) end)
 CloseBtn.MouseLeave:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.card }) end)
 
 local MinBtn = Instance.new("TextButton", TopBar)
-MinBtn.ZIndex             = 10
-MinBtn.Size               = UDim2.new(0, 28, 0, 28)
-MinBtn.Position           = UDim2.new(1, -72, 0.5, -14)
-MinBtn.BackgroundColor3   = C.card
-MinBtn.Text               = "-"
-MinBtn.TextColor3         = C.white
-MinBtn.Font               = Enum.Font.GothamBold
-MinBtn.TextSize           = 16
-MinBtn.BorderSizePixel    = 0
+MinBtn.ZIndex = 10
+MinBtn.Size = UDim2.new(0, 28, 0, 28)
+MinBtn.Position = UDim2.new(1, -72, 0.5, -14)
+MinBtn.BackgroundColor3 = C.card
+MinBtn.Text = "-"
+MinBtn.TextColor3 = C.white
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 16
+MinBtn.BorderSizePixel = 0
 corner(MinBtn, 7)
 MinBtn.MouseEnter:Connect(function() tween(MinBtn, { BackgroundColor3 = C.cardHover }) end)
 MinBtn.MouseLeave:Connect(function() tween(MinBtn, { BackgroundColor3 = C.card }) end)
 
 local Body = Instance.new("Frame", Win)
-Body.Position            = UDim2.new(0, 0, 0, 46)
-Body.Size                = UDim2.new(1, 0, 1, -46)
+Body.Position = UDim2.new(0, 0, 0, 46)
+Body.Size = UDim2.new(1, 0, 1, -46)
 Body.BackgroundTransparency = 1
-Body.BorderSizePixel     = 0
-Body.ClipsDescendants    = true
+Body.BorderSizePixel = 0
+Body.ClipsDescendants = true
 
 local Sidebar = Instance.new("Frame", Body)
-Sidebar.Size             = UDim2.new(0, 130, 1, 0)
-Sidebar.Position         = UDim2.new(0, 0, 0, 0)
+Sidebar.Size = UDim2.new(0, 130, 1, 0)
+Sidebar.Position = UDim2.new(0, 0, 0, 0)
 Sidebar.BackgroundColor3 = C.sidebar
-Sidebar.BorderSizePixel  = 0
+Sidebar.BorderSizePixel = 0
 corner(Sidebar, 14)
 
 local SidePatchTop = Instance.new("Frame", Body)
-SidePatchTop.Size             = UDim2.new(0, 130, 0, 14)
-SidePatchTop.Position         = UDim2.new(0, 0, 0, 0)
+SidePatchTop.Size = UDim2.new(0, 130, 0, 14)
+SidePatchTop.Position = UDim2.new(0, 0, 0, 0)
 SidePatchTop.BackgroundColor3 = C.sidebar
-SidePatchTop.BorderSizePixel  = 0
+SidePatchTop.BorderSizePixel = 0
 
 local SidePatchBR = Instance.new("Frame", Body)
-SidePatchBR.Size             = UDim2.new(0, 14, 0, 14)
-SidePatchBR.Position         = UDim2.new(0, 116, 1, -14)
+SidePatchBR.Size = UDim2.new(0, 14, 0, 14)
+SidePatchBR.Position = UDim2.new(0, 116, 1, -14)
 SidePatchBR.BackgroundColor3 = C.sidebar
-SidePatchBR.BorderSizePixel  = 0
+SidePatchBR.BorderSizePixel = 0
 
 local VDivider = Instance.new("Frame", Body)
-VDivider.Position        = UDim2.new(0, 130, 0, 0)
-VDivider.Size            = UDim2.new(0, 1, 1, 0)
+VDivider.Position = UDim2.new(0, 130, 0, 0)
+VDivider.Size = UDim2.new(0, 1, 1, 0)
 VDivider.BackgroundColor3 = C.divider
 VDivider.BorderSizePixel = 0
-VDivider.ZIndex          = 2
+VDivider.ZIndex = 2
 
 local SideList = Instance.new("UIListLayout", Sidebar)
-SideList.Padding              = UDim.new(0, 4)
-SideList.SortOrder            = Enum.SortOrder.LayoutOrder
-SideList.HorizontalAlignment  = Enum.HorizontalAlignment.Center
-SideList.VerticalAlignment    = Enum.VerticalAlignment.Top
+SideList.Padding = UDim.new(0, 4)
+SideList.SortOrder = Enum.SortOrder.LayoutOrder
+SideList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+SideList.VerticalAlignment = Enum.VerticalAlignment.Top
 applyPadding(Sidebar, 12, 12, 8, 8)
 
 local SideVer = Instance.new("TextLabel", Sidebar)
-SideVer.Size               = UDim2.new(1, 0, 0, 14)
+SideVer.Size = UDim2.new(1, 0, 0, 14)
 SideVer.BackgroundTransparency = 1
-SideVer.Text               = "v3.2"
-SideVer.TextColor3         = C.subtext
-SideVer.Font               = Enum.Font.Gotham
-SideVer.TextSize           = 10
-SideVer.TextXAlignment     = Enum.TextXAlignment.Center
-SideVer.LayoutOrder        = 999
+SideVer.Text = "v3.2"
+SideVer.TextColor3 = C.subtext
+SideVer.Font = Enum.Font.Gotham
+SideVer.TextSize = 10
+SideVer.TextXAlignment = Enum.TextXAlignment.Center
+SideVer.LayoutOrder = 999
 
 local Content = Instance.new("Frame", Body)
-Content.Position         = UDim2.new(0, 131, 0, 0)
-Content.Size             = UDim2.new(1, -131, 1, 0)
+Content.Position = UDim2.new(0, 131, 0, 0)
+Content.Size = UDim2.new(1, -131, 1, 0)
 Content.BackgroundTransparency = 1
-Content.BorderSizePixel  = 0
+Content.BorderSizePixel = 0
 Content.ClipsDescendants = true
 
 local tabs = {}
@@ -281,20 +277,20 @@ local TAB_DEFS = {
 
 local function makeTabPage(name)
     local page = Instance.new("ScrollingFrame", Content)
-    page.Name                 = name
-    page.Size                 = UDim2.new(1, 0, 1, 0)
-    page.Position             = UDim2.new(0, 0, 0, 0)
+    page.Name = name
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.Position = UDim2.new(0, 0, 0, 0)
     page.BackgroundTransparency = 1
-    page.ScrollBarThickness   = 3
+    page.ScrollBarThickness = 3
     page.ScrollBarImageColor3 = C.accentGlow
-    page.CanvasSize           = UDim2.new(0, 0, 0, 0)
-    page.AutomaticCanvasSize  = Enum.AutomaticSize.Y
-    page.BorderSizePixel      = 0
-    page.Visible              = false
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.BorderSizePixel = 0
+    page.Visible = false
 
     local list = Instance.new("UIListLayout", page)
-    list.Padding             = UDim.new(0, 6)
-    list.SortOrder           = Enum.SortOrder.LayoutOrder
+    list.Padding = UDim.new(0, 6)
+    list.SortOrder = Enum.SortOrder.LayoutOrder
     list.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
     applyPadding(page, 10, 10, 10, 10)
@@ -303,17 +299,17 @@ end
 
 local function makeTabBtn(def, index)
     local btn = Instance.new("TextButton", Sidebar)
-    btn.Name                 = def.name
-    btn.LayoutOrder          = index
-    btn.Size                 = UDim2.new(1, 0, 0, 38)
-    btn.BackgroundColor3     = C.card
+    btn.Name = def.name
+    btn.LayoutOrder = index
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = C.card
     btn.BackgroundTransparency = 1
-    btn.Text                 = def.icon .. "  " .. def.name
-    btn.TextColor3           = C.subtext
-    btn.Font                 = Enum.Font.GothamSemibold
-    btn.TextSize             = 12
-    btn.TextXAlignment       = Enum.TextXAlignment.Left
-    btn.BorderSizePixel      = 0
+    btn.Text = def.icon .. "  " .. def.name
+    btn.TextColor3 = C.subtext
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 12
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
     corner(btn, 8)
     applyPadding(btn, 0, 0, 10, 0)
     return btn
@@ -324,7 +320,7 @@ local function switchTab(name)
         local on = tabName == name
         t.page.Visible = on
         tween(t.btn, {
-            TextColor3           = on and C.white or C.subtext,
+            TextColor3 = on and C.white or C.subtext,
             BackgroundTransparency = on and 0 or 1,
         })
         if on then t.btn.BackgroundColor3 = C.card end
@@ -333,52 +329,52 @@ end
 
 for i, def in ipairs(TAB_DEFS) do
     local page, list = makeTabPage(def.name)
-    local btn        = makeTabBtn(def, i)
-    tabs[def.name]   = { page = page, list = list, btn = btn }
+    local btn = makeTabBtn(def, i)
+    tabs[def.name] = { page = page, list = list, btn = btn }
     btn.MouseButton1Click:Connect(function() switchTab(def.name) end)
 end
 
-local autoPage  = tabs["Automation"].page
+local autoPage = tabs["Automation"].page
 local speedPage = tabs["Speed"].page
 local floorPage = tabs["Floor"].page
-local infoPage  = tabs["Info"].page
+local infoPage = tabs["Info"].page
 
 local function sectionLabel(parent, text, order)
     local f = Instance.new("Frame", parent)
-    f.LayoutOrder          = order or 0
-    f.Size                 = UDim2.new(1, 0, 0, 22)
+    f.LayoutOrder = order or 0
+    f.Size = UDim2.new(1, 0, 0, 22)
     f.BackgroundTransparency = 1
 
     local lbl = Instance.new("TextLabel", f)
-    lbl.Size               = UDim2.new(1, 0, 1, 0)
+    lbl.Size = UDim2.new(1, 0, 1, 0)
     lbl.BackgroundTransparency = 1
-    lbl.Text               = text
-    lbl.TextColor3         = C.accentGlow
-    lbl.Font               = Enum.Font.GothamBold
-    lbl.TextSize           = 11
-    lbl.TextXAlignment     = Enum.TextXAlignment.Left
+    lbl.Text = text
+    lbl.TextColor3 = C.accentGlow
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
     return f
 end
 
 local function makeToggle(parent, text, order, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.LayoutOrder        = order
-    btn.Size               = UDim2.new(1, 0, 0, 38)
-    btn.BackgroundColor3   = C.card
-    btn.Text               = "   " .. text
-    btn.TextColor3         = C.text
-    btn.Font               = Enum.Font.GothamSemibold
-    btn.TextSize           = 13
-    btn.TextXAlignment     = Enum.TextXAlignment.Left
-    btn.BorderSizePixel    = 0
+    btn.LayoutOrder = order
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = C.card
+    btn.Text = "   " .. text
+    btn.TextColor3 = C.text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 13
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.BorderSizePixel = 0
     corner(btn, 9)
     stroke(btn, C.divider, 1)
 
     local dot = Instance.new("Frame", btn)
-    dot.Size               = UDim2.new(0, 8, 0, 8)
-    dot.Position           = UDim2.new(1, -18, 0.5, -4)
-    dot.BackgroundColor3   = C.toggleOff
-    dot.BorderSizePixel    = 0
+    dot.Size = UDim2.new(0, 8, 0, 8)
+    dot.Position = UDim2.new(1, -18, 0.5, -4)
+    dot.BackgroundColor3 = C.toggleOff
+    dot.BorderSizePixel = 0
     corner(dot, 8)
 
     local active = false
@@ -404,14 +400,14 @@ end
 
 local function makeActionBtn(parent, text, order, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.LayoutOrder        = order
-    btn.Size               = UDim2.new(1, 0, 0, 38)
-    btn.BackgroundColor3   = C.card
-    btn.Text               = text
-    btn.TextColor3         = C.accent
-    btn.Font               = Enum.Font.GothamBold
-    btn.TextSize           = 13
-    btn.BorderSizePixel    = 0
+    btn.LayoutOrder = order
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.BackgroundColor3 = C.card
+    btn.Text = text
+    btn.TextColor3 = C.accent
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    btn.BorderSizePixel = 0
     corner(btn, 9)
     stroke(btn, C.divider, 1)
 
@@ -423,18 +419,18 @@ end
 
 local function makeInput(parent, placeholder, order)
     local box = Instance.new("TextBox", parent)
-    box.LayoutOrder           = order
-    box.Size                  = UDim2.new(1, 0, 0, 36)
-    box.BackgroundColor3      = C.card
-    box.PlaceholderText       = "  " .. placeholder
-    box.PlaceholderColor3     = C.subtext
-    box.Text                  = ""
-    box.TextColor3            = C.text
-    box.Font                  = Enum.Font.GothamSemibold
-    box.TextSize              = 13
-    box.TextXAlignment        = Enum.TextXAlignment.Left
-    box.BorderSizePixel       = 0
-    box.ClearTextOnFocus      = false
+    box.LayoutOrder = order
+    box.Size = UDim2.new(1, 0, 0, 36)
+    box.BackgroundColor3 = C.card
+    box.PlaceholderText = "  " .. placeholder
+    box.PlaceholderColor3 = C.subtext
+    box.Text = ""
+    box.TextColor3 = C.text
+    box.Font = Enum.Font.GothamSemibold
+    box.TextSize = 13
+    box.TextXAlignment = Enum.TextXAlignment.Left
+    box.BorderSizePixel = 0
+    box.ClearTextOnFocus = false
     corner(box, 9)
     stroke(box, C.divider, 1)
     return box
@@ -505,14 +501,12 @@ makeToggle(autoPage, "Auto Claim Quests", 6, function(_, state)
             if events:FindFirstChild("claimQuest") then
                 pcall(function() events.claimQuest:FireServer(1) end)
                 task.wait(0.1)
-                
                 pcall(function() events.claimQuest:FireServer(2) end)
                 task.wait(0.1)
-                
                 pcall(function() events.claimQuest:FireServer("Daily") end)
                 task.wait(0.1)
             end
-            task.wait(10)
+            task.wait(3) 
         end
     end) end
 end)
@@ -530,7 +524,7 @@ makeToggle(autoPage, "Smart Auto Rebirth", 11, function(_, state)
             for _, b in pairs(cont:GetChildren()) do
                 if b:IsA("TextButton") then
                     local amount = tonumber((b.rebirths.Text or ""):match("%+(%d+)"))
-                    local cost   = tonumber((b.cost.Text or ""):match("%$(%d+)"))
+                    local cost = tonumber((b.cost.Text or ""):match("%$(%d+)"))
                     if amount and cost and cash >= cost and amount > bestAmount then
                         bestAmount = amount
                         bestButton = b
@@ -599,16 +593,8 @@ makeToggle(autoPage, "Auto Bulk Hatch", 31, function(_, state)
     _G.AutoBulkHatch = state
     if state then task.spawn(function()
         local BATCH = 10000
-        local cratesLabel = player
-            :WaitForChild("PlayerGui")
-            :WaitForChild("ScreenGui")
-            :WaitForChild("menus")
-            :WaitForChild("eventMenu")
-            :WaitForChild("balance")
-            :WaitForChild("crates")
-        local openEventEgg = ReplicatedStorage
-            :WaitForChild("events")
-            :WaitForChild("openEventEgg")
+        local cratesLabel = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui"):WaitForChild("menus"):WaitForChild("eventMenu"):WaitForChild("balance"):WaitForChild("crates")
+        local openEventEgg = ReplicatedStorage:WaitForChild("events"):WaitForChild("openEventEgg")
         while _G.AutoBulkHatch do
             local n = tonumber((cratesLabel.Text or ""):match("%d+")) or 0
             if n > 0 then
@@ -625,7 +611,7 @@ makeActionBtn(autoPage, "Redeem All Codes", 41, function()
     if not player:IsInGroup(476287845) then
         StarterGui:SetCore("SendNotification", {
             Title = "GROUP REQUIRED!",
-            Text = "WARNING: You must join the game's Roblox group for codes to work!",
+            Text = "You must join the game's Roblox group for codes to work!",
             Duration = 5,
             Icon = "rbxassetid://131711664935136"
         })
@@ -640,7 +626,6 @@ makeActionBtn(autoPage, "Redeem All Codes", 41, function()
         if success and type(codesModule) == "table" then
             for code, data in pairs(codesModule) do
                 local isActive = type(data) == "table" and data[4] == true
-                
                 if isActive or type(data) ~= "table" then
                     local safeCode = string.lower(tostring(code))
                     pcall(function()
@@ -668,62 +653,62 @@ end)
 sectionLabel(speedPage, "CHARACTER SPEED", 0)
 
 local speedDisplay = Instance.new("TextLabel", speedPage)
-speedDisplay.LayoutOrder       = 1
-speedDisplay.Size              = UDim2.new(1, 0, 0, 50)
-speedDisplay.BackgroundColor3  = C.card
-speedDisplay.TextColor3        = C.white
-speedDisplay.Font              = Enum.Font.GothamBold
-speedDisplay.TextSize          = 24
-speedDisplay.Text              = "⚡ Speed: 16"
-speedDisplay.BorderSizePixel   = 0
+speedDisplay.LayoutOrder = 1
+speedDisplay.Size = UDim2.new(1, 0, 0, 50)
+speedDisplay.BackgroundColor3 = C.card
+speedDisplay.TextColor3 = C.white
+speedDisplay.Font = Enum.Font.GothamBold
+speedDisplay.TextSize = 24
+speedDisplay.Text = "Speed: 16"
+speedDisplay.BorderSizePixel = 0
 corner(speedDisplay, 9)
 stroke(speedDisplay, C.divider, 1)
 
 local jumpDisplay = Instance.new("TextLabel", speedPage)
-jumpDisplay.LayoutOrder        = 6
-jumpDisplay.Size               = UDim2.new(1, 0, 0, 50)
-jumpDisplay.BackgroundColor3   = C.card
-jumpDisplay.TextColor3         = C.white
-jumpDisplay.Font               = Enum.Font.GothamBold
-jumpDisplay.TextSize           = 24
-jumpDisplay.Text               = "↑ Jump: 50"
-jumpDisplay.BorderSizePixel    = 0
+jumpDisplay.LayoutOrder = 6
+jumpDisplay.Size = UDim2.new(1, 0, 0, 50)
+jumpDisplay.BackgroundColor3 = C.card
+jumpDisplay.TextColor3 = C.white
+jumpDisplay.Font = Enum.Font.GothamBold
+jumpDisplay.TextSize = 24
+jumpDisplay.Text = "Jump: 50"
+jumpDisplay.BorderSizePixel = 0
 corner(jumpDisplay, 9)
 stroke(jumpDisplay, C.divider, 1)
 
 local function applySpeed(val)
     _G.WalkSpeed = val
-    speedDisplay.Text = "⚡ Speed: " .. val
+    speedDisplay.Text = "Speed: " .. val
     pcall(function() player.Character.Humanoid.WalkSpeed = val end)
 end
 
 local function applyJump(val)
-    jumpDisplay.Text = "↑ Jump: " .. val
+    jumpDisplay.Text = "Jump: " .. val
     pcall(function() player.Character.Humanoid.JumpPower = val end)
 end
 
 local function makePresetsRow(parent, order, presets, applyFn)
     local row = Instance.new("Frame", parent)
-    row.LayoutOrder        = order
-    row.Size               = UDim2.new(1, 0, 0, 38)
+    row.LayoutOrder = order
+    row.Size = UDim2.new(1, 0, 0, 38)
     row.BackgroundTransparency = 1
-    row.BorderSizePixel    = 0
+    row.BorderSizePixel = 0
 
     local grid = Instance.new("UIGridLayout", row)
-    grid.CellSize          = UDim2.new(0, 86, 0, 34)
-    grid.CellPadding       = UDim2.new(0, 5, 0, 0)
-    grid.SortOrder         = Enum.SortOrder.LayoutOrder
+    grid.CellSize = UDim2.new(0, 86, 0, 34)
+    grid.CellPadding = UDim2.new(0, 5, 0, 0)
+    grid.SortOrder = Enum.SortOrder.LayoutOrder
     grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
     grid.FillDirectionMaxCells = #presets
 
     for _, v in ipairs(presets) do
         local pb = Instance.new("TextButton", row)
         pb.BackgroundColor3 = C.card
-        pb.Text             = tostring(v)
-        pb.TextColor3       = C.accent
-        pb.Font             = Enum.Font.GothamBold
-        pb.TextSize         = 13
-        pb.BorderSizePixel  = 0
+        pb.Text = tostring(v)
+        pb.TextColor3 = C.accent
+        pb.Font = Enum.Font.GothamBold
+        pb.TextSize = 13
+        pb.BorderSizePixel = 0
         corner(pb, 8)
         stroke(pb, C.divider, 1)
         pb.MouseButton1Click:Connect(function() applyFn(v) end)
@@ -737,7 +722,7 @@ makePresetsRow(speedPage, 2, {16, 50, 100, 200}, applySpeed)
 
 sectionLabel(speedPage, "CUSTOM SPEED", 3)
 local speedInput = makeInput(speedPage, "Value (ex: 150)", 4)
-makeActionBtn(speedPage, "✓ Apply Speed", 5, function()
+makeActionBtn(speedPage, "Apply Speed", 5, function()
     local val = tonumber(speedInput.Text)
     if val and val > 0 and val <= 10000 then applySpeed(val) end
 end)
@@ -747,16 +732,16 @@ makePresetsRow(speedPage, 8, {50, 100, 200, 500}, applyJump)
 
 sectionLabel(speedPage, "CUSTOM JUMP", 9)
 local jumpInput = makeInput(speedPage, "Value (ex: 200)", 10)
-makeActionBtn(speedPage, "✓ Apply Jump", 11, function()
+makeActionBtn(speedPage, "Apply Jump", 11, function()
     local val = tonumber(jumpInput.Text)
     if val and val > 0 and val <= 10000 then applyJump(val) end
 end)
 
-makeActionBtn(speedPage, "↩ Reset All", 12, function()
+makeActionBtn(speedPage, "Reset All", 12, function()
     applySpeed(16)
     applyJump(50)
     speedInput.Text = ""
-    jumpInput.Text  = ""
+    jumpInput.Text = ""
 end)
 
 local function getMyFloors()
@@ -809,14 +794,14 @@ end
 sectionLabel(floorPage, "AUTO FLOOR CYCLE", 0)
 
 local floorStatus = Instance.new("TextLabel", floorPage)
-floorStatus.LayoutOrder        = 1
-floorStatus.Size               = UDim2.new(1, 0, 0, 38)
-floorStatus.BackgroundColor3   = C.card
-floorStatus.TextColor3         = C.subtext
-floorStatus.Font               = Enum.Font.GothamSemibold
-floorStatus.TextSize           = 13
-floorStatus.Text               = "Searching for floors..."
-floorStatus.BorderSizePixel    = 0
+floorStatus.LayoutOrder = 1
+floorStatus.Size = UDim2.new(1, 0, 0, 38)
+floorStatus.BackgroundColor3 = C.card
+floorStatus.TextColor3 = C.subtext
+floorStatus.Font = Enum.Font.GothamSemibold
+floorStatus.TextSize = 13
+floorStatus.Text = "Searching for floors..."
+floorStatus.BorderSizePixel = 0
 corner(floorStatus, 9)
 
 makeToggle(floorPage, "Auto Floor Cycle", 2, function(_, state)
@@ -845,7 +830,7 @@ end)
 sectionLabel(floorPage, "FAST TELEPORT", 5)
 
 for i = 1, 10 do
-    makeActionBtn(floorPage, "→ Floor " .. i, 10 + i, function()
+    makeActionBtn(floorPage, "Floor " .. i, 10 + i, function()
         local floors = getMyFloors()
         if floors[i] then
             pcall(function() teleportToFloor(i, floors) end)
@@ -860,41 +845,41 @@ end
 
 local function infoCard(parent, order, key, value)
     local card = Instance.new("Frame", parent)
-    card.LayoutOrder        = order
-    card.Size               = UDim2.new(1, 0, 0, 52)
-    card.BackgroundColor3   = C.card
-    card.BorderSizePixel    = 0
+    card.LayoutOrder = order
+    card.Size = UDim2.new(1, 0, 0, 52)
+    card.BackgroundColor3 = C.card
+    card.BorderSizePixel = 0
     corner(card, 9)
     stroke(card, C.divider, 1)
 
     local k = Instance.new("TextLabel", card)
-    k.Size                  = UDim2.new(1, -16, 0, 20)
-    k.Position              = UDim2.new(0, 12, 0, 8)
+    k.Size = UDim2.new(1, -16, 0, 20)
+    k.Position = UDim2.new(0, 12, 0, 8)
     k.BackgroundTransparency = 1
-    k.Text                  = key
-    k.TextColor3            = C.subtext
-    k.Font                  = Enum.Font.Gotham
-    k.TextSize              = 10
-    k.TextXAlignment        = Enum.TextXAlignment.Left
+    k.Text = key
+    k.TextColor3 = C.subtext
+    k.Font = Enum.Font.Gotham
+    k.TextSize = 10
+    k.TextXAlignment = Enum.TextXAlignment.Left
 
     local v = Instance.new("TextLabel", card)
-    v.Size                  = UDim2.new(1, -16, 0, 20)
-    v.Position              = UDim2.new(0, 12, 0, 26)
+    v.Size = UDim2.new(1, -16, 0, 20)
+    v.Position = UDim2.new(0, 12, 0, 26)
     v.BackgroundTransparency = 1
-    v.Text                  = value
-    v.TextColor3            = C.white
-    v.Font                  = Enum.Font.GothamBold
-    v.TextSize              = 13
-    v.TextXAlignment        = Enum.TextXAlignment.Left
+    v.Text = value
+    v.TextColor3 = C.white
+    v.Font = Enum.Font.GothamBold
+    v.TextSize = 13
+    v.TextXAlignment = Enum.TextXAlignment.Left
 
     return card
 end
 
 sectionLabel(infoPage, "SCRIPT", 0)
-infoCard(infoPage, 1,  "Game",    "Be a Youtuber")
-infoCard(infoPage, 2,  "Version", "v3.2")
-infoCard(infoPage, 3,  "Hub",     "Comet Hub")
-infoCard(infoPage, 4,  "Credits", "noxis.lua")
+infoCard(infoPage, 1, "Game", "Be a Youtuber")
+infoCard(infoPage, 2, "Version", "v3.2")
+infoCard(infoPage, 3, "Hub", "Comet Hub")
+infoCard(infoPage, 4, "Credits", "noxis.lua")
 
 sectionLabel(infoPage, "SUPPORT", 10)
 infoCard(infoPage, 11, "Shortcut", "F8 Key or Click Logo")
@@ -917,15 +902,15 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 
 local OpenBtn = Instance.new("ImageButton", ScreenGui)
-OpenBtn.Name             = "OpenBtn"
-OpenBtn.Size             = UDim2.new(0, 46, 0, 46)
-OpenBtn.Position         = UDim2.new(0, 20, 0.5, -23)
+OpenBtn.Name = "OpenBtn"
+OpenBtn.Size = UDim2.new(0, 46, 0, 46)
+OpenBtn.Position = UDim2.new(0, 20, 0.5, -23)
 OpenBtn.BackgroundColor3 = C.sidebar
-OpenBtn.Image            = "rbxassetid://129928619995803"
-OpenBtn.ImageColor3      = C.accent
-OpenBtn.Visible          = false
-OpenBtn.Active           = true
-OpenBtn.Draggable        = true
+OpenBtn.Image = "rbxassetid://129928619995803"
+OpenBtn.ImageColor3 = C.accent
+OpenBtn.Visible = false
+OpenBtn.Active = true
+OpenBtn.Draggable = true
 corner(OpenBtn, 12)
 animatedStroke(OpenBtn, 1.5)
 applyPadding(OpenBtn, 8, 8, 8, 8)
