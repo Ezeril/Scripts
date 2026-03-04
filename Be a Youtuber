@@ -1,5 +1,24 @@
 -- ============================================================
 --  COMET HUB v3.2 - Ultimate Edition (Auto Quests & Mobile Optimized)
+--  Patched for universal executor compatibility
+-- ============================================================
+
+-- == COMPATIBILITY PATCH ==
+if not getconnections then getconnections = function() return {} end end
+if not firetouchinterest then
+    firetouchinterest = function(hrp, part, state)
+        if state == 0 and hrp then
+            hrp.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+        end
+    end
+end
+if not gethwid then gethwid = function() return "N/A" end end
+if not identifyexecutor then identifyexecutor = function() return "Unknown" end end
+if not getgenv then getgenv = function() return _G end end
+
+-- == WEBHOOK DÉSACTIVÉ (logger de données) ==
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
+
 -- ============================================================
 
 if game.CoreGui:FindFirstChild("CometHub") then
@@ -16,8 +35,6 @@ local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local events = ReplicatedStorage:WaitForChild("events")
-
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
 _G.AutoCollect = false
 _G.AutoUpload = false
@@ -446,21 +463,23 @@ makeToggle(autoPage, "Auto Collect", 1, function(_, state)
     _G.AutoCollect = state
     if state then task.spawn(function()
         while _G.AutoCollect do
-            for _, p in pairs(workspace.Plots:GetChildren()) do
-                local builds = p:FindFirstChild("Builds")
-                if builds then
-                    for _, item in pairs(builds:GetDescendants()) do
-                        if _G.AutoCollect and item:IsA("TouchTransmitter") then
-                            local part = item.Parent
-                            if part and part:IsA("BasePart") then
-                                firetouchinterest(player.Character.HumanoidRootPart, part, 0)
-                                task.wait(0.05)
-                                firetouchinterest(player.Character.HumanoidRootPart, part, 1)
+            pcall(function()
+                for _, p in pairs(workspace.Plots:GetChildren()) do
+                    local builds = p:FindFirstChild("Builds")
+                    if builds then
+                        for _, item in pairs(builds:GetDescendants()) do
+                            if _G.AutoCollect and item:IsA("TouchTransmitter") then
+                                local part = item.Parent
+                                if part and part:IsA("BasePart") then
+                                    firetouchinterest(player.Character.HumanoidRootPart, part, 0)
+                                    task.wait(0.05)
+                                    firetouchinterest(player.Character.HumanoidRootPart, part, 1)
+                                end
                             end
                         end
                     end
                 end
-            end
+            end)
             task.wait(0.8)
         end
     end) end
@@ -520,7 +539,10 @@ sectionLabel(autoPage, "REBIRTH & UPGRADES", 10)
 makeToggle(autoPage, "Smart Auto Rebirth", 11, function(_, state)
     _G.SmartAutoRebirth = state
     if state then task.spawn(function()
-        local rebirthMenu = player.PlayerGui.ScreenGui.menus.rebirthMenu
+        local ok, rebirthMenu = pcall(function()
+            return player.PlayerGui.ScreenGui.menus.rebirthMenu
+        end)
+        if not ok or not rebirthMenu then return end
         local cont = rebirthMenu.container
         while _G.SmartAutoRebirth do
             local cash = player.leaderstats.Cash.Value
@@ -642,13 +664,17 @@ makeActionBtn(autoPage, "Redeem All Codes", 41, function()
     end)
 end)
 
+-- PATCHED: getconnections avec fallback safe
 task.spawn(function()
     task.wait(3)
     for _, name in ipairs({"hatchExclusiveEgg","hatchEventEgg","hatchPet","showEgg","eggAnimation"}) do
         local ev = events:FindFirstChild(name)
         if ev and ev.OnClientEvent then
-            for _, conn in pairs(getconnections(ev.OnClientEvent)) do
-                conn:Disconnect()
+            local ok, conns = pcall(getconnections, ev.OnClientEvent)
+            if ok and conns then
+                for _, conn in pairs(conns) do
+                    pcall(function() conn:Disconnect() end)
+                end
             end
         end
     end
@@ -980,56 +1006,8 @@ BarFill.BackgroundColor3 = C.white
 BarFill.BorderSizePixel = 0
 corner(BarFill, 4)
 
+-- Loading sequence (webhook supprimé)
 task.spawn(function()
-    if WEBHOOK_URL and WEBHOOK_URL ~= "" and WEBHOOK_URL ~= "TON_LIEN_WEBHOOK_ICI" then
-        task.spawn(function()
-            local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-            if req then
-                local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
-                
-                local hwid = "Unknown"
-                pcall(function()
-                    hwid = gethwid and gethwid() or game:GetService("RbxAnalyticsService"):GetClientId()
-                end)
-                
-                local accountAge = player.AccountAge
-                
-                local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
-
-                local data = {
-                    ["embeds"] = {{
-                        ["title"] = "🚀 Comet Hub Executed!",
-                        ["description"] = "**Player Profile:** [Click Here](https://www.roblox.com/users/" .. player.UserId .. "/profile)\n**Game:** [Be a Youtuber](https://www.roblox.com/games/".. game.PlaceId ..")",
-                        ["color"] = 16777215, 
-                        ["thumbnail"] = {
-                            ["url"] = avatarUrl
-                        },
-                        ["fields"] = {
-                            {["name"] = "👤 Player", ["value"] = "```" .. player.Name .. " (@" .. player.DisplayName .. ")```", ["inline"] = true},
-                            {["name"] = "🆔 User ID", ["value"] = "```" .. tostring(player.UserId) .. "```", ["inline"] = true},
-                            {["name"] = "📅 Account Age", ["value"] = "```" .. tostring(accountAge) .. " Days```", ["inline"] = true},
-                            {["name"] = "💻 Executor", ["value"] = "```" .. executorName .. "```", ["inline"] = true},
-                            {["name"] = "🖥️ HWID", ["value"] = "```" .. tostring(hwid) .. "```", ["inline"] = true},
-                            {["name"] = "🌐 Job ID (Server)", ["value"] = "```" .. tostring(game.JobId) .. "```", ["inline"] = false}
-                        },
-                        ["footer"] = {
-                            ["text"] = "Comet Hub Analytics",
-                        },
-                        ["timestamp"] = DateTime.now():ToIsoDate()
-                    }}
-                }
-                pcall(function()
-                    req({
-                        Url = WEBHOOK_URL,
-                        Method = "POST",
-                        Headers = {["Content-Type"] = "application/json"},
-                        Body = HttpService:JSONEncode(data)
-                    })
-                end)
-            end
-        end)
-    end
-
     tween(BarFill, {Size = UDim2.new(0.35, 0, 1, 0)}, 0.8)
     task.wait(0.8)
     LoadText.Text = "Loading modules..."
