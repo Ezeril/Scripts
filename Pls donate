@@ -1,5 +1,5 @@
 -- ============================================================
---  PLS DONATE HUB - Comet Hub Edition + Webhook + Fixes
+--  PLS DONATE HUB - Comet Hub UI + Base Default Features
 -- ============================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -28,16 +28,73 @@ local TweenService = cloneref(game:GetService("TweenService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local TextChatService = cloneref(game:GetService("TextChatService"))
 
--- Configuration en mémoire
+-- ==========================================
+--  PARAMÈTRES EXACTS DU SCRIPT DE RÉFÉRENCE
+-- ==========================================
 getgenv().settings = {
-    textUpdateToggle = true, customBoothText = "✅ $C / $G R$ ✅", goalBox = 5, jumpsPerRobux = 1,
-    autoBeg = false, autoThanks = true, begMessage = "Spinning for donations!, 1R$ = +1 SPIN SPEED",
-    thanksMessage = "Thank you!, Tysm!, Thanks :)", autoNearReply = false, helloResponce = "Hi, Sup, Hello",
-    botResponce = "im not a bot, no im not", donateResponce = "sorry im saving, my robux is pending",
-    scamResponce = "im no scam, not a scammer", otherResponce = "?, what", spinSet = false,
-    spinSpeedMultiplier = 1, donationJump = false, AnonymousMode = false, serverHopToggle = false, serverHopDelay = 15,
-    boothPosition = 3, danceChoice = "Disabled",
-    webhookToggle = false, webhookUrl = ""
+    textUpdateToggle = true,
+    textUpdateDelay = 30,
+    serverHopToggle = true,
+    serverHopDelay = 15,
+    hexBox = "32CD32",
+    goalBox = 5,
+    webhookToggle = false,
+    webhookBox = "",
+    danceChoice = "Disabled",
+    thanksMessage = "Thank you!, Thanks!, ty :), tysm! :)",
+    signToggle = false,
+    customBoothText = "✅ 1R$ = +1 SPIN SPEED ✅",
+    signUpdateToggle = false,
+    signText = "your text here",
+    signHexBox = "ffffff",
+    autoThanks = true,
+    autoBeg = true,
+    begMessage = "1R$ = +1 SPIN SPEED, Spinning for donations! :)",
+    begDelay = 300,
+    fpsLimit = 60,
+    render = false,
+    thanksDelay = 3,
+    vcServer = false,
+    donationJump = false,
+    AlternativeHop = false,
+    autoNearReply = false,
+    boothPosition = 3,
+    standingPosition = "Front",
+    AnonymousMode = false,
+    boothSwitcher = false,
+    serverHopAfterDonation = false,
+    jumpsPerRobux = 1,
+    staffHopA = true,
+    spinSet = true,
+    boothTop = false,
+    spinSpeedMultiplier = 1,
+    webhookAfterSH = false,
+    minimumDonated = 0,
+    webhookType = "New",
+    fpsBoost = false,
+    fontFace = "SciFi",
+    fontSize = 5,
+    noFont = false,
+    taggedBoothHop = false,
+    rainbowText = false,
+    helloResponce = "Hi, Sup, Hello :)",
+    botResponce = "no im not, im not a bot :(",
+    donateResponce = "sorry im saving, i am saving for my dream item, sorry my robux is pending :(",
+    otherResponce = "..?, what, ?",
+    scamResponce = "im no scam, im not a scammer, this is not a scam :(",
+    pingEveryone = false,
+    pingAboveDono = 1000,
+    removeHeadNametag = false,
+    gravitySwitch = false,
+    jumpBoost = false,
+    goalServerhopSwitch = false,
+    goalServerhopGoal = 0,
+    highlightSwitch = false,
+    helicopterEnabled = false,
+    friendHop = false,
+    autoReplyNoRespond = true,
+    antiBotServers = false,
+    robuxLap = false
 }
 
 local bclaimed = false
@@ -120,7 +177,7 @@ local function makeTabPage(name)
     local page = Instance.new("ScrollingFrame", Content)
     page.Name = name; page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1
     page.ScrollBarThickness = 3; page.ScrollBarImageColor3 = C.accentGlow
-    page.CanvasSize = UDim2.new(0, 0, 0, 0) -- FIX BUG SCROLL INFINI
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
     page.AutomaticCanvasSize = Enum.AutomaticSize.Y; page.Visible = false
     local list = Instance.new("UIListLayout", page)
     list.Padding = UDim.new(0, 6); list.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -137,7 +194,6 @@ local function makeTabBtn(name, icon, index)
     return btn
 end
 
--- AJOUT DE L'ONGLET WEBHOOK
 local TAB_DEFS = {{name = "Booth", icon = "🏪"}, {name = "Chat", icon = "💬"}, {name = "Player", icon = "🏃"}, {name = "Webhook", icon = "📡"}}
 
 local function switchTab(name)
@@ -185,7 +241,7 @@ local function makeInput(parent, placeholder, defaultText, configKey, callback)
     box.Size = UDim2.new(1, 0, 0, 36); box.BackgroundColor3 = C.card
     box.PlaceholderText = " " .. placeholder; box.Text = " " .. (defaultText or ""); box.TextColor3 = C.text
     box.Font = Enum.Font.GothamSemibold; box.TextSize = 12; box.TextXAlignment = Enum.TextXAlignment.Left; box.ClearTextOnFocus = false
-    box.TextWrapped = true -- FIX CENTRAGE ET COUPURE DE TEXTE
+    box.TextWrapped = true
     corner(box, 9); stroke(box, C.divider, 1)
     
     box.FocusLost:Connect(function()
@@ -208,21 +264,6 @@ end
 --  LOGIQUE PLS DONATE & REMPLISSAGE UI
 -- ==========================================
 
--- FONCTION WEBHOOK DISCORD
-local function sendWebhook(msg)
-    if not getgenv().settings.webhookToggle or getgenv().settings.webhookUrl == "" then return end
-    if req then
-        pcall(function()
-            req({
-                Url = getgenv().settings.webhookUrl,
-                Method = "POST",
-                Headers = {["Content-Type"] = "application/json"},
-                Body = HttpService:JSONEncode({content = msg})
-            })
-        end)
-    end
-end
-
 local function splitString(inputstr)
     local t = {}
     for str in string.gmatch(inputstr, "([^,]+)") do table.insert(t, str:match("^%s*(.-)%s*$")) end
@@ -238,33 +279,53 @@ end
 
 local Remotes, newRaisedFormat, _boothlocation
 
+-- NOUVELLE FONCTION UPDATE BOOTH INFAILLIBLE
 local function updateBoothText()
-    if not getgenv().settings.textUpdateToggle or not newRaisedFormat or not Remotes then return end
+    if not getgenv().settings.textUpdateToggle or not newRaisedFormat then return end
+    
     local currentRaw = tonumber(newRaisedFormat.Value) or 0
     local goalRaw = currentRaw + tonumber(getgenv().settings.goalBox)
     
-    -- CORRECTION DU REMPLACEMENT DE TEXTE (GSUB)
     local text = getgenv().settings.customBoothText
     text = text:gsub("%$C", formatNumber(currentRaw))
     text = text:gsub("%$G", formatNumber(goalRaw))
     text = text:gsub("%$JPR", tostring(getgenv().settings.jumpsPerRobux))
     
-    -- FIX: Exécution des deux méthodes pour garantir la mise à jour (Anciens & Nouveaux Serveurs)
-    pcall(function() Remotes.Event("SetBoothText"):FireServer(text, "booth") end)
-
     local basePayload = {
-        textFont = Enum.Font.SciFi, richText = true, strokeColor = Color3.new(0,0,0), strokeOpacity = 0,
+        textFont = Enum.Font[getgenv().settings.fontFace], richText = true, strokeColor = Color3.new(0,0,0), strokeOpacity = 0,
         textColor = Color3.new(1,1,1), buttonStrokeColor = Color3.new(0,0,0), buttonTextColor = Color3.new(1,1,1),
         buttonColor = Color3.new(0.38,1,0), buttonHoverColor = Color3.new(0.38,1,0), buttonLayout = "", text = text
     }
-    pcall(function() Remotes.Event("SetCustomization"):FireServer(basePayload, "booth") end)
+
+    task.spawn(function()
+        local remotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+        if remotesFolder then
+            local exactRemote = remotesFolder:FindFirstChild("MpLD09DByDuWrPFq2j/nxKy3YnzSID/2IN0fMc/urEU=")
+            if exactRemote and exactRemote:IsA("RemoteEvent") then
+                pcall(function() exactRemote:FireServer(text, "booth") end)
+                pcall(function() exactRemote:FireServer(basePayload, "booth") end)
+            else
+                for _, v in ipairs(remotesFolder:GetChildren()) do
+                    if v:IsA("RemoteEvent") and string.len(v.Name) > 30 then
+                        pcall(function() v:FireServer(text, "booth") end)
+                        pcall(function() v:FireServer(basePayload, "booth") end)
+                    end
+                end
+            end
+        end
+    end)
+
+    if Remotes then
+        pcall(function() Remotes.Event("SetBoothText"):FireServer(text, "booth") end)
+        pcall(function() Remotes.Event("SetCustomization"):FireServer(basePayload, "booth") end)
+    end
 end
 
 local function begging()
     while getgenv().settings.autoBeg do
         local msgs = splitString(getgenv().settings.begMessage)
         if #msgs > 0 then chat(msgs[math.random(#msgs)]) end
-        task.wait(15)
+        task.wait(getgenv().settings.begDelay)
     end
 end
 
@@ -283,12 +344,37 @@ local function serverHop()
     end
 end
 
+local function sendWebhook(raised)
+    if not getgenv().settings.webhookToggle or getgenv().settings.webhookBox == "" then return end
+    local url = getgenv().settings.webhookBox:gsub(" ", "")
+    if url == "" then return end
+
+    local embed = {
+        title = player.Name .. " just got donated!",
+        description = string.format("%d R$ AT %d R$ Total %d R$", raised, math.floor(raised * 0.6), tonumber(newRaisedFormat.Value)),
+        color = 0x2ECC71,
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }
+
+    if req then
+        pcall(function()
+            req({
+                Url = url,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode({embeds = {embed}})
+            })
+        end)
+    end
+end
+
 -- Remplissage Tab Booth
 local pBooth = tabs["Booth"].page
 sectionLabel(pBooth, "BOOTH CUSTOMIZATION")
 makeToggle(pBooth, "Auto Update Text", getgenv().settings.textUpdateToggle, "textUpdateToggle", function() updateBoothText() end)
 makeInput(pBooth, "Text ($C=Current, $G=Goal)", getgenv().settings.customBoothText, "customBoothText", function() updateBoothText() end)
 makeInput(pBooth, "Robux Goal Offset (+ amount)", tostring(getgenv().settings.goalBox), "goalBox", function(val) if tonumber(val) then getgenv().settings.goalBox = tonumber(val); updateBoothText() end end)
+makeInput(pBooth, "Text Update Delay (S)", tostring(getgenv().settings.textUpdateDelay), "textUpdateDelay", function(val) if tonumber(val) then getgenv().settings.textUpdateDelay = tonumber(val) end end)
 
 -- Remplissage Tab Chat
 local pChat = tabs["Chat"].page
@@ -297,12 +383,14 @@ makeToggle(pChat, "Auto Beg", getgenv().settings.autoBeg, "autoBeg", function(va
     if val then spamming = task.spawn(begging) else pcall(task.cancel, spamming) end
 end)
 makeInput(pChat, "Beg Messages (comma separated)", getgenv().settings.begMessage, "begMessage")
+makeInput(pChat, "Beg Delay (S)", tostring(getgenv().settings.begDelay), "begDelay", function(val) if tonumber(val) then getgenv().settings.begDelay = tonumber(val) end end)
 makeToggle(pChat, "Auto Thanks", getgenv().settings.autoThanks, "autoThanks")
 makeInput(pChat, "Thanks Messages (comma sep)", getgenv().settings.thanksMessage, "thanksMessage")
 
 sectionLabel(pChat, "AUTO REPLIES")
 makeToggle(pChat, "Enable Auto Replies", getgenv().settings.autoNearReply, "autoNearReply")
 makeInput(pChat, "Reply to 'Hello'", getgenv().settings.helloResponce, "helloResponce")
+makeInput(pChat, "Reply to 'Bot'", getgenv().settings.botResponce, "botResponce")
 makeInput(pChat, "Reply to 'Donate'", getgenv().settings.donateResponce, "donateResponce")
 
 -- Remplissage Tab Player
@@ -323,14 +411,14 @@ makeToggle(pPlayer, "Jump on Donate", getgenv().settings.donationJump, "donation
 
 sectionLabel(pPlayer, "SERVER HOPPING")
 makeToggle(pPlayer, "Auto Server Hop", getgenv().settings.serverHopToggle, "serverHopToggle")
+makeInput(pPlayer, "ServerHop Delay (Minutes)", tostring(getgenv().settings.serverHopDelay), "serverHopDelay", function(val) if tonumber(val) then getgenv().settings.serverHopDelay = tonumber(val) end end)
 makeActionBtn(pPlayer, "Force Server Hop Now", function() serverHop() end)
 
 -- Remplissage Tab Webhook
 local pWebhook = tabs["Webhook"].page
-sectionLabel(pWebhook, "DISCORD LOGS")
-makeToggle(pWebhook, "Enable Webhook Logs", getgenv().settings.webhookToggle, "webhookToggle")
-makeInput(pWebhook, "Webhook URL", getgenv().settings.webhookUrl, "webhookUrl")
-makeActionBtn(pWebhook, "Test Webhook", function() sendWebhook("✅ **Comet Hub** - Webhook connecté avec succès pour " .. player.Name .. " !") end)
+sectionLabel(pWebhook, "DISCORD WEBHOOK NOTIFICATIONS")
+makeToggle(pWebhook, "Enable Webhook", getgenv().settings.webhookToggle, "webhookToggle")
+makeInput(pWebhook, "Webhook URL", getgenv().settings.webhookBox, "webhookBox")
 
 switchTab("Booth")
 
@@ -450,7 +538,6 @@ task.spawn(function()
         spamming = task.spawn(begging)
     end
 
-    -- Tracking des dons et déclenchement des actions
     local lstats = player:WaitForChild('leaderstats', 5)
     if lstats then 
         newRaisedFormat = lstats:WaitForChild('Raised', 5) 
@@ -459,9 +546,8 @@ task.spawn(function()
             newRaisedFormat.Changed:Connect(function()
                 local raised = newRaisedFormat.Value - RaisedC
                 
-                -- LOG DISCORD ICI
                 if raised > 0 then
-                    sendWebhook("🎉 **" .. player.Name .. "** a reçu un don de **" .. tostring(raised) .. " R$** ! Total accumulé : " .. tostring(newRaisedFormat.Value) .. " R$")
+                    sendWebhook(raised)
                 end
                 
                 if getgenv().settings.spinSet and player.Character and player.Character.Humanoid.RootPart:FindFirstChild('Spin') then
@@ -478,13 +564,13 @@ task.spawn(function()
                 end
                 if getgenv().settings.autoThanks then
                     task.spawn(function()
-                        task.wait(2)
+                        task.wait(getgenv().settings.thanksDelay)
                         local tMsgs = splitString(getgenv().settings.thanksMessage)
                         if #tMsgs > 0 then chat(tMsgs[math.random(#tMsgs)]) end
                     end)
                 end
                 RaisedC = newRaisedFormat.Value
-                task.wait(2)
+                task.wait(getgenv().settings.textUpdateDelay)
                 updateBoothText()
             end)
             updateBoothText()
@@ -492,35 +578,63 @@ task.spawn(function()
     end
 end)
 
--- Auto Replies
-local function handleChat(p, message)
-    if not getgenv().settings.autoNearReply or p == player then return end
+-- Auto Replies basés sur le script de référence
+local messagesToResp = {
+    Greetings = {"hi", "hello", "hey", "sup", "yo", "howdy", "sup bro", "sup dude", "hai", "hii", "hey man", "hiya", "heyy", "hello man", "hello dude", "hi bro", "hi sup", "hiey", "hey hello", "sup hi"}
+}
+
+Players.PlayerChatted:Connect(function(event_type, p, message)
     local msg = string.lower(message)
+    if p == player or getgenv().settings.autoNearReply == false or string.find(msg, "donates") or string.find(msg, "spamming") then return end
+    
+    if p:GetAttribute("respcd") then return end
+    pcall(function() p:SetAttribute("respcd", true) end)
+
     local pChar = p.Character
-    if pChar and pChar:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        if (pChar.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude < 15 then
+    if pChar and pChar:FindFirstChild("Humanoid") and pChar.Humanoid.RootPart and player.Character and player.Character.Humanoid.RootPart then
+        if (pChar.Humanoid.RootPart.Position - player.Character.Humanoid.RootPart.Position).Magnitude < 11 then
+            
             local reply = nil
-            if string.find(msg, 'hello') or string.find(msg, 'hi ') then
+            if table.find(messagesToResp.Greetings, msg) then
                 local resps = splitString(getgenv().settings.helloResponce)
                 reply = resps[math.random(#resps)]
-            elseif string.find(msg, 'bot') then
+            elseif string.find(msg, "bot") then
                 local resps = splitString(getgenv().settings.botResponce)
                 reply = resps[math.random(#resps)]
-            elseif string.find(msg, 'donate') then
+            elseif string.find(msg, "donate") then
                 local resps = splitString(getgenv().settings.donateResponce)
                 reply = resps[math.random(#resps)]
+            elseif string.find(msg, "scam") then
+                local resps = splitString(getgenv().settings.scamResponce)
+                reply = resps[math.random(#resps)]
+            else
+                if not getgenv().settings.autoReplyNoRespond then
+                    local resps = splitString(getgenv().settings.otherResponce)
+                    reply = resps[math.random(#resps)]
+                end
             end
-            if reply then task.wait(2); chat(reply) end
+            
+            if reply then 
+                task.wait(2.1)
+                chat(reply) 
+            end
         end
     end
-end
-
-for _, p in pairs(Players:GetPlayers()) do p.Chatted:Connect(function(msg) handleChat(p, msg) end) end
-Players.PlayerAdded:Connect(function(p) p.Chatted:Connect(function(msg) handleChat(p, msg) end) end)
+    task.wait(math.random(12, 18))
+    pcall(function() p:SetAttribute("respcd", false) end)
+end)
 
 UserInputService.InputBegan:Connect(function(input, gpe)
     if not gpe and input.KeyCode == Enum.KeyCode.F8 then
         Win.Visible = not Win.Visible
         OpenBtn.Visible = not Win.Visible
+    end
+end)
+
+task.spawn(function()
+    while task.wait(getgenv().settings.serverHopDelay * 60) do
+        if getgenv().settings.serverHopToggle then
+            serverHop()
+        end
     end
 end)
