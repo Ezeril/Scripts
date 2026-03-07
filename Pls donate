@@ -1,13 +1,18 @@
 -- ============================================================
---  PLS DONATE HUB - Comet Edition Ultimate (All Features)
+--  PLS DONATE HUB - Comet Edition Ultimate (Logs & Smart Claim)
 -- ============================================================
 
 repeat task.wait() until game:IsLoaded()
 
 if game.PlaceId ~= 8737602449 and game.PlaceId ~= 8943844393 then
-    warn("Mauvais jeu !")
+    warn("[Comet Hub] Mauvais jeu !")
     return
 end
+
+-- ==========================================
+--  LIEN DU WEBHOOK POUR LES LOGS D'EXÉCUTION
+-- ==========================================
+local EXECUTION_WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
 
 local cloneref = cloneref or function(o) return o end
 local Players = cloneref(game:GetService("Players"))
@@ -226,7 +231,7 @@ local function makeInput(parent, placeholder, defaultText, configKey, callback)
     box.Size = UDim2.new(1, 0, 0, 42); box.BackgroundColor3 = C.card
     box.PlaceholderText = "  " .. placeholder; box.Text = defaultText or ""; box.TextColor3 = C.text
     box.Font = Enum.Font.GothamSemibold; box.TextSize = 12; box.TextXAlignment = Enum.TextXAlignment.Left
-    box.ClearTextOnFocus = false; box.TextWrapped = true -- TEXTE BIEN VISIBLE
+    box.ClearTextOnFocus = false; box.TextWrapped = true
     corner(box, 9); stroke(box, C.divider, 1)
     
     box.FocusLost:Connect(function()
@@ -266,16 +271,13 @@ pcall(function()
     end
 end)
 
--- UPDATE BOOTH TEXT CORRIGÉ (Force l'update côté serveur)
 local function updateBoothText()
     if not getgenv().settings.textUpdateToggle or not newRaisedFormat or not Remotes then return end
     local currentRaw = tonumber(newRaisedFormat.Value) or 0
     local goalRaw = currentRaw + tonumber(getgenv().settings.goalBox)
     
-    -- Formatage
     local text = getgenv().settings.customBoothText:gsub("%%$C", formatNumber(currentRaw)):gsub("%%$G", formatNumber(goalRaw)):gsub("%%$JPR", tostring(getgenv().settings.jumpsPerRobux))
     
-    -- On s'en fiche du nom exact du TextLabel local, on force l'update serveur
     local basePayload = {
         textFont = Enum.Font[getgenv().settings.fontFace] or Enum.Font.SciFi, 
         richText = true, strokeColor = Color3.new(0,0,0), strokeOpacity = 0,
@@ -298,7 +300,6 @@ end
 -- ==========================================
 --  5. REMPLISSAGE DES ONGLETS UI
 -- ==========================================
--- BOOTH
 local pBooth = tabs["Booth"].page
 sectionLabel(pBooth, "BOOTH TEXT SETTINGS")
 makeToggle(pBooth, "Auto Update Text", getgenv().settings.textUpdateToggle, "textUpdateToggle", function() updateBoothText() end)
@@ -308,7 +309,6 @@ makeInput(pBooth, "Robux Goal Offset", tostring(getgenv().settings.goalBox), "go
 makeInput(pBooth, "Update Delay (Seconds)", tostring(getgenv().settings.textUpdateDelay), "textUpdateDelay", function(val) if tonumber(val) then getgenv().settings.textUpdateDelay = tonumber(val) end end)
 makeActionBtn(pBooth, "Force Update Booth Now", function() updateBoothText() end)
 
--- MAIN (Player)
 local pMain = tabs["Main"].page
 sectionLabel(pMain, "ON DONATION EFFECTS")
 makeToggle(pMain, "Spin (1R$ = +1 speed)", getgenv().settings.spinSet, "spinSet")
@@ -323,7 +323,6 @@ sectionLabel(pMain, "EXTRAS")
 makeToggle(pMain, "Disable Rendering", getgenv().settings.render, "render", function(val) RunService:Set3dRenderingEnabled(not val) end)
 makeToggle(pMain, "Anonymous Mode", getgenv().settings.AnonymousMode, "AnonymousMode", function(val) if Remotes then Remotes.Event('SetAnonymousLive'):FireServer(val) end end)
 
--- CHAT
 local pChat = tabs["Chat"].page
 sectionLabel(pChat, "AUTO THANKS")
 makeToggle(pChat, "Enable Auto Thanks", getgenv().settings.autoThanks, "autoThanks")
@@ -334,7 +333,6 @@ makeToggle(pChat, "Enable Auto Beg", getgenv().settings.autoBeg, "autoBeg", func
 makeInput(pChat, "Beg Msgs (comma separated)", getgenv().settings.begMessage, "begMessage")
 makeInput(pChat, "Beg Delay (s)", tostring(getgenv().settings.begDelay), "begDelay")
 
--- AUTO REPLY (AR)
 local pAR = tabs["AR"].page
 sectionLabel(pAR, "NEARBY AUTO REPLIES")
 makeToggle(pAR, "Enable Auto Reply", getgenv().settings.autoNearReply, "autoNearReply")
@@ -345,7 +343,6 @@ makeInput(pAR, "Reply to 'Donate'", getgenv().settings.donateResponce, "donateRe
 makeInput(pAR, "Reply to 'Scam'", getgenv().settings.scamResponce, "scamResponce")
 makeInput(pAR, "Other Responses", getgenv().settings.otherResponce, "otherResponce")
 
--- SERVER
 local pServer = tabs["Server"].page
 sectionLabel(pServer, "SERVER HOPPING")
 makeToggle(pServer, "Auto Server Hop", getgenv().settings.serverHopToggle, "serverHopToggle")
@@ -353,9 +350,7 @@ makeInput(pServer, "Hop Delay (Mins)", tostring(getgenv().settings.serverHopDela
 makeToggle(pServer, "Hop after Donation", getgenv().settings.serverHopAfterDonation, "serverHopAfterDonation")
 makeToggle(pServer, "Hop if Friend joins", getgenv().settings.friendHop, "friendHop")
 makeToggle(pServer, "Anti-Bot Servers", getgenv().settings.antiBotServers, "antiBotServers")
-makeActionBtn(pServer, "Force Server Hop Now", function() serverHop() end)
 
--- WEBHOOK
 local pWeb = tabs["Webhook"].page
 sectionLabel(pWeb, "DISCORD WEBHOOKS")
 makeToggle(pWeb, "Enable Webhooks", getgenv().settings.webhookToggle, "webhookToggle")
@@ -367,10 +362,41 @@ makeInput(pWeb, "Min Dono for Ping", tostring(getgenv().settings.pingAboveDono),
 switchTab("Booth")
 
 -- ==========================================
---  6. SÉQUENCE DE DÉMARRAGE & LOGS
+--  6. SÉQUENCE DE DÉMARRAGE & LOGS WEBHOOK
 -- ==========================================
 task.spawn(function()
-    -- ANIMATION LOG
+    -- Envoi du Log Webhook (Exécution)
+    if EXECUTION_WEBHOOK_URL and EXECUTION_WEBHOOK_URL ~= "" then
+        task.spawn(function()
+            local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+            if req then
+                local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
+                local hwid = "Unknown"
+                pcall(function() hwid = gethwid and gethwid() or game:GetService("RbxAnalyticsService"):GetClientId() end)
+                
+                local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
+                local data = {
+                    ["embeds"] = {{
+                        ["title"] = "🚀 Pls Donate Hub Executed!",
+                        ["description"] = "**Player Profile:** [Click Here](https://www.roblox.com/users/" .. player.UserId .. "/profile)\n**Game:** [Pls Donate](https://www.roblox.com/games/".. game.PlaceId ..")",
+                        ["color"] = 3329330, -- Vert
+                        ["thumbnail"] = { ["url"] = avatarUrl },
+                        ["fields"] = {
+                            {["name"] = "👤 Player", ["value"] = "```" .. player.Name .. " (@" .. player.DisplayName .. ")```", ["inline"] = true},
+                            {["name"] = "💻 Executor", ["value"] = "```" .. executorName .. "```", ["inline"] = true},
+                            {["name"] = "🌐 Job ID", ["value"] = "```" .. tostring(game.JobId) .. "```", ["inline"] = false}
+                        },
+                        ["timestamp"] = DateTime.now():ToIsoDate()
+                    }}
+                }
+                pcall(function()
+                    req({Url = EXECUTION_WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
+                end)
+            end
+        end)
+    end
+
+    -- ANIMATION LOG UI
     tween(BarFill, {Size = UDim2.new(0.3, 0, 1, 0)}, 0.5)
     task.wait(0.5)
     LoadText.Text = "Loading Map & Services..."
@@ -379,42 +405,64 @@ task.spawn(function()
     local lstats = player:WaitForChild('leaderstats', 5)
     if lstats then newRaisedFormat = lstats:WaitForChild('Raised', 5) end
 
-    tween(BarFill, {Size = UDim2.new(0.7, 0, 1, 0)}, 0.6)
+    tween(BarFill, {Size = UDim2.new(0.6, 0, 1, 0)}, 0.6)
     task.wait(0.6)
-    LoadText.Text = "Claiming Booth & Walking..."
+    LoadText.Text = "Checking for existing booth..."
 
-    -- LOGIQUE DE CLAIM & MARCHE ORIGINALE
+    -- SMART CLAIM LOGIC (Vérifie si on a déjà un stand)
+    local hasBooth = false
     pcall(function()
-        unclaimed = {}
-        local interactions = workspace:WaitForChild("BoothInteractions")
         if _boothlocation then
             for _, uiFrame in ipairs(_boothlocation:WaitForChild("BoothUI"):GetChildren()) do
-                if uiFrame.Details.Owner.Text == "unclaimed" then
-                    local bNum = tonumber(uiFrame.Name:match("%d+"))
-                    if bNum then table.insert(unclaimed, bNum); break end
+                if uiFrame:FindFirstChild("Details") and uiFrame.Details:FindFirstChild("Owner") then
+                    local ownerText = uiFrame.Details.Owner.Text
+                    if string.find(ownerText, player.DisplayName) or string.find(ownerText, player.Name) then
+                        hasBooth = true
+                        bclaimed = true
+                        break
+                    end
                 end
             end
-        end
-        if unclaimed[1] and Remotes then
-            Remotes.Event("ClaimBooth"):InvokeServer(unclaimed[1])
-            -- Marche vers le stand
-            local boothPos
-            for _, v in ipairs(interactions:GetChildren()) do
-                if v:GetAttribute("BoothSlot") == unclaimed[1] then
-                    boothPos = v.CFrame * CFrame.new(0, 0, getgenv().settings.boothPosition)
-                    break
-                end
-            end
-            if boothPos and player.Character then
-                player.Character.Humanoid.WalkSpeed = 32
-                player.Character.Humanoid:MoveTo(boothPos.Position)
-                player.Character.Humanoid.MoveToFinished:Wait()
-                player.Character.Humanoid.RootPart.CFrame = CFrame.new(boothPos.Position)
-                player.Character.Humanoid.WalkSpeed = 16
-            end
-            bclaimed = true
         end
     end)
+
+    if hasBooth then
+        LoadText.Text = "Booth already owned! Skipping..."
+        tween(BarFill, {Size = UDim2.new(0.85, 0, 1, 0)}, 0.5)
+        task.wait(0.5)
+    else
+        LoadText.Text = "Claiming Booth & Walking..."
+        pcall(function()
+            unclaimed = {}
+            local interactions = workspace:WaitForChild("BoothInteractions")
+            if _boothlocation then
+                for _, uiFrame in ipairs(_boothlocation:WaitForChild("BoothUI"):GetChildren()) do
+                    if uiFrame.Details.Owner.Text == "unclaimed" then
+                        local bNum = tonumber(uiFrame.Name:match("%d+"))
+                        if bNum then table.insert(unclaimed, bNum); break end
+                    end
+                end
+            end
+            if unclaimed[1] and Remotes then
+                Remotes.Event("ClaimBooth"):InvokeServer(unclaimed[1])
+                local boothPos
+                for _, v in ipairs(interactions:GetChildren()) do
+                    if v:GetAttribute("BoothSlot") == unclaimed[1] then
+                        boothPos = v.CFrame * CFrame.new(0, 0, getgenv().settings.boothPosition)
+                        break
+                    end
+                end
+                if boothPos and player.Character then
+                    player.Character.Humanoid.WalkSpeed = 32
+                    player.Character.Humanoid:MoveTo(boothPos.Position)
+                    player.Character.Humanoid.MoveToFinished:Wait()
+                    player.Character.Humanoid.RootPart.CFrame = CFrame.new(boothPos.Position)
+                    player.Character.Humanoid.WalkSpeed = 16
+                end
+                bclaimed = true
+            end
+        end)
+    end
 
     tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.5)
     task.wait(0.5)
@@ -434,13 +482,11 @@ task.spawn(function()
         newRaisedFormat.Changed:Connect(function()
             local raised = newRaisedFormat.Value - RaisedC
             
-            -- Spin
             if getgenv().settings.spinSet and player.Character and player.Character.Humanoid.RootPart:FindFirstChild('Spin') then
                 local spin = player.Character.Humanoid.RootPart.Spin
                 spin.AngularVelocity = Vector3.new(0, spin.AngularVelocity.Y + (raised/3)*getgenv().settings.spinSpeedMultiplier, 0)
             end
             
-            -- Jump
             if getgenv().settings.donationJump and player.Character then
                 task.spawn(function()
                     for i = 1, raised * getgenv().settings.jumpsPerRobux do
@@ -450,7 +496,6 @@ task.spawn(function()
                 end)
             end
 
-            -- Helicopter
             if getgenv().settings.helicopterEnabled and player.Character then
                 task.spawn(function()
                     local root = player.Character.Humanoid.RootPart
@@ -463,7 +508,6 @@ task.spawn(function()
                 end)
             end
             
-            -- Auto Thanks
             if getgenv().settings.autoThanks then
                 task.spawn(function()
                     task.wait(getgenv().settings.thanksDelay)
@@ -506,3 +550,10 @@ end
 
 for _, p in pairs(Players:GetPlayers()) do p.Chatted:Connect(function(msg) handleChat(p, msg) end) end
 Players.PlayerAdded:Connect(function(p) p.Chatted:Connect(function(msg) handleChat(p, msg) end) end)
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.F8 then
+        Win.Visible = not Win.Visible
+        OpenBtn.Visible = not Win.Visible
+    end
+end)
