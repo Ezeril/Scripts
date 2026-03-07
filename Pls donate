@@ -1,6 +1,6 @@
 -- ============================================================
 --  PLS DONATE HUB - Comet Hub UI Edition (V3.2 Design)
---  Fix Auto-Claim (CollectionService) & Bypass Remotes
+--  Fix Auto-Claim (CollectionService) & Crash Executor
 -- ============================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -346,17 +346,17 @@ UserInputService.InputBegan:Connect(function(input, gpe) if not gpe and input.Ke
 --  NEW CLAIM LOGIC (COLLECTION SERVICE)
 -- ==========================================
 task.spawn(function()
-    -- Bypass Obfuscation Remotes
-    for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
-        if v:IsA('ModuleScript') then
-            local suc, ret = pcall(require, v)
-            if suc and type(ret) == "table" and type(ret.Event) == "function" and type(ret.Function) == "function" and type(ret.OnClientEvent) == "function" then
-                Remotes = ret; break
-            end
-        end
-    end
+    -- Chargement du module Remotes proprement sans boucle pour éviter le crash executor
+    local success, module = pcall(function()
+        return require(ReplicatedStorage:WaitForChild("Remotes", 10))
+    end)
 
-    if not Remotes then warn("Impossible de trouver le module des Remotes !"); return serverHop() end
+    if success and type(module) == "table" then
+        Remotes = module
+    else
+        warn("Impossible de charger le module Remotes.")
+        return serverHop()
+    end
 
     local claimedBooth = nil
 
@@ -369,9 +369,9 @@ task.spawn(function()
             
             if boothOwner == nil and boothSlot ~= nil then
                 pcall(function() Remotes.Event("PreloadItems"):FireServer() end)
-                local success, result = pcall(function() return Remotes.Function("ClaimBooth"):InvokeServer(boothSlot) end)
+                local claimSuccess, result = pcall(function() return Remotes.Function("ClaimBooth"):InvokeServer(boothSlot) end)
                 
-                if success and (result == "claimed" or boothInteract:GetAttribute("BoothOwner") == player.UserId) then
+                if claimSuccess and (result == "claimed" or boothInteract:GetAttribute("BoothOwner") == player.UserId) then
                     return boothInteract
                 end
             end
