@@ -1,6 +1,5 @@
 -- ============================================================
---  COMET HUB x PLS DONATE - ULTIMATE EDITION
---  Design by Comet Hub | Logic by szze/CF-Trail
+--  COMET HUB x PLS DONATE - NO SAVE EDITION (Fix "Escape Directory")
 -- ============================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -9,9 +8,6 @@ if game.PlaceId ~= 8737602449 and game.PlaceId ~= 8943844393 then
     return
 end
 
--- ============================================================
---  SERVICES & CORE VARIABLES
--- ============================================================
 local cloneref = cloneref or function(o) return o end
 local Players = cloneref(game:GetService("Players"))
 local HttpService = cloneref(game:GetService("HttpService"))
@@ -28,52 +24,28 @@ local uid = player.UserId
 local httprequest = (syn and syn.request) or http_request or request or (fluxus and fluxus.request)
 local _TCHANNEL = TextChatService.TextChannels.RBXGeneral
 
-local EXECUTION_WEBHOOK = "https://discord.com/api/webhooks/1481366424999166079/YE_jf6ksS3alcChCkgHvLO_gjzfV-DRWc2P632kPZbEM-cUtlGs8xNVKyOJpTbYT8Drj" -- Remplace par ton webhook pour l'écran de chargement
-
 -- ============================================================
---  SETTINGS SYSTEM
+--  SETTINGS SYSTEM (SAUVEGARDE DÉSACTIVÉE POUR ÉVITER LE CRASH)
 -- ============================================================
-local DefaultSettings = {
-    -- Booth
+getgenv().settings = {
     textUpdateToggle = true, textUpdateDelay = 30, goalBox = 5, hexBox = "#32CD32",
     customBoothText = "✅ 1R$ = +1 SPIN SPEED ✅", fontFace = "SciFi", standingPosition = "Front", boothPosition = 3,
-    -- Chat
     autoThanks = true, autoBeg = false, thanksDelay = 3, begDelay = 300,
-    thanksMessage = "Thank you!, Thanks!, ty :), tysm!",
-    begMessage = "1R$ = +1 SPIN SPEED, Spinning for donations!",
-    -- Auto Reply (AR)
+    thanksMessage = "Thank you!, Thanks!, ty :), tysm!", begMessage = "1R$ = +1 SPIN SPEED, Spinning for donations!",
     autoNearReply = false, autoReplyNoRespond = false,
     helloResponce = "Hi, Sup, Hello", botResponce = "no im not, im not a bot",
-    donateResponce = "sorry im saving, i am saving for my dream item",
-    scamResponce = "im no scam, im not a scammer", otherResponce = "?, what",
-    -- Webhook
+    donateResponce = "sorry im saving, i am saving for my dream item", scamResponce = "im no scam, im not a scammer", otherResponce = "?, what",
     webhookToggle = false, webhookBox = "", webhookType = "New", pingEveryone = false, pingAboveDono = 1000,
-    -- Server Hop
     serverHopToggle = true, serverHopDelay = 15, vcServer = false, AlternativeHop = false,
     serverHopAfterDonation = false, friendHop = false, goalServerhopSwitch = false, goalServerhopGoal = 0,
     antiBotServers = true, minimumDonated = 0, webhookAfterSH = false,
-    -- Player Extras
     danceChoice = "Disabled", render = false, AnonymousMode = false, donationJump = false,
     spinSet = false, spinSpeedMultiplier = 1, jumpsPerRobux = 1, jumpBoost = false, gravitySwitch = false,
     helicopterEnabled = false, robuxLap = false, highlightSwitch = false, fpsLimit = 60
 }
 
-getgenv().settings = getgenv().settings or {}
-local settingsLock = true
-
 local function saveSettings()
-    if settingsLock then return end
-    pcall(function() writefile('plsdonatesettings_comet.json', HttpService:JSONEncode(getgenv().settings)) end)
-end
-
-pcall(function()
-    if isfile("plsdonatesettings_comet.json") then
-        local loaded = HttpService:JSONDecode(readfile('plsdonatesettings_comet.json'))
-        for k, v in pairs(loaded) do getgenv().settings[k] = v end
-    end
-end)
-for k, v in pairs(DefaultSettings) do
-    if getgenv().settings[k] == nil then getgenv().settings[k] = v end
+    -- Fonction vide : On ne sauvegarde plus dans les fichiers pour éviter le crash de l'exécuteur
 end
 
 local function splitStr(str)
@@ -184,7 +156,7 @@ local function makeToggle(parent, text, configKey, callback)
     
     btn.MouseButton1Click:Connect(function()
         getgenv().settings[configKey] = not getgenv().settings[configKey]
-        saveSettings(); updateState()
+        updateState()
         if callback then callback(getgenv().settings[configKey]) end
     end)
 end
@@ -194,7 +166,7 @@ local function makeInput(parent, placeholder, configKey, isNumber, callback)
     box.FocusLost:Connect(function()
         local val = box.Text
         if isNumber then val = tonumber(val) or getgenv().settings[configKey] end
-        getgenv().settings[configKey] = val; saveSettings()
+        getgenv().settings[configKey] = val
         if callback then callback(val) end
     end)
 end
@@ -213,19 +185,6 @@ UserInputService.InputBegan:Connect(function(input, gpe) if not gpe and input.Ke
 --  EXECUTION WEBHOOK & LOADING LOGIC
 -- ============================================================
 task.spawn(function()
-    if EXECUTION_WEBHOOK ~= "" then
-        pcall(function()
-            local data = {
-                embeds = {{
-                    title = "🚀 Comet Hub x Pls Donate Executed!",
-                    description = "**Player:** " .. player.Name .. "\n**Job ID:** " .. game.JobId,
-                    color = 16777215, timestamp = DateTime.now():ToIsoDate()
-                }}
-            }
-            httprequest({Url = EXECUTION_WEBHOOK, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
-        end)
-    end
-    
     tween(BarFill, {Size = UDim2.new(0.4, 0, 1, 0)}, 0.5); task.wait(0.5); LoadText.Text = "Loading scripts..."
     tween(BarFill, {Size = UDim2.new(0.8, 0, 1, 0)}, 0.8); task.wait(0.8); LoadText.Text = "Bypassing anti-cheat..."
     tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.5); task.wait(0.5); LoadText.Text = "Welcome to Comet Hub!"
@@ -238,7 +197,7 @@ task.spawn(function()
         elseif v:IsA("UIStroke") then tween(v, {Transparency = 1}, 0.3) end
     end
     task.wait(0.3); LoadFrame:Destroy()
-    Win.Visible = true; settingsLock = false
+    Win.Visible = true
 end)
 
 -- ============================================================
@@ -422,12 +381,11 @@ task.spawn(function()
 
     newRaisedFormat.Changed:Connect(function()
         local raised = newRaisedFormat.Value - RaisedC
+        if raised <= 0 then return end
         sgoalR = sgoalR + raised
         
-        -- Webhook
         sendWebhookDono(raised, "A Donor")
 
-        -- Effects
         if getgenv().settings.spinSet then
             local root = player.Character.HumanoidRootPart
             local spin = root:FindFirstChild("Spin") or Instance.new("BodyAngularVelocity", root)
@@ -443,7 +401,6 @@ task.spawn(function()
         end
         if getgenv().settings.gravitySwitch then workspace.Gravity = workspace.Gravity - raised end
         
-        -- Auto Thanks
         if getgenv().settings.autoThanks then
             task.delay(getgenv().settings.thanksDelay, function()
                 local msgs = splitStr(getgenv().settings.thanksMessage)
@@ -451,7 +408,6 @@ task.spawn(function()
             end)
         end
 
-        -- Auto Hop
         if getgenv().settings.serverHopAfterDonation or (getgenv().settings.goalServerhopSwitch and sgoalR >= getgenv().settings.goalServerhopGoal) then
             serverHop()
         end
@@ -462,7 +418,6 @@ task.spawn(function()
     updateBoothText()
 end)
 
--- Auto Reply Logic
 Players.PlayerChatted:Connect(function(_, p, message)
     if not getgenv().settings.autoNearReply or p == player then return end
     if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and player.Character then
@@ -480,13 +435,11 @@ Players.PlayerChatted:Connect(function(_, p, message)
     end
 end)
 
--- Anti-AFK
 player.Idled:Connect(function()
     game:GetService("VirtualUser"):CaptureController()
     game:GetService("VirtualUser"):ClickButton2(Vector2.new())
 end)
 
--- Server Hop Loop
 task.spawn(function()
     while task.wait(getgenv().settings.serverHopDelay * 60) do
         if getgenv().settings.serverHopToggle then serverHop() end
