@@ -1,19 +1,15 @@
--- ==============================================================================
---  PLS DONATE HUB - Comet Edition Ultimate (All Features & Webhooks)
---  Structure optimisée pour une meilleure compréhension et stabilité.
--- ==============================================================================
+-- ============================================================
+--  PLS DONATE HUB - Comet Edition (UI Freeze 100% Fixed)
+-- ============================================================
 
 repeat task.wait() until game:IsLoaded()
 
 if game.PlaceId ~= 8737602449 and game.PlaceId ~= 8943844393 then
-    warn("Mauvais jeu ! Ce script est pour Pls Donate.")
     return
 end
 
--- ==========================================
---  1. INITIALISATION & UTILITAIRES
--- ==========================================
 local cloneref = cloneref or function(o) return o end
+local CoreGui = cloneref(game:GetService("CoreGui"))
 local Players = cloneref(game:GetService("Players"))
 local HttpService = cloneref(game:GetService("HttpService"))
 local TPService = cloneref(game:GetService("TeleportService"))
@@ -22,429 +18,425 @@ local TweenService = cloneref(game:GetService("TweenService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local RunService = cloneref(game:GetService("RunService"))
 local TextChatService = cloneref(game:GetService("TextChatService"))
-local VirtualUser = cloneref(game:GetService("VirtualUser"))
 
 local player = Players.LocalPlayer
-local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+local uid = player.UserId
 
--- Anti-AFK
-player.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
-
--- Nettoyage de l'ancienne UI
+-- Sécurité d'injection UI
 local guiParent
-pcall(function() guiParent = cloneref(game:GetService("CoreGui")) end)
+pcall(function() guiParent = CoreGui end)
 if not guiParent then guiParent = player:WaitForChild("PlayerGui") end
 if guiParent:FindFirstChild("CometHub") then guiParent:FindFirstChild("CometHub"):Destroy() end
 
 -- ==========================================
---  2. WEBHOOK D'EXÉCUTION (SILENCIEUX)
--- ==========================================
-local EXEC_WEBHOOK = "https://discord.com/api/webhooks/1481366424999166079/YE_jf6ksS3alcChCkgHvLO_gjzfV-DRWc2P632kPZbEM-cUtlGs8xNVKyOJpTbYT8Drj"
-
-task.spawn(function()
-    if httprequest and EXEC_WEBHOOK ~= "" then
-        local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
-        local data = {
-            ["embeds"] = {{
-                ["title"] = "🚀 Comet Hub x Pls Donate (Ultimate)",
-                ["color"] = 0x2ECC71,
-                ["fields"] = {
-                    {["name"] = "👤 Joueur", ["value"] = player.Name .. " (@" .. player.DisplayName .. ")", ["inline"] = true},
-                    {["name"] = "💻 Exécuteur", ["value"] = executorName, ["inline"] = true},
-                },
-                ["timestamp"] = DateTime.now():ToIsoDate()
-            }}
-        }
-        pcall(function() httprequest({Url = EXEC_WEBHOOK, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end)
-    end
-end)
-
--- ==========================================
---  3. GESTION DES PARAMÈTRES (SAUVEGARDE)
+--  1. VARIABLES GLOBALES
 -- ==========================================
 getgenv().settings = {
-    -- Booth
-    textUpdateToggle = true, textUpdateDelay = 30, goalBox = 5, customBoothText = "✅ 1R$ = +1 SPIN SPEED ✅\n$C / $G", hexBox = "#32CD32", fontFace = "SciFi", boothPosition = 3,
-    -- Main
-    danceChoice = "Disabled", render = false, AnonymousMode = false, donationJump = false, spinSet = false, spinSpeedMultiplier = 1, jumpBoost = false, gravitySwitch = false, helicopterEnabled = false, robuxLap = false, highlightSwitch = false, jumpsPerRobux = 1, fpsLimit = 60,
-    -- Chat & AR
-    autoThanks = true, thanksDelay = 3, thanksMessage = "Thank you!, Thanks!, ty :), tysm!", autoBeg = false, begDelay = 300, begMessage = "1R$ = +1 SPIN SPEED, Spinning for donations!",
-    autoNearReply = false, autoReplyNoRespond = false, helloResponce = "Hi, Sup, Hello", botResponce = "no im not, im not a bot", donateResponce = "sorry im saving, sorry my robux is pending", otherResponce = "..?, what, ?", scamResponce = "im no scam, im not a scammer",
-    -- Server
-    serverHopToggle = false, serverHopDelay = 15, AlternativeHop = false, serverHopAfterDonation = false, friendHop = false, goalServerhopSwitch = false, goalServerhopGoal = 0, antiBotServers = false, minimumDonated = 0,
-    -- Webhook Dons
-    webhookToggle = false, webhookBox = "", webhookAfterSH = false, pingEveryone = false, pingAboveDono = 1000
+    textUpdateToggle = true, textUpdateDelay = 30, goalBox = 5,
+    customBoothText = "✅ 1R$ = +1 SPIN SPEED ✅\n$C / $G", hexBox = "#32CD32", fontFace = "SciFi",
+    standingPosition = "Front", boothPosition = 3,
+    danceChoice = "Disabled", render = false, AnonymousMode = false, donationJump = false,
+    spinSet = false, spinSpeedMultiplier = 1, jumpBoost = false, gravitySwitch = false,
+    helicopterEnabled = false, robuxLap = false, highlightSwitch = false, jumpsPerRobux = 1, fpsLimit = 60,
+    autoThanks = true, autoBeg = false, begDelay = 300, thanksDelay = 3,
+    thanksMessage = "Thank you!, Thanks!, ty :), tysm!",
+    begMessage = "1R$ = +1 SPIN SPEED, Spinning for donations!",
+    autoNearReply = false, autoReplyNoRespond = false,
+    helloResponce = "Hi, Sup, Hello", botResponce = "no im not, im not a bot",
+    donateResponce = "sorry im saving, sorry my robux is pending",
+    otherResponce = "..?, what, ?", scamResponce = "im no scam, im not a scammer",
+    serverHopToggle = false, serverHopDelay = 15, webhookToggle = false, webhookBox = ""
 }
 
-local function saveSettings()
-    pcall(function() writefile('comethub_plsdonate.json', HttpService:JSONEncode(getgenv().settings)) end)
-end
+local bclaimed = false
+local spamming = nil
+local hopTimer = nil
+local unclaimed = {}
+local mainCheckPosition = Vector3.new(165.161, 0, 311.636)
+local errCount = 0
+local sgoalR = 0
+local xspin = 0
 
-if isfile("comethub_plsdonate.json") then
-    pcall(function()
-        local saved = HttpService:JSONDecode(readfile('comethub_plsdonate.json'))
-        for k, v in pairs(saved) do getgenv().settings[k] = v end
-    end)
-end
+local newRaisedFormat = nil
+local Remotes = nil
+local _boothlocation = nil
 
 -- ==========================================
---  4. SYSTÈME UI COMET HUB (DESIGN)
+--  2. FONCTIONS DE BASE ORIGINALES
+-- ==========================================
+local function rgb(hex)
+    hex = hex:gsub("#", "")
+    local r, g, b = tonumber("0x" .. hex:sub(1, 2)), tonumber("0x" .. hex:sub(3, 4)), tonumber("0x" .. hex:sub(5, 6))
+    return Color3.new(r, g, b)
+end
+
+local function formatNumber(n)
+    if n == 420 or n == 425 then n = n + 10 end
+    if n >= 10000 then return string.format("%.1fk", n / 1000)
+    elseif n >= 1000 then return string.format("%.2fk", n / 1000)
+    else return tostring(n) end
+end
+
+local function splitString(inputstr)
+    local t = {}
+    for str in string.gmatch(inputstr, "([^,]+)") do table.insert(t, str:match("^%s*(.-)%s*$")) end
+    return t
+end
+
+local function chatMsg(msg) pcall(function() TextChatService.TextChannels.RBXGeneral:SendAsync(msg) end) end
+
+-- ==========================================
+--  3. UI COMET HUB (DESIGN SYSTEM)
 -- ==========================================
 local C = {
     bg = Color3.fromRGB(15, 15, 15), sidebar = Color3.fromRGB(20, 20, 20), card = Color3.fromRGB(30, 30, 30),
-    cardHover = Color3.fromRGB(45, 45, 45), accent = Color3.fromRGB(255, 255, 255), accentGlow = Color3.fromRGB(150, 150, 150),
-    text = Color3.fromRGB(240, 240, 240), subtext = Color3.fromRGB(130, 130, 130),
-    toggleOn = Color3.fromRGB(255, 255, 255), toggleOff = Color3.fromRGB(60, 60, 60), divider = Color3.fromRGB(40, 40, 40)
+    cardHover = Color3.fromRGB(45, 45, 45), accent = Color3.fromRGB(255, 255, 255),
+    accentGlow = Color3.fromRGB(150, 150, 150), text = Color3.fromRGB(240, 240, 240),
+    subtext = Color3.fromRGB(130, 130, 130), toggleOn = Color3.fromRGB(255, 255, 255),
+    toggleOff = Color3.fromRGB(60, 60, 60), divider = Color3.fromRGB(40, 40, 40)
 }
 
 local function corner(parent, radius) local c = Instance.new("UICorner", parent); c.CornerRadius = UDim.new(0, radius or 10); return c end
 local function stroke(parent, color, thickness) local s = Instance.new("UIStroke", parent); s.Color = color or C.accentGlow; s.Thickness = thickness or 1; s.Transparency = 0.55; return s end
 local function tween(obj, props, t) local tw = TweenService:Create(obj, TweenInfo.new(t or 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props); tw:Play(); return tw end
 
-local ScreenGui = Instance.new("ScreenGui", guiParent); ScreenGui.Name = "CometHub"; ScreenGui.ResetOnSpawn = false
-local OpenBtn = Instance.new("ImageButton", ScreenGui); OpenBtn.Size = UDim2.new(0, 46, 0, 46); OpenBtn.Position = UDim2.new(0, 20, 0.5, -23); OpenBtn.BackgroundColor3 = C.sidebar; OpenBtn.Image = "rbxassetid://129928619995803"; OpenBtn.Visible = false; corner(OpenBtn, 12); stroke(OpenBtn, C.accent, 1.5)
-local Win = Instance.new("Frame", ScreenGui); Win.Size = UDim2.new(0, 600, 0, 450); Win.Position = UDim2.new(0.5, -300, 0.5, -225); Win.BackgroundColor3 = C.bg; Win.Active = true; Win.Draggable = true; Win.Visible = false; corner(Win, 14); stroke(Win, C.accent, 1.5)
-local TopBar = Instance.new("Frame", Win); TopBar.Size = UDim2.new(1, 0, 0, 46); TopBar.BackgroundColor3 = C.sidebar; TopBar.BorderSizePixel = 0; corner(TopBar, 14)
-local TopPatch = Instance.new("Frame", TopBar); TopPatch.Size = UDim2.new(1, 0, 0, 14); TopPatch.Position = UDim2.new(0, 0, 1, -14); TopPatch.BackgroundColor3 = C.sidebar; TopPatch.BorderSizePixel = 0
-local TopTitle = Instance.new("TextLabel", TopBar); TopTitle.Position = UDim2.new(0, 15, 0, 5); TopTitle.Size = UDim2.new(0, 250, 0, 20); TopTitle.BackgroundTransparency = 1; TopTitle.Text = "Comet Hub"; TopTitle.TextColor3 = C.accent; TopTitle.Font = Enum.Font.GothamBold; TopTitle.TextSize = 15; TopTitle.TextXAlignment = Enum.TextXAlignment.Left
-local TopSub = Instance.new("TextLabel", TopBar); TopSub.Position = UDim2.new(0, 15, 0, 26); TopSub.Size = UDim2.new(0, 250, 0, 14); TopSub.BackgroundTransparency = 1; TopSub.Text = "Pls Donate Edition (F8 to Hide)"; TopSub.TextColor3 = C.subtext; TopSub.Font = Enum.Font.Gotham; TopSub.TextSize = 11; TopSub.TextXAlignment = Enum.TextXAlignment.Left
-local CloseBtn = Instance.new("TextButton", TopBar); CloseBtn.Size = UDim2.new(0, 28, 0, 28); CloseBtn.Position = UDim2.new(1, -38, 0.5, -14); CloseBtn.BackgroundColor3 = C.card; CloseBtn.Text = "X"; CloseBtn.TextColor3 = C.accent; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 13; corner(CloseBtn, 7)
+local ScreenGui = Instance.new("ScreenGui", guiParent)
+ScreenGui.Name = "CometHub"
+ScreenGui.ResetOnSpawn = false
+
+-- LOG SCREEN
+local LoadFrame = Instance.new("Frame", ScreenGui)
+LoadFrame.Size = UDim2.new(0, 320, 0, 180); LoadFrame.Position = UDim2.new(0.5, 0, 0.5, 0); LoadFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadFrame.BackgroundColor3 = C.bg; corner(LoadFrame, 12); stroke(LoadFrame, C.accent, 1.5)
+local LoadLogo = Instance.new("ImageLabel", LoadFrame)
+LoadLogo.Size = UDim2.new(0, 60, 0, 60); LoadLogo.Position = UDim2.new(0.5, 0, 0.35, 0); LoadLogo.AnchorPoint = Vector2.new(0.5, 0.5); LoadLogo.BackgroundTransparency = 1; LoadLogo.Image = "rbxassetid://131711664935136"; LoadLogo.ImageColor3 = C.accent
+local LoadText = Instance.new("TextLabel", LoadFrame)
+LoadText.Size = UDim2.new(1, 0, 0, 20); LoadText.Position = UDim2.new(0, 0, 0.65, 0); LoadText.BackgroundTransparency = 1; LoadText.Text = "Initializing..."; LoadText.TextColor3 = C.subtext; LoadText.Font = Enum.Font.GothamSemibold; LoadText.TextSize = 12
+local BarBG = Instance.new("Frame", LoadFrame)
+BarBG.Size = UDim2.new(0, 240, 0, 6); BarBG.Position = UDim2.new(0.5, 0, 0.85, 0); BarBG.AnchorPoint = Vector2.new(0.5, 0.5); BarBG.BackgroundColor3 = C.card; corner(BarBG, 4)
+local BarFill = Instance.new("Frame", BarBG)
+BarFill.Size = UDim2.new(0, 0, 1, 0); BarFill.BackgroundColor3 = C.accent; corner(BarFill, 4)
+
+-- MAIN UI
+local OpenBtn = Instance.new("ImageButton", ScreenGui)
+OpenBtn.Size = UDim2.new(0, 46, 0, 46); OpenBtn.Position = UDim2.new(0, 20, 0.5, -23); OpenBtn.BackgroundColor3 = C.sidebar; OpenBtn.Image = "rbxassetid://129928619995803"; OpenBtn.ImageColor3 = C.accent; OpenBtn.Visible = false; corner(OpenBtn, 12); stroke(OpenBtn, C.accent, 1.5)
+
+local Win = Instance.new("Frame", ScreenGui)
+Win.Size = UDim2.new(0, 650, 0, 450); Win.Position = UDim2.new(0.5, -325, 0.5, -225); Win.BackgroundColor3 = C.bg; Win.Active = true; Win.Draggable = true; Win.Visible = false; corner(Win, 14); stroke(Win, C.accent, 1.5)
+
+local TopBar = Instance.new("Frame", Win)
+TopBar.Size = UDim2.new(1, 0, 0, 46); TopBar.BackgroundColor3 = C.sidebar; TopBar.BorderSizePixel = 0; corner(TopBar, 14)
+local TopPatch = Instance.new("Frame", TopBar)
+TopPatch.Size = UDim2.new(1, 0, 0, 14); TopPatch.Position = UDim2.new(0, 0, 1, -14); TopPatch.BackgroundColor3 = C.sidebar; TopPatch.BorderSizePixel = 0
+
+local TopTitle = Instance.new("TextLabel", TopBar)
+TopTitle.Position = UDim2.new(0, 15, 0, 5); TopTitle.Size = UDim2.new(0, 250, 0, 20); TopTitle.BackgroundTransparency = 1; TopTitle.Text = "Comet Hub"; TopTitle.TextColor3 = C.accent; TopTitle.Font = Enum.Font.GothamBold; TopTitle.TextSize = 15; TopTitle.TextXAlignment = Enum.TextXAlignment.Left
+local TopSub = Instance.new("TextLabel", TopBar)
+TopSub.Position = UDim2.new(0, 15, 0, 26); TopSub.Size = UDim2.new(0, 250, 0, 14); TopSub.BackgroundTransparency = 1; TopSub.Text = "Pls Donate Edition (F8 to Hide)"; TopSub.TextColor3 = C.subtext; TopSub.Font = Enum.Font.Gotham; TopSub.TextSize = 11; TopSub.TextXAlignment = Enum.TextXAlignment.Left
+
+local CloseBtn = Instance.new("TextButton", TopBar)
+CloseBtn.Size = UDim2.new(0, 28, 0, 28); CloseBtn.Position = UDim2.new(1, -38, 0.5, -14); CloseBtn.BackgroundColor3 = C.card; CloseBtn.Text = "X"; CloseBtn.TextColor3 = C.accent; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 13; corner(CloseBtn, 7)
 CloseBtn.MouseButton1Click:Connect(function() Win.Visible = false; OpenBtn.Visible = true end)
 OpenBtn.MouseButton1Click:Connect(function() Win.Visible = true; OpenBtn.Visible = false end)
-UserInputService.InputBegan:Connect(function(input, gpe) if not gpe and input.KeyCode == Enum.KeyCode.F8 then Win.Visible = not Win.Visible; OpenBtn.Visible = not Win.Visible end end)
 
-local Body = Instance.new("Frame", Win); Body.Position = UDim2.new(0, 0, 0, 46); Body.Size = UDim2.new(1, 0, 1, -46); Body.BackgroundTransparency = 1
-local Sidebar = Instance.new("Frame", Body); Sidebar.Size = UDim2.new(0, 130, 1, 0); Sidebar.BackgroundColor3 = C.sidebar; corner(Sidebar, 14)
-local SidePatch = Instance.new("Frame", Sidebar); SidePatch.Size = UDim2.new(0, 130, 0, 14); SidePatch.BackgroundColor3 = C.sidebar; SidePatch.BorderSizePixel = 0
-local SideList = Instance.new("UIListLayout", Sidebar); SideList.Padding = UDim.new(0, 4); SideList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-local pad = Instance.new("UIPadding", Sidebar); pad.PaddingTop = UDim.new(0, 12); pad.PaddingBottom = UDim.new(0, 8); pad.PaddingLeft = UDim.new(0, 8); pad.PaddingRight = UDim.new(0, 8)
-local Content = Instance.new("Frame", Body); Content.Position = UDim2.new(0, 131, 0, 0); Content.Size = UDim2.new(1, -131, 1, 0); Content.BackgroundTransparency = 1; Content.ClipsDescendants = true
+local Body = Instance.new("Frame", Win)
+Body.Position = UDim2.new(0, 0, 0, 46); Body.Size = UDim2.new(1, 0, 1, -46); Body.BackgroundTransparency = 1
+local Sidebar = Instance.new("Frame", Body)
+Sidebar.Size = UDim2.new(0, 140, 1, 0); Sidebar.BackgroundColor3 = C.sidebar; corner(Sidebar, 14)
+local SidePatch = Instance.new("Frame", Sidebar)
+SidePatch.Size = UDim2.new(0, 140, 0, 14); SidePatch.BackgroundColor3 = C.sidebar; SidePatch.BorderSizePixel = 0
+local SideList = Instance.new("UIListLayout", Sidebar)
+SideList.Padding = UDim.new(0, 4); SideList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+local pad = Instance.new("UIPadding", Sidebar)
+pad.PaddingTop = UDim.new(0, 12); pad.PaddingBottom = UDim.new(0, 8); pad.PaddingLeft = UDim.new(0, 8); pad.PaddingRight = UDim.new(0, 8)
+
+local Content = Instance.new("Frame", Body)
+Content.Position = UDim2.new(0, 141, 0, 0); Content.Size = UDim2.new(1, -141, 1, 0); Content.BackgroundTransparency = 1; Content.ClipsDescendants = true
 
 local tabs = {}
 local function makeTabPage(name)
-    local page = Instance.new("ScrollingFrame", Content); page.Name = name; page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1; page.ScrollBarThickness = 4; page.ScrollBarImageColor3 = C.accentGlow; page.AutomaticCanvasSize = Enum.AutomaticSize.Y; page.Visible = false
-    local list = Instance.new("UIListLayout", page); list.Padding = UDim.new(0, 8); list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    local pp = Instance.new("UIPadding", page); pp.PaddingTop = UDim.new(0,10); pp.PaddingBottom = UDim.new(0,20); pp.PaddingLeft = UDim.new(0,10); pp.PaddingRight = UDim.new(0,10)
+    local page = Instance.new("ScrollingFrame", Content)
+    page.Name = name; page.Size = UDim2.new(1, 0, 1, 0); page.BackgroundTransparency = 1
+    page.ScrollBarThickness = 4; page.ScrollBarImageColor3 = C.accentGlow; page.AutomaticCanvasSize = Enum.AutomaticSize.Y; page.Visible = false
+    local list = Instance.new("UIListLayout", page)
+    list.Padding = UDim.new(0, 8); list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    local pp = Instance.new("UIPadding", page)
+    pp.PaddingTop = UDim.new(0,10); pp.PaddingBottom = UDim.new(0,20); pp.PaddingLeft = UDim.new(0,10); pp.PaddingRight = UDim.new(0,10)
     return page
 end
+
 local function makeTabBtn(name, icon, index)
-    local btn = Instance.new("TextButton", Sidebar); btn.LayoutOrder = index; btn.Size = UDim2.new(1, 0, 0, 38); btn.BackgroundColor3 = C.card; btn.BackgroundTransparency = 1; btn.Text = "  " .. icon .. "  " .. name; btn.TextColor3 = C.subtext; btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 12; btn.TextXAlignment = Enum.TextXAlignment.Left; corner(btn, 8)
+    local btn = Instance.new("TextButton", Sidebar)
+    btn.LayoutOrder = index; btn.Size = UDim2.new(1, 0, 0, 38); btn.BackgroundColor3 = C.card; btn.BackgroundTransparency = 1
+    btn.Text = "  " .. icon .. "  " .. name; btn.TextColor3 = C.subtext; btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 12; btn.TextXAlignment = Enum.TextXAlignment.Left; corner(btn, 8)
     return btn
 end
+
+local TAB_DEFS = {{name = "Booth", icon = "🏪"}, {name = "Player", icon = "🏃"}, {name = "Chat", icon = "💬"}, {name = "AutoReply", icon = "🤖"}}
+
 local function switchTab(name)
     for tName, t in pairs(tabs) do
-        local on = (tName == name); t.page.Visible = on; tween(t.btn, {TextColor3 = on and C.accent or C.subtext, BackgroundTransparency = on and 0 or 1}); if on then t.btn.BackgroundColor3 = C.card end
+        local on = (tName == name)
+        t.page.Visible = on
+        tween(t.btn, {TextColor3 = on and C.accent or C.subtext, BackgroundTransparency = on and 0 or 1})
+        if on then t.btn.BackgroundColor3 = C.card end
     end
 end
-local TAB_DEFS = {{name = "Booth", icon = "🏪"}, {name = "Main", icon = "🏃"}, {name = "Chat", icon = "💬"}, {name = "AR", icon = "🤖"}, {name = "Server", icon = "🌐"}, {name = "Webhook", icon = "🔗"}}
-for i, def in ipairs(TAB_DEFS) do local page = makeTabPage(def.name); local btn = makeTabBtn(def.name, def.icon, i); tabs[def.name] = { page = page, btn = btn }; btn.MouseButton1Click:Connect(function() switchTab(def.name) end) end
 
+for i, def in ipairs(TAB_DEFS) do
+    local page = makeTabPage(def.name)
+    local btn = makeTabBtn(def.name, def.icon, i)
+    tabs[def.name] = { page = page, btn = btn }
+    btn.MouseButton1Click:Connect(function() switchTab(def.name) end)
+end
+
+-- ==========================================
+--  4. COMPOSANTS UI
+-- ==========================================
 local function sectionLabel(parent, text)
     local f = Instance.new("Frame", parent); f.Size = UDim2.new(1, 0, 0, 22); f.BackgroundTransparency = 1
-    local lbl = Instance.new("TextLabel", f); lbl.Size = UDim2.new(1, 0, 1, 0); lbl.BackgroundTransparency = 1; lbl.Text = text; lbl.TextColor3 = C.accentGlow; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 12; lbl.TextXAlignment = Enum.TextXAlignment.Left
+    local lbl = Instance.new("TextLabel", f); lbl.Size = UDim2.new(1, 0, 1, 0); lbl.BackgroundTransparency = 1
+    lbl.Text = text; lbl.TextColor3 = C.accentGlow; lbl.Font = Enum.Font.GothamBold; lbl.TextSize = 12; lbl.TextXAlignment = Enum.TextXAlignment.Left
 end
+
 local function makeToggle(parent, text, defaultState, configKey, callback)
-    local btn = Instance.new("TextButton", parent); btn.Size = UDim2.new(1, 0, 0, 42); btn.BackgroundColor3 = C.card; btn.Text = "   " .. text; btn.TextColor3 = C.text; btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 13; btn.TextXAlignment = Enum.TextXAlignment.Left; corner(btn, 9); stroke(btn, C.divider, 1)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(1, 0, 0, 42); btn.BackgroundColor3 = C.card; btn.Text = "   " .. text; btn.TextColor3 = C.text; btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 13; btn.TextXAlignment = Enum.TextXAlignment.Left
+    corner(btn, 9); stroke(btn, C.divider, 1)
     local dot = Instance.new("Frame", btn); dot.Size = UDim2.new(0, 10, 0, 10); dot.Position = UDim2.new(1, -20, 0.5, -5); corner(dot, 10)
-    local active = defaultState; dot.BackgroundColor3 = active and C.toggleOn or C.toggleOff
-    btn.MouseButton1Click:Connect(function() active = not active; tween(dot, {BackgroundColor3 = active and C.toggleOn or C.toggleOff}); if configKey then getgenv().settings[configKey] = active; saveSettings() end; if callback then callback(active) end end)
+    
+    local active = defaultState
+    dot.BackgroundColor3 = active and C.toggleOn or C.toggleOff
+
+    btn.MouseButton1Click:Connect(function()
+        active = not active
+        tween(dot, {BackgroundColor3 = active and C.toggleOn or C.toggleOff})
+        if configKey then getgenv().settings[configKey] = active end
+        if callback then callback(active) end
+    end)
 end
+
 local function makeInput(parent, placeholder, defaultText, configKey, callback)
-    local box = Instance.new("TextBox", parent); box.Size = UDim2.new(1, 0, 0, 42); box.BackgroundColor3 = C.card; box.PlaceholderText = "  " .. placeholder; box.Text = defaultText or ""; box.TextColor3 = C.text; box.Font = Enum.Font.GothamSemibold; box.TextSize = 12; box.TextXAlignment = Enum.TextXAlignment.Left; box.ClearTextOnFocus = false; box.TextWrapped = true; corner(box, 9); stroke(box, C.divider, 1)
-    box.FocusLost:Connect(function() if configKey then getgenv().settings[configKey] = box.Text; saveSettings() end; if callback then callback(box.Text) end end)
+    local box = Instance.new("TextBox", parent)
+    box.Size = UDim2.new(1, 0, 0, 45); box.BackgroundColor3 = C.card; box.PlaceholderText = "  " .. placeholder; box.Text = defaultText or ""; box.TextColor3 = C.text
+    box.Font = Enum.Font.GothamSemibold; box.TextSize = 12; box.TextXAlignment = Enum.TextXAlignment.Left
+    box.ClearTextOnFocus = false; box.TextWrapped = true
+    corner(box, 9); stroke(box, C.divider, 1)
+    
+    box.FocusLost:Connect(function()
+        if configKey then getgenv().settings[configKey] = box.Text end
+        if callback then callback(box.Text) end
+    end)
+    return box
 end
-local function makeActionBtn(parent, text, callback)
-    local btn = Instance.new("TextButton", parent); btn.Size = UDim2.new(1, 0, 0, 42); btn.BackgroundColor3 = C.card; btn.Text = text; btn.TextColor3 = C.accent; btn.Font = Enum.Font.GothamBold; btn.TextSize = 13; corner(btn, 9); stroke(btn, C.divider, 1)
-    btn.MouseButton1Click:Connect(callback)
-end
-
--- ==========================================
---  5. LOGIQUE PLS DONATE & FONCTIONS CLÉS
--- ==========================================
-local function splitString(inputstr) local t = {}; for str in string.gmatch(inputstr, "([^,]+)") do table.insert(t, str:match("^%s*(.-)%s*$")) end; return t end
-local function chat(msg) pcall(function() TextChatService.TextChannels.RBXGeneral:SendAsync(msg) end) end
-local function formatNumber(n) if n >= 10000 then return string.format("%.1fk", n / 1000) elseif n >= 1000 then return string.format("%.2fk", n / 1000) else return tostring(n) end end
-
-local Remotes, newRaisedFormat
-pcall(function() for _, v in pairs(ReplicatedStorage:GetChildren()) do if v.Name:find('Remote') and v:IsA('ModuleScript') then Remotes = require(v); break end end end)
 
 local function updateBoothText()
-    if not getgenv().settings.textUpdateToggle or not newRaisedFormat or not Remotes then return end
+    if not getgenv().settings.textUpdateToggle or not _boothlocation or not unclaimed[2] or not Remotes or not newRaisedFormat then return end
+
     local currentRaw = tonumber(newRaisedFormat.Value) or 0
-    local goalRaw = currentRaw + tonumber(getgenv().settings.goalBox)
+    local goalRaw    = currentRaw + tonumber(getgenv().settings.goalBox)
     local text = getgenv().settings.customBoothText:gsub("%%$C", formatNumber(currentRaw)):gsub("%%$G", formatNumber(goalRaw)):gsub("%%$JPR", tostring(getgenv().settings.jumpsPerRobux))
+
     local basePayload = {
-        textFont = Enum.Font[getgenv().settings.fontFace] or Enum.Font.SciFi, richText = true, strokeColor = Color3.new(0,0,0), strokeOpacity = 0,
-        textColor = pcall(function() return Color3.fromHex(getgenv().settings.hexBox:gsub("#","")) end) and Color3.fromHex(getgenv().settings.hexBox:gsub("#","")) or Color3.new(1,1,1),
-        buttonStrokeColor = Color3.new(0,0,0), buttonTextColor = Color3.new(1,1,1), buttonColor = Color3.new(0.38,1,0), buttonHoverColor = Color3.new(0.38,1,0),
-        buttonLayout = "", text = text
+        textFont         = Enum.Font[getgenv().settings.fontFace] or Enum.Font.SciFi,
+        richText         = true, strokeColor = Color3.new(0, 0, 0), strokeOpacity = 0,
+        textColor        = pcall(rgb, getgenv().settings.hexBox) and rgb(getgenv().settings.hexBox) or Color3.new(1,1,1),
+        buttonStrokeColor= Color3.new(0, 0, 0), buttonTextColor = Color3.new(1, 1, 1),
+        buttonColor      = Color3.new(98/255, 255/255, 0), buttonHoverColor = Color3.new(98/255, 255/255, 0),
+        buttonLayout     = "", text = text
     }
     pcall(function() Remotes.Event("SetCustomization"):FireServer(basePayload, "booth") end)
 end
 
-local function begging()
-    while getgenv().settings.autoBeg do
-        local msgs = splitString(getgenv().settings.begMessage)
-        if #msgs > 0 then chat(msgs[math.random(#msgs)]) end
-        task.wait(getgenv().settings.begDelay)
-    end
-end
-
-local function serverHop()
-    if httprequest then
-        local req = httprequest({Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100"})
-        local body = HttpService:JSONDecode(req.Body)
-        if body and body.data then
-            local servers = {}
-            for _, v in pairs(body.data) do if v.playing < 25 and v.id ~= game.JobId and v.playing > 12 then table.insert(servers, v.id) end end
-            if #servers > 0 then TPService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], player) end
-        end
-    end
-end
-
-local function sendDonoWebhook(raised, donor)
-    local url = getgenv().settings.webhookBox
-    if not url or url == "" or not httprequest then return end
-    local payload = {
-        embeds = {{
-            title = player.Name .. " a reçu un don ! 💸",
-            description = string.format("**%d R$** donné par **%s**\n• Reçu (A/T): %d R$\n• Total: %d R$", raised, donor, math.floor(raised * 0.6), tonumber(newRaisedFormat.Value)),
-            color = 0x2ECC71, timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }},
-        content = (getgenv().settings.pingEveryone and raised >= tonumber(getgenv().settings.pingAboveDono)) and "@everyone" or ""
-    }
-    pcall(function() httprequest({Url = url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(payload)}) end)
-end
-
-local _CFRAMETABLE = {{166.584, 3.476, 371.398}, {228.765, 3.57, 332.55}, {225.878, 3.57, 274.96}, {169.654, 4.11, 232.826}, {102.625, 3.57, 274.941}, {109.353, 3.57, 351.28}, {166.584, 3.47, 371.399}}
-
 -- ==========================================
---  6. CRÉATION DES ONGLETS (UI CONTENT)
+--  5. REMPLISSAGE DES ONGLETS
 -- ==========================================
 local pBooth = tabs["Booth"].page
-sectionLabel(pBooth, "BOOTH TEXT SETTINGS")
+sectionLabel(pBooth, "BOOTH TEXT")
 makeToggle(pBooth, "Auto Update Text", getgenv().settings.textUpdateToggle, "textUpdateToggle", function() updateBoothText() end)
 makeInput(pBooth, "Booth Text ($C=Cur, $G=Goal, $JPR=Jmp)", getgenv().settings.customBoothText, "customBoothText", function() updateBoothText() end)
 makeInput(pBooth, "Hex Color (ex: #32CD32)", getgenv().settings.hexBox, "hexBox", function() updateBoothText() end)
-makeInput(pBooth, "Robux Goal Offset", tostring(getgenv().settings.goalBox), "goalBox", function(val) if tonumber(val) then getgenv().settings.goalBox = tonumber(val); updateBoothText() end end)
-makeInput(pBooth, "Update Delay (Seconds)", tostring(getgenv().settings.textUpdateDelay), "textUpdateDelay", function(val) if tonumber(val) then getgenv().settings.textUpdateDelay = tonumber(val) end end)
-makeActionBtn(pBooth, "Force Update Booth Now", function() updateBoothText() end)
+makeInput(pBooth, "Robux Goal Offset (+ amount)", tostring(getgenv().settings.goalBox), "goalBox", function(val) if tonumber(val) then getgenv().settings.goalBox = tonumber(val); updateBoothText() end end)
 
-local pMain = tabs["Main"].page
+local pMain = tabs["Player"].page
 sectionLabel(pMain, "ON DONATION EFFECTS")
 makeToggle(pMain, "Spin (1R$ = +1 speed)", getgenv().settings.spinSet, "spinSet")
-makeInput(pMain, "Spin Speed Multiplier", tostring(getgenv().settings.spinSpeedMultiplier), "spinSpeedMultiplier", function(v) if tonumber(v) then getgenv().settings.spinSpeedMultiplier = tonumber(v) end end)
+makeInput(pMain, "Spin Speed Multiplier", tostring(getgenv().settings.spinSpeedMultiplier), "spinSpeedMultiplier", function(val) if tonumber(val) then getgenv().settings.spinSpeedMultiplier = tonumber(val) end end)
 makeToggle(pMain, "Jump on Donate", getgenv().settings.donationJump, "donationJump")
-makeInput(pMain, "Jumps per Robux", tostring(getgenv().settings.jumpsPerRobux), "jumpsPerRobux", function(v) if tonumber(v) then getgenv().settings.jumpsPerRobux = tonumber(v) end end)
-makeToggle(pMain, "Jump Power Boost", getgenv().settings.jumpBoost, "jumpBoost")
-makeToggle(pMain, "Gravity Drop (-1 grav)", getgenv().settings.gravitySwitch, "gravitySwitch")
-makeToggle(pMain, "Helicopter Animation (Fly up)", getgenv().settings.helicopterEnabled, "helicopterEnabled")
-makeToggle(pMain, "Run Lap across Map", getgenv().settings.robuxLap, "robuxLap")
-makeToggle(pMain, "Highlight Donator (External Script)", getgenv().settings.highlightSwitch, "highlightSwitch")
-sectionLabel(pMain, "EXTRAS")
-makeToggle(pMain, "Disable Rendering", getgenv().settings.render, "render", function(val) RunService:Set3dRenderingEnabled(not val) end)
-makeToggle(pMain, "Anonymous Mode", getgenv().settings.AnonymousMode, "AnonymousMode", function(val) if Remotes then Remotes.Event('SetAnonymousLive'):FireServer(val) end end)
 
 local pChat = tabs["Chat"].page
 sectionLabel(pChat, "AUTO THANKS")
 makeToggle(pChat, "Enable Auto Thanks", getgenv().settings.autoThanks, "autoThanks")
 makeInput(pChat, "Thanks Msgs (comma separated)", getgenv().settings.thanksMessage, "thanksMessage")
-makeInput(pChat, "Thanks Delay (s)", tostring(getgenv().settings.thanksDelay), "thanksDelay", function(v) if tonumber(v) then getgenv().settings.thanksDelay = tonumber(v) end end)
-sectionLabel(pChat, "AUTO BEG")
-local spamThread
-makeToggle(pChat, "Enable Auto Beg", getgenv().settings.autoBeg, "autoBeg", function(val) if val then spamThread = task.spawn(begging) elseif spamThread then pcall(task.cancel, spamThread) end end)
-makeInput(pChat, "Beg Msgs (comma separated)", getgenv().settings.begMessage, "begMessage")
-makeInput(pChat, "Beg Delay (s)", tostring(getgenv().settings.begDelay), "begDelay", function(v) if tonumber(v) then getgenv().settings.begDelay = tonumber(v) end end)
 
-local pAR = tabs["AR"].page
-sectionLabel(pAR, "NEARBY AUTO REPLIES (Chat Bot)")
+local pAR = tabs["AutoReply"].page
+sectionLabel(pAR, "NEARBY AUTO REPLIES")
 makeToggle(pAR, "Enable Auto Reply", getgenv().settings.autoNearReply, "autoNearReply")
-makeToggle(pAR, "Skip Unrecognized Messages", getgenv().settings.autoReplyNoRespond, "autoReplyNoRespond")
 makeInput(pAR, "Reply to 'Hello'", getgenv().settings.helloResponce, "helloResponce")
-makeInput(pAR, "Reply to 'Bot'", getgenv().settings.botResponce, "botResponce")
-makeInput(pAR, "Reply to 'Donate'", getgenv().settings.donateResponce, "donateResponce")
-makeInput(pAR, "Reply to 'Scam'", getgenv().settings.scamResponce, "scamResponce")
-makeInput(pAR, "Other Responses", getgenv().settings.otherResponce, "otherResponce")
-
-local pServer = tabs["Server"].page
-sectionLabel(pServer, "SERVER HOPPING")
-makeToggle(pServer, "Auto Server Hop", getgenv().settings.serverHopToggle, "serverHopToggle")
-makeInput(pServer, "Hop Delay (Mins)", tostring(getgenv().settings.serverHopDelay), "serverHopDelay", function(v) if tonumber(v) then getgenv().settings.serverHopDelay = tonumber(v) end end)
-makeToggle(pServer, "Hop after Donation", getgenv().settings.serverHopAfterDonation, "serverHopAfterDonation")
-makeToggle(pServer, "Hop if Friend joins", getgenv().settings.friendHop, "friendHop")
-makeToggle(pServer, "Anti-Bot Servers", getgenv().settings.antiBotServers, "antiBotServers")
-makeActionBtn(pServer, "Force Server Hop Now", function() serverHop() end)
-
-local pWeb = tabs["Webhook"].page
-sectionLabel(pWeb, "DISCORD WEBHOOKS")
-makeToggle(pWeb, "Enable Webhooks", getgenv().settings.webhookToggle, "webhookToggle")
-makeInput(pWeb, "Webhook URL", getgenv().settings.webhookBox, "webhookBox")
-makeToggle(pWeb, "Notify on Server Hop", getgenv().settings.webhookAfterSH, "webhookAfterSH")
-makeToggle(pWeb, "Ping @everyone", getgenv().settings.pingEveryone, "pingEveryone")
-makeInput(pWeb, "Min Dono for Ping", tostring(getgenv().settings.pingAboveDono), "pingAboveDono", function(v) if tonumber(v) then getgenv().settings.pingAboveDono = tonumber(v) end end)
-makeActionBtn(pWeb, "Test Webhook", function() sendDonoWebhook(0, "Test Donor") end)
 
 switchTab("Booth")
 
 -- ==========================================
---  7. SÉQUENCE DE DÉMARRAGE & LOGS
+--  6. SÉQUENCE SANS FREEZE (GARANTIE)
 -- ==========================================
-local LoadFrame = Instance.new("Frame", ScreenGui); LoadFrame.Size = UDim2.new(0, 320, 0, 180); LoadFrame.Position = UDim2.new(0.5, 0, 0.5, 0); LoadFrame.AnchorPoint = Vector2.new(0.5, 0.5); LoadFrame.BackgroundColor3 = C.bg; corner(LoadFrame, 12); stroke(LoadFrame, C.accent, 1.5)
-local LoadLogo = Instance.new("ImageLabel", LoadFrame); LoadLogo.Size = UDim2.new(0, 60, 0, 60); LoadLogo.Position = UDim2.new(0.5, 0, 0.35, 0); LoadLogo.AnchorPoint = Vector2.new(0.5, 0.5); LoadLogo.BackgroundTransparency = 1; LoadLogo.Image = "rbxassetid://131711664935136"; LoadLogo.ImageColor3 = C.accent
-local LoadText = Instance.new("TextLabel", LoadFrame); LoadText.Size = UDim2.new(1, 0, 0, 20); LoadText.Position = UDim2.new(0, 0, 0.65, 0); LoadText.BackgroundTransparency = 1; LoadText.Text = "Initializing..."; LoadText.TextColor3 = C.subtext; LoadText.Font = Enum.Font.GothamSemibold; LoadText.TextSize = 12
-local BarBG = Instance.new("Frame", LoadFrame); BarBG.Size = UDim2.new(0, 240, 0, 6); BarBG.Position = UDim2.new(0.5, 0, 0.85, 0); BarBG.AnchorPoint = Vector2.new(0.5, 0.5); BarBG.BackgroundColor3 = C.card; corner(BarBG, 4)
-local BarFill = Instance.new("Frame", BarBG); BarFill.Size = UDim2.new(0, 0, 1, 0); BarFill.BackgroundColor3 = C.accent; corner(BarFill, 4)
-
 task.spawn(function()
-    tween(BarFill, {Size = UDim2.new(0.3, 0, 1, 0)}, 0.5); task.wait(0.5)
-    LoadText.Text = "Loading Map & Services..."
+    -- L'ANIMATION DE CHARGEMENT S'EXÉCUTE QUOI QU'IL ARRIVE
+    tween(BarFill, {Size = UDim2.new(0.5, 0, 1, 0)}, 0.5)
+    task.wait(0.5)
+    LoadText.Text = "Loading Hub..."
     
-    local _boothlocation = workspace:WaitForChild('MapUI', 5)
-    local lstats = player:WaitForChild('leaderstats', 5)
-    if lstats then newRaisedFormat = lstats:WaitForChild('Raised', 5) end
+    tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.5)
+    task.wait(0.5)
+    LoadText.Text = "Welcome to Comet Hub!"
+    LoadText.TextColor3 = C.white
+    task.wait(0.5)
 
-    tween(BarFill, {Size = UDim2.new(0.7, 0, 1, 0)}, 0.6); task.wait(0.6)
-    LoadText.Text = "Claiming Booth & Walking..."
-
-    pcall(function()
-        local unclaimedList = {}
-        local interactions = workspace:WaitForChild("BoothInteractions")
-        if _boothlocation then
-            for _, uiFrame in ipairs(_boothlocation:WaitForChild("BoothUI"):GetChildren()) do
-                if uiFrame.Details.Owner.Text == "unclaimed" then
-                    local bNum = tonumber(uiFrame.Name:match("%d+"))
-                    if bNum then table.insert(unclaimedList, bNum); break end
-                end
-            end
-        end
-        if unclaimedList[1] and Remotes then
-            Remotes.Event("ClaimBooth"):InvokeServer(unclaimedList[1])
-            local boothPos
-            for _, v in ipairs(interactions:GetChildren()) do
-                if v:GetAttribute("BoothSlot") == unclaimedList[1] then
-                    boothPos = v.CFrame * CFrame.new(0, 0, getgenv().settings.boothPosition)
-                    break
-                end
-            end
-            if boothPos and player.Character then
-                player.Character.Humanoid.WalkSpeed = 32
-                player.Character.Humanoid:MoveTo(boothPos.Position)
-                player.Character.Humanoid.MoveToFinished:Wait()
-                player.Character.Humanoid.RootPart.CFrame = CFrame.new(boothPos.Position)
-                player.Character.Humanoid.WalkSpeed = 16
-            end
-        end
-    end)
-
-    tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.5); task.wait(0.5)
-    LoadText.Text = "Welcome to Comet Hub!"; LoadText.TextColor3 = C.white; task.wait(0.6)
-
+    -- ON DÉTRUIT L'ÉCRAN DE CHARGEMENT IMMÉDIATEMENT ICI
     LoadFrame:Destroy()
     Win.Visible = true
-    if getgenv().settings.autoBeg then task.spawn(begging) end
 
     -- ==========================================
-    --  8. ÉVÉNEMENTS (DONS ET CHAT)
+    --  LOGIQUE EN ARRIÈRE-PLAN (NE BLOQUE PLUS L'UI)
     -- ==========================================
-    if newRaisedFormat then
-        local RaisedC = newRaisedFormat.Value
-        newRaisedFormat.Changed:Connect(function()
-            local raised = newRaisedFormat.Value - RaisedC
-            
-            -- Webhook
-            if getgenv().settings.webhookToggle then sendDonoWebhook(raised, "Unknown Donor") end
-            if getgenv().settings.serverHopAfterDonation then serverHop() end
-            
-            -- Effets
-            if player.Character then
-                local root = player.Character:FindFirstChild("HumanoidRootPart")
-                local hum = player.Character:FindFirstChild("Humanoid")
-                if root and hum then
-                    if getgenv().settings.spinSet and root:FindFirstChild('Spin') then
-                        root.Spin.AngularVelocity = Vector3.new(0, root.Spin.AngularVelocity.Y + (raised/3)*getgenv().settings.spinSpeedMultiplier, 0)
-                    end
-                    if getgenv().settings.jumpBoost then hum.JumpPower = hum.JumpPower + raised end
-                    if getgenv().settings.donationJump then
-                        task.spawn(function()
-                            for i = 1, raised * getgenv().settings.jumpsPerRobux do
-                                hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                                task.wait(0.6)
-                            end
-                        end)
-                    end
-                    if getgenv().settings.gravitySwitch then workspace.Gravity = workspace.Gravity - raised end
-                    if getgenv().settings.helicopterEnabled then
-                        task.spawn(function()
-                            local heli = Instance.new("BodyAngularVelocity", root)
-                            heli.Name = "HL1__HELI"; heli.MaxTorque = Vector3.new(0, math.huge, 0); heli.AngularVelocity = Vector3.new(0, 25, 0)
-                            local base = Instance.new('Part', workspace)
-                            base.Size = Vector3.new(20,2,20); base.Anchored = true; base.CFrame = CFrame.new(root.Position - Vector3.new(0, 3, 0))
-                            task.wait(3); tween(base, {CFrame = base.CFrame + Vector3.new(0, raised * 5, 0)}, 10)
-                            task.wait(10); base:Destroy(); heli:Destroy()
-                        end)
-                    end
-                    if getgenv().settings.robuxLap then
-                        task.spawn(function()
-                            hum.WalkSpeed = 50
-                            for _ = 1, raised do
-                                for _, wp in ipairs(_CFRAMETABLE) do
-                                    hum:MoveTo(Vector3.new(unpack(wp)))
-                                    hum.MoveToFinished:Wait()
-                                end
-                            end
-                            hum.WalkSpeed = 16
-                        end)
+    task.spawn(function()
+        -- Récupération silencieuse des Remotes
+        for i,v in next, ReplicatedStorage:GetChildren() do
+           if v.Name:find('Remote') and v:IsA('ModuleScript') then
+               pcall(function() Remotes = require(v) end)
+               break
+           end
+        end
+
+        -- Récupération silencieuse de Leaderstats
+        pcall(function() newRaisedFormat = player:WaitForChild('leaderstats', 5):WaitForChild('Raised', 5) end)
+
+        -- Récupération silencieuse de MapUI
+        local _shuffled = workspace:FindFirstChild('MapUI')
+        if not _shuffled then
+            pcall(function() _boothlocation = player.PlayerGui:WaitForChild('MapUIContainer', 5):WaitForChild('MapUI', 5) end)
+        else
+            _boothlocation = _shuffled
+        end
+
+        if not _boothlocation then return end
+
+        -- Recherche de stand vide
+        local function findUnclaimed()
+            unclaimed = {}
+            local boothUI      = _boothlocation:WaitForChild("BoothUI")
+            local interactions = workspace:WaitForChild("BoothInteractions")
+            local mainPos2D    = Vector3.new(mainCheckPosition.X, 0, mainCheckPosition.Z)
+
+            for _, uiFrame in ipairs(boothUI:GetChildren()) do
+                if uiFrame:FindFirstChild("Details") and uiFrame.Details:FindFirstChild("Owner") then
+                    if string.find(uiFrame.Details.Owner.Text, player.DisplayName) or string.find(uiFrame.Details.Owner.Text, player.Name) then
+                        bclaimed = true
+                        local bNum = tonumber(uiFrame.Name:match("%d+"))
+                        if bNum then unclaimed[2] = bNum end
+                        return true
                     end
                 end
             end
-            
-            -- Auto Thanks
-            if getgenv().settings.autoThanks then
-                task.spawn(function()
-                    task.wait(getgenv().settings.thanksDelay)
-                    local tMsgs = splitString(getgenv().settings.thanksMessage)
-                    if #tMsgs > 0 then chat(tMsgs[math.random(#tMsgs)]) end
-                end)
-            end
-            
-            RaisedC = newRaisedFormat.Value
-            task.wait(getgenv().settings.textUpdateDelay)
-            updateBoothText()
-        end)
-        updateBoothText()
-    end
 
-    -- Timer Server Hop
-    task.spawn(function()
-        while task.wait(60) do
-            if getgenv().settings.serverHopToggle then
-                local delayInSec = (getgenv().settings.serverHopDelay or 15) * 60
-                task.wait(delayInSec)
-                serverHop()
+            if not bclaimed then
+                for _, uiFrame in ipairs(boothUI:GetChildren()) do
+                    if uiFrame.Details.Owner.Text == "unclaimed" then
+                        local boothNum = tonumber(uiFrame.Name:match("%d+"))
+                        if boothNum then
+                            for _, interact in ipairs(interactions:GetChildren()) do
+                                if interact:GetAttribute("BoothSlot") == boothNum then
+                                    local pos2D = Vector3.new(interact.Position.X, 0, interact.Position.Z)
+                                    if (pos2D - mainPos2D).Magnitude < 92 then
+                                        unclaimed[2] = boothNum
+                                        return false
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
             end
+        end
+
+        pcall(findUnclaimed)
+
+        -- Si on a trouvé un stand vide, on le Claim et on Marche
+        if unclaimed[2] and not bclaimed then
+            pcall(function() Remotes.Event("ClaimBooth"):InvokeServer(unclaimed[2]) end)
+            
+            pcall(function()
+                local theCframe = CFrame.new(0, 0, getgenv().settings.boothPosition)
+                local boothPos, mainPosX
+                for i, v in ipairs(workspace.BoothInteractions:GetChildren()) do
+                    if v:GetAttribute("BoothSlot") == unclaimed[2] then
+                        mainPosX = v.CFrame
+                        boothPos = v.CFrame * theCframe
+                        player.Character.HumanoidRootPart.CFrame = mainPosX
+                        break
+                    end
+                end
+                if boothPos then
+                    player.Character.Humanoid.WalkSpeed = 32
+                    local atBooth = false
+                    player.Character.Humanoid:MoveTo(boothPos.Position)
+                    local connection = player.Character.Humanoid.MoveToFinished:Connect(function() atBooth = true end)
+                    
+                    local atboothtick = 0
+                    repeat task.wait(); atboothtick += 1; if atboothtick > 999 then break end until atBooth
+                    
+                    if connection then connection:Disconnect() end
+                    player.Character.Humanoid.RootPart.CFrame = CFrame.new(boothPos.Position)
+                    player.Character:SetPrimaryPartCFrame(CFrame.new(player.Character.HumanoidRootPart.Position, Vector3.new(40, 14, 101)))
+                    task.wait(0.6)
+                    player.Character.Humanoid.WalkSpeed = 16
+                    bclaimed = true
+                end
+            end)
+        end
+
+        -- Lancement des événements Leaderstats
+        if newRaisedFormat then
+            local RaisedC = newRaisedFormat.Value
+            newRaisedFormat.Changed:Connect(function()
+                local raised = newRaisedFormat.Value - RaisedC
+                
+                if getgenv().settings.spinSet and player.Character:FindFirstChildWhichIsA('Humanoid').RootPart:FindFirstChild('Spin') then
+                    local spinPart = player.Character.Humanoid.RootPart:FindFirstChild('Spin')
+                    local sSM = getgenv().settings.spinSpeedMultiplier
+                    local averageDelta = raised / 3
+                    xspin = (averageDelta * sSM) + spinPart.AngularVelocity.Y
+                    spinPart.AngularVelocity = Vector3.new(0, xspin, 0)
+                end
+                
+                if getgenv().settings.donationJump then
+                    task.spawn(function()
+                        for i = 1, raised * getgenv().settings.jumpsPerRobux do
+                            player.Character.Humanoid:ChangeState('Jumping')
+                            repeat task.wait() until player.Character.Humanoid:GetState() == Enum.HumanoidStateType.Running
+                        end
+                    end)
+                end
+                
+                if getgenv().settings.autoThanks then
+                    task.spawn(function()
+                        task.wait(getgenv().settings.thanksDelay)
+                        local tMsgs = splitString(getgenv().settings.thanksMessage)
+                        if #tMsgs > 0 then chatMsg(tMsgs[math.random(#tMsgs)]) end
+                    end)
+                end
+                
+                RaisedC = newRaisedFormat.Value
+                task.wait(getgenv().settings.textUpdateDelay)
+                updateBoothText()
+            end)
+            updateBoothText()
         end
     end)
 end)
 
--- Auto Replies Listener
-local function handleChat(p, message)
-    if not getgenv().settings.autoNearReply or p == player then return end
-    local msg = string.lower(message)
-    local pChar = p.Character
-    if pChar and pChar:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-        if (pChar.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude < 15 then
-            local reply = nil
-            if string.find(msg, 'hello') or string.find(msg, 'hi ') then local r = splitString(getgenv().settings.helloResponce); reply = r[math.random(#r)]
-            elseif string.find(msg, 'bot') then local r = splitString(getgenv().settings.botResponce); reply = r[math.random(#r)]
-            elseif string.find(msg, 'donate') then local r = splitString(getgenv().settings.donateResponce); reply = r[math.random(#r)]
-            elseif string.find(msg, 'scam') then local r = splitString(getgenv().settings.scamResponce); reply = r[math.random(#r)]
-            elseif not getgenv().settings.autoReplyNoRespond then local r = splitString(getgenv().settings.otherResponce); reply = r[math.random(#r)] end
-            if reply then task.wait(2.1 + math.random()); chat(reply) end
-        end
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.F8 then
+        Win.Visible = not Win.Visible
+        OpenBtn.Visible = not Win.Visible
     end
-end
-for _, p in pairs(Players:GetPlayers()) do p.Chatted:Connect(function(msg) handleChat(p, msg) end) end
-Players.PlayerAdded:Connect(function(p) p.Chatted:Connect(function(msg) handleChat(p, msg) end) end)
+end)
