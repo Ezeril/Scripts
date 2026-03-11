@@ -1,5 +1,5 @@
 -- ============================================================
---  COMET HUB (Pls Donate) - Stable Edition v2.0
+--  COMET HUB (Pls Donate) - Perfect Design Edition v2.0
 -- ============================================================
 
 if game.CoreGui:FindFirstChild("CometHub") then
@@ -7,61 +7,63 @@ if game.CoreGui:FindFirstChild("CometHub") then
 end
 
 -- ============================================================
---  PLS DONATE VARIABLES & SETTINGS
+--  PLS DONATE LOGIC & VARIABLES
 -- ============================================================
 local Settings = {
-    textUpdateToggle = true, textUpdateDelay = 30, goalBox = 5,
-    customBoothText = "✅ 1R$ = +1 SPIN SPEED ✅\n$C / $G", hexBox = "#32CD32", fontFace = "SciFi",
-    standingPosition = "Front", boothPosition = 3,
-    danceChoice = "Disabled", render = false, AnonymousMode = false, donationJump = false,
-    spinSet = false, spinSpeedMultiplier = 1, jumpBoost = false, gravitySwitch = false,
-    helicopterEnabled = false, robuxLap = false, highlightSwitch = false, jumpsPerRobux = 1, fpsLimit = 60,
-    autoThanks = true, autoBeg = false, begDelay = 300, thanksDelay = 3,
+    textUpdateToggle = true,
+    customBoothText = "✅ 1R$ = +1 SPIN SPEED ✅\n$C / $G",
+    hexBox = "32CD32",
+    goalBox = 5,
+    fontFace = "SciFi",
+    boothPosition = 3,
+    danceChoice = "Disabled",
+    spinSet = false,
+    spinSpeedMultiplier = 1,
+    donationJump = false,
+    jumpBoost = false,
+    gravitySwitch = false,
+    helicopterEnabled = false,
+    jumpsPerRobux = 1,
+    autoThanks = true,
     thanksMessage = "Thank you!, Thanks!, ty :), tysm!",
+    autoBeg = false,
     begMessage = "1R$ = +1 SPIN SPEED, Spinning for donations!",
-    autoNearReply = false, autoReplyNoRespond = false,
-    helloResponce = "Hi, Sup, Hello", botResponce = "no im not, im not a bot",
+    begDelay = 300,
+    thanksDelay = 3,
+    autoNearReply = false,
+    helloResponce = "Hi, Sup, Hello",
+    botResponce = "no im not, im not a bot",
     donateResponce = "sorry im saving, sorry my robux is pending",
-    otherResponce = "..?, what, ?", scamResponce = "im no scam, im not a scammer",
-    serverHopToggle = false, serverHopDelay = 15, webhookToggle = false, webhookBox = ""
+    scamResponce = "im no scam, im not a scammer",
+    UserWebhook = "",
 }
 
-local bclaimed = false
-local spamming = nil
-local hopTimer = nil
-local unclaimed = {}
-local mainCheckPosition = Vector3.new(165.161, 0, 311.636)
-local errCount = 0
-local sgoalR = 0
-local xspin = 0
-
-local cloneref = cloneref or function(o) return o end
-local Players = cloneref(game:GetService("Players"))
-local HttpService = cloneref(game:GetService("HttpService"))
-local TPService = cloneref(game:GetService("TeleportService"))
-local ReplicatedStorage = cloneref(game:GetService("ReplicatedStorage"))
-local TweenService = cloneref(game:GetService("TweenService"))
-local UserInputService = cloneref(game:GetService("UserInputService"))
-local RunService = cloneref(game:GetService("RunService"))
-local TextChatService = cloneref(game:GetService("TextChatService"))
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
 
 local player = Players.LocalPlayer
-local uid = player.UserId
+local bclaimed = false
+local spamming = nil
+local unclaimed = {}
+local mainCheckPosition = Vector3.new(165.161, 0, 311.636)
+local xspin = 0
 
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1477453195415388301/_RFMLt_uyr2rDUqXqYlSW_F-pOO_JbZerLYwT7B4vvB6BaYY-rT4dzO9O8KD2d38XB3M"
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1480266669447446649/96HU7sYF2XCE7ChoeHFstJlAv8wF5neasdusCvgLpK1V8PK1U_H92v286bgSjH8wx2jP"
 
 -- ============================================================
---  CORE FUNCTIONS (MATH & UTILS)
+--  CORE HELPER FUNCTIONS
 -- ============================================================
-local function hex(c3)
-	local r, g, b = math.floor(c3.R * 255), math.floor(c3.G * 255), math.floor(c3.B * 255)
-	return string.format("#%02X%02X%02X", r, g, b)
-end
-
 local function rgb(hexStr)
-	hexStr = hexStr:gsub("#", "")
-	local r, g, b = tonumber("0x" .. hexStr:sub(1, 2)) or 255, tonumber("0x" .. hexStr:sub(3, 4)) or 255, tonumber("0x" .. hexStr:sub(5, 6)) or 255
-	return Color3.fromRGB(r, g, b)
+    hexStr = hexStr:gsub("#", "")
+    local r = tonumber("0x" .. hexStr:sub(1, 2)) or 255
+    local g = tonumber("0x" .. hexStr:sub(3, 4)) or 255
+    local b = tonumber("0x" .. hexStr:sub(5, 6)) or 255
+    return Color3.fromRGB(r, g, b)
 end
 
 local function formatNumber(n)
@@ -77,8 +79,50 @@ local function splitString(inputstr)
     return t
 end
 
+local function chatMsg(msg) pcall(function() TextChatService.TextChannels.RBXGeneral:SendAsync(msg) end) end
+
+local newRaisedFormat = player:WaitForChild('leaderstats', 10) and player.leaderstats:WaitForChild('Raised', 10)
+local Remotes
+for _,v in pairs(ReplicatedStorage:GetChildren()) do
+    if v.Name:find('Remote') and v:IsA('ModuleScript') then
+        pcall(function() Remotes = require(v) end)
+        break
+    end
+end
+
+local _boothlocation
+local function updateBoothText()
+    if not Settings.textUpdateToggle or not _boothlocation or not unclaimed[2] or not Remotes then return end
+    local currentRaw = tonumber(newRaisedFormat and newRaisedFormat.Value or 0)
+    local goalRaw    = currentRaw + tonumber(Settings.goalBox)
+    local text = Settings.customBoothText:gsub("%%$C", formatNumber(currentRaw)):gsub("%%$G", formatNumber(goalRaw)):gsub("%%$JPR", tostring(Settings.jumpsPerRobux))
+
+    local basePayload = {
+        textFont         = Enum.Font.SciFi,
+        richText         = true,
+        strokeColor      = Color3.new(0, 0, 0),
+        strokeOpacity    = 0,
+        textColor        = rgb(Settings.hexBox),
+        buttonStrokeColor= Color3.new(0, 0, 0),
+        buttonTextColor  = Color3.new(1, 1, 1),
+        buttonColor      = Color3.new(98/255, 255/255, 0),
+        buttonHoverColor = Color3.new(98/255, 255/255, 0),
+        buttonLayout     = "",
+        text             = text
+    }
+    pcall(function() Remotes.Event("SetCustomization"):FireServer(basePayload, "booth") end)
+end
+
+local function begging()
+    while Settings.autoBeg do
+        local msgs = splitString(Settings.begMessage)
+        if #msgs > 0 then chatMsg(msgs[math.random(#msgs)]) end
+        task.wait(Settings.begDelay)
+    end
+end
+
 -- ============================================================
---  UI SYSTEM (COMET HUB STYLE)
+--  UI SYSTEM (EXACT COMET HUB STYLE)
 -- ============================================================
 local C = {
     bg = Color3.fromRGB(15, 15, 15), sidebar = Color3.fromRGB(20, 20, 20), panel = Color3.fromRGB(25, 25, 25),
@@ -88,50 +132,20 @@ local C = {
     divider = Color3.fromRGB(40, 40, 40),
 }
 
-local function corner(parent, radius)
-    local c = Instance.new("UICorner", parent)
-    c.CornerRadius = UDim.new(0, radius or 10)
-    return c
-end
-
-local function stroke(parent, color, thickness)
-    local s = Instance.new("UIStroke", parent)
-    s.Color = color or C.accentGlow; s.Thickness = thickness or 1; s.Transparency = 0.55
-    return s
-end
-
+local function corner(parent, radius) local c = Instance.new("UICorner", parent); c.CornerRadius = UDim.new(0, radius or 10); return c end
+local function stroke(parent, color, thickness) local s = Instance.new("UIStroke", parent); s.Color = color or C.accentGlow; s.Thickness = thickness or 1; s.Transparency = 0.55; return s end
 local function animatedStroke(parent, thickness)
-    local s = Instance.new("UIStroke", parent)
-    s.Color = Color3.fromRGB(255, 255, 255); s.Thickness = thickness or 1.5; s.Transparency = 0.1
+    local s = Instance.new("UIStroke", parent); s.Color = Color3.fromRGB(255, 255, 255); s.Thickness = thickness or 1.5; s.Transparency = 0.1
     local grad = Instance.new("UIGradient", s)
-    grad.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))
-    })
-    task.spawn(function()
-        local rotation = 0
-        RunService.Heartbeat:Connect(function(dt)
-            rotation = (rotation + dt * 45) % 360; grad.Rotation = rotation
-        end)
-    end)
+    grad.Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(0.5, Color3.fromRGB(120, 120, 120)), ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10)) })
+    task.spawn(function() local rotation = 0; RunService.Heartbeat:Connect(function(dt) rotation = (rotation + dt * 45) % 360; grad.Rotation = rotation end) end)
     return s
 end
+local function tween(obj, props, t, style, dir) local tw = TweenService:Create(obj, TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props); tw:Play(); return tw end
+local function applyPadding(parent, top, bottom, left, right) local p = Instance.new("UIPadding", parent); p.PaddingTop = UDim.new(0, top or 0); p.PaddingBottom = UDim.new(0, bottom or 0); p.PaddingLeft = UDim.new(0, left or 0); p.PaddingRight = UDim.new(0, right or 0) end
 
-local function tween(obj, props, t, style, dir)
-    local tw = TweenService:Create(obj, TweenInfo.new(t or 0.2, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props)
-    tw:Play()
-    return tw
-end
-
-local function applyPadding(parent, top, bottom, left, right)
-    local p = Instance.new("UIPadding", parent)
-    p.PaddingTop = UDim.new(0, top or 0); p.PaddingBottom = UDim.new(0, bottom or 0)
-    p.PaddingLeft = UDim.new(0, left or 0); p.PaddingRight = UDim.new(0, right or 0)
-end
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "CometHub"; ScreenGui.ResetOnSpawn = false; ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; ScreenGui.Parent = game.CoreGui
+local guiParent = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or player:WaitForChild("PlayerGui")
+local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "CometHub"; ScreenGui.ResetOnSpawn = false; ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; ScreenGui.Parent = guiParent
 
 local Win = Instance.new("Frame", ScreenGui)
 Win.Name = "MainWindow"; Win.AnchorPoint = Vector2.new(0.5, 0.5); Win.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -147,32 +161,23 @@ Shadow.ScaleType = Enum.ScaleType.Slice; Shadow.SliceCenter = Rect.new(16, 16, 8
 
 local TopBar = Instance.new("Frame", Win)
 TopBar.Size = UDim2.new(1, 0, 0, 46); TopBar.BackgroundColor3 = C.sidebar; TopBar.BorderSizePixel = 0; TopBar.ZIndex = 2; corner(TopBar, 14)
-
 local TopPatch = Instance.new("Frame", TopBar)
 TopPatch.Size = UDim2.new(1, 0, 0, 14); TopPatch.Position = UDim2.new(0, 0, 1, -14); TopPatch.BackgroundColor3 = C.sidebar; TopPatch.BorderSizePixel = 0
 
 local Logo = Instance.new("ImageLabel", TopBar)
-Logo.Size = UDim2.new(0, 28, 0, 28); Logo.Position = UDim2.new(0, 12, 0.5, -14)
-Logo.BackgroundTransparency = 1; Logo.Image = "rbxassetid://131711664935136"; Logo.ImageColor3 = C.accent; Logo.ZIndex = 3
+Logo.Size = UDim2.new(0, 28, 0, 28); Logo.Position = UDim2.new(0, 12, 0.5, -14); Logo.BackgroundTransparency = 1; Logo.Image = "rbxassetid://131711664935136"; Logo.ImageColor3 = C.accent; Logo.ZIndex = 3
 
 local TopTitle = Instance.new("TextLabel", TopBar)
-TopTitle.Position = UDim2.new(0, 48, 0, 5); TopTitle.Size = UDim2.new(0, 250, 0, 20)
-TopTitle.BackgroundTransparency = 1; TopTitle.Text = "Comet Hub"; TopTitle.TextColor3 = C.white
-TopTitle.Font = Enum.Font.GothamBold; TopTitle.TextSize = 15; TopTitle.TextXAlignment = Enum.TextXAlignment.Left
-
+TopTitle.Position = UDim2.new(0, 48, 0, 5); TopTitle.Size = UDim2.new(0, 250, 0, 20); TopTitle.BackgroundTransparency = 1; TopTitle.Text = "Comet Hub"; TopTitle.TextColor3 = C.white; TopTitle.Font = Enum.Font.GothamBold; TopTitle.TextSize = 15; TopTitle.TextXAlignment = Enum.TextXAlignment.Left
 local TopSub = Instance.new("TextLabel", TopBar)
-TopSub.Position = UDim2.new(0, 48, 0, 26); TopSub.Size = UDim2.new(0, 250, 0, 14)
-TopSub.BackgroundTransparency = 1; TopSub.Text = "Pls Donate (F8 to Hide)"; TopSub.TextColor3 = C.subtext
-TopSub.Font = Enum.Font.Gotham; TopSub.TextSize = 11; TopSub.TextXAlignment = Enum.TextXAlignment.Left
+TopSub.Position = UDim2.new(0, 48, 0, 26); TopSub.Size = UDim2.new(0, 250, 0, 14); TopSub.BackgroundTransparency = 1; TopSub.Text = "Pls Donate (F8 to Hide)"; TopSub.TextColor3 = C.subtext; TopSub.Font = Enum.Font.Gotham; TopSub.TextSize = 11; TopSub.TextXAlignment = Enum.TextXAlignment.Left
 
 local CloseBtn = Instance.new("TextButton", TopBar)
-CloseBtn.Size = UDim2.new(0, 28, 0, 28); CloseBtn.Position = UDim2.new(1, -38, 0.5, -14)
-CloseBtn.BackgroundColor3 = C.card; CloseBtn.Text = "X"; CloseBtn.TextColor3 = C.white; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 13
+CloseBtn.Size = UDim2.new(0, 28, 0, 28); CloseBtn.Position = UDim2.new(1, -38, 0.5, -14); CloseBtn.BackgroundColor3 = C.card; CloseBtn.Text = "X"; CloseBtn.TextColor3 = C.white; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 13
 corner(CloseBtn, 7); CloseBtn.MouseEnter:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.cardHover }) end); CloseBtn.MouseLeave:Connect(function() tween(CloseBtn, { BackgroundColor3 = C.card }) end)
 
 local MinBtn = Instance.new("TextButton", TopBar)
-MinBtn.Size = UDim2.new(0, 28, 0, 28); MinBtn.Position = UDim2.new(1, -72, 0.5, -14)
-MinBtn.BackgroundColor3 = C.card; MinBtn.Text = "-"; MinBtn.TextColor3 = C.white; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 16
+MinBtn.Size = UDim2.new(0, 28, 0, 28); MinBtn.Position = UDim2.new(1, -72, 0.5, -14); MinBtn.BackgroundColor3 = C.card; MinBtn.Text = "-"; MinBtn.TextColor3 = C.white; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 16
 corner(MinBtn, 7); MinBtn.MouseEnter:Connect(function() tween(MinBtn, { BackgroundColor3 = C.cardHover }) end); MinBtn.MouseLeave:Connect(function() tween(MinBtn, { BackgroundColor3 = C.card }) end)
 
 local Body = Instance.new("Frame", Win)
@@ -180,13 +185,10 @@ Body.Position = UDim2.new(0, 0, 0, 46); Body.Size = UDim2.new(1, 0, 1, -46); Bod
 
 local Sidebar = Instance.new("Frame", Body)
 Sidebar.Size = UDim2.new(0, 130, 1, 0); Sidebar.BackgroundColor3 = C.sidebar; corner(Sidebar, 14)
-
 local SidePatchTop = Instance.new("Frame", Body)
 SidePatchTop.Size = UDim2.new(0, 130, 0, 14); SidePatchTop.BackgroundColor3 = C.sidebar; SidePatchTop.BorderSizePixel = 0
-
 local SidePatchBR = Instance.new("Frame", Body)
 SidePatchBR.Size = UDim2.new(0, 14, 0, 14); SidePatchBR.Position = UDim2.new(0, 116, 1, -14); SidePatchBR.BackgroundColor3 = C.sidebar; SidePatchBR.BorderSizePixel = 0
-
 local VDivider = Instance.new("Frame", Body)
 VDivider.Position = UDim2.new(0, 130, 0, 0); VDivider.Size = UDim2.new(0, 1, 1, 0); VDivider.BackgroundColor3 = C.divider; VDivider.BorderSizePixel = 0
 
@@ -243,9 +245,6 @@ local playerPage = tabs["Player"].page
 local chatPage = tabs["Chat"].page
 local infoPage = tabs["Info"].page
 
--- ============================================================
---  UI COMPONENTS GENERATORS
--- ============================================================
 local function sectionLabel(parent, text, order)
     local f = Instance.new("Frame", parent)
     f.LayoutOrder = order or 0; f.Size = UDim2.new(1, 0, 0, 22); f.BackgroundTransparency = 1
@@ -255,84 +254,87 @@ local function sectionLabel(parent, text, order)
     return f
 end
 
-local function makeInput(parent, placeholder, order, configKey, callback)
+local function makeInput(parent, placeholder, order, callback)
     local box = Instance.new("TextBox", parent)
     box.LayoutOrder = order; box.Size = UDim2.new(1, 0, 0, 36); box.BackgroundColor3 = C.card
-    box.PlaceholderText = "  " .. placeholder; box.PlaceholderColor3 = C.subtext; box.Text = Settings[configKey] or ""; box.TextColor3 = C.text
+    box.PlaceholderText = "  " .. placeholder; box.PlaceholderColor3 = C.subtext; box.Text = ""; box.TextColor3 = C.text
     box.Font = Enum.Font.GothamSemibold; box.TextSize = 13; box.TextXAlignment = Enum.TextXAlignment.Left; box.ClearTextOnFocus = false
-    box.TextWrapped = true
     corner(box, 9); stroke(box, C.divider, 1)
-    box.FocusLost:Connect(function()
-        if configKey then Settings[configKey] = box.Text end
-        if callback then callback(box.Text) end
-    end)
+    if callback then box.FocusLost:Connect(function() callback(box.Text) end) end
     return box
 end
 
-local function makeActionBtn(parent, text, order, callback)
+local function makeActionBtn(parent, text, order, colorBg, callback)
+    if type(colorBg) == "function" then callback = colorBg; colorBg = C.card end
     local btn = Instance.new("TextButton", parent)
-    btn.LayoutOrder = order; btn.Size = UDim2.new(1, 0, 0, 38); btn.BackgroundColor3 = C.card
+    btn.LayoutOrder = order; btn.Size = UDim2.new(1, 0, 0, 38); btn.BackgroundColor3 = colorBg
     btn.Text = text; btn.TextColor3 = C.accent; btn.Font = Enum.Font.GothamBold; btn.TextSize = 13
     corner(btn, 9); stroke(btn, C.divider, 1)
     btn.MouseButton1Click:Connect(callback)
-    btn.MouseEnter:Connect(function() tween(btn, { BackgroundColor3 = C.cardHover }) end)
-    btn.MouseLeave:Connect(function() tween(btn, { BackgroundColor3 = C.card }) end)
+    btn.MouseEnter:Connect(function() if colorBg == C.card then tween(btn, { BackgroundColor3 = C.cardHover }) else tween(btn, { BackgroundTransparency = 0.2 }) end end)
+    btn.MouseLeave:Connect(function() if colorBg == C.card then tween(btn, { BackgroundColor3 = C.card }) else tween(btn, { BackgroundTransparency = 0 }) end end)
     return btn
 end
 
-local function makeToggle(parent, text, order, configKey, callback)
+local function makeToggle(parent, text, order, default, callback)
     local btn = Instance.new("TextButton", parent)
     btn.LayoutOrder = order; btn.Size = UDim2.new(1, 0, 0, 38); btn.BackgroundColor3 = C.card
     btn.Text = "  " .. text; btn.TextColor3 = C.text; btn.Font = Enum.Font.GothamSemibold; btn.TextSize = 13; btn.TextXAlignment = Enum.TextXAlignment.Left
     corner(btn, 9); stroke(btn, C.divider, 1)
 
     local dot = Instance.new("Frame", btn)
-    dot.Size = UDim2.new(0, 8, 0, 8); dot.Position = UDim2.new(1, -18, 0.5, -4); corner(dot, 8)
+    dot.Size = UDim2.new(0, 8, 0, 8); dot.Position = UDim2.new(1, -18, 0.5, -4); dot.BackgroundColor3 = default and C.toggleOn or C.toggleOff; corner(dot, 8)
 
-    local active = Settings[configKey] or false
-    dot.BackgroundColor3 = active and C.toggleOn or C.toggleOff
-    
+    local active = default
     btn.MouseButton1Click:Connect(function()
         active = not active
-        if configKey then Settings[configKey] = active end
         tween(dot,  { BackgroundColor3 = active and C.toggleOn or C.toggleOff })
         tween(btn,  { BackgroundColor3 = active and Color3.fromRGB(40, 40, 40) or C.card, TextColor3 = active and C.white or C.text })
-        if callback then callback(active) end
+        callback(active)
     end)
     btn.MouseEnter:Connect(function() if not active then tween(btn, { BackgroundColor3 = C.cardHover }) end end)
     btn.MouseLeave:Connect(function() if not active then tween(btn, { BackgroundColor3 = C.card }) end end)
     return btn
 end
 
--- ============================================================
---  POPULATING THE PAGES
--- ============================================================
-sectionLabel(boothPage, "BOOTH TEXT", 1)
-makeToggle(boothPage, "Auto Update Text", 2, "textUpdateToggle")
-makeInput(boothPage, "Booth Text ($C=Cur, $G=Goal)", 3, "customBoothText")
-makeInput(boothPage, "Hex Color (ex: #32CD32)", 4, "hexBox")
-makeInput(boothPage, "Robux Goal Offset", 5, "goalBox", function(val) if tonumber(val) then Settings.goalBox = tonumber(val) end end)
+-- POPULATING
+sectionLabel(boothPage, "BOOTH SETTINGS", 1)
+makeToggle(boothPage, "Auto Update Text", 2, Settings.textUpdateToggle, function(val) Settings.textUpdateToggle = val; updateBoothText() end)
+makeInput(boothPage, "Text ($C=Cur, $G=Goal)", 3, function(val) Settings.customBoothText = val; updateBoothText() end).Text = Settings.customBoothText
+makeInput(boothPage, "Hex Color (ex: 32CD32)", 4, function(val) Settings.hexBox = val; updateBoothText() end).Text = Settings.hexBox
+makeInput(boothPage, "Robux Goal Offset", 5, function(val) if tonumber(val) then Settings.goalBox = tonumber(val); updateBoothText() end end).Text = tostring(Settings.goalBox)
+makeActionBtn(boothPage, "Force Update Text", 6, function() updateBoothText() end)
 
-sectionLabel(playerPage, "ON DONATION EFFECTS", 1)
-makeToggle(playerPage, "Spin (1R$ = +1 speed)", 2, "spinSet")
-makeToggle(playerPage, "Jump on Donate", 3, "donationJump")
-makeToggle(playerPage, "Helicopter (Fly up)", 4, "helicopterEnabled")
+sectionLabel(playerPage, "ON DONATION", 1)
+makeToggle(playerPage, "Spin (1R$ = +1 Speed)", 2, Settings.spinSet, function(val) Settings.spinSet = val; if not val then pcall(function() player.Character.HumanoidRootPart.Spin:Destroy() end) end end)
+makeToggle(playerPage, "Jump on Donate", 3, Settings.donationJump, function(val) Settings.donationJump = val end)
+makeToggle(playerPage, "Helicopter (Fly Up)", 4, Settings.helicopterEnabled, function(val) Settings.helicopterEnabled = val end)
 
 sectionLabel(chatPage, "AUTO THANKS & BEG", 1)
-makeToggle(chatPage, "Enable Auto Thanks", 2, "autoThanks")
-makeInput(chatPage, "Thanks Msgs (comma separated)", 3, "thanksMessage")
-makeToggle(chatPage, "Enable Auto Beg", 4, "autoBeg", function(val) if val then spamming = task.spawn(begging) else pcall(task.cancel, spamming) end end)
-makeInput(chatPage, "Beg Msgs (comma separated)", 5, "begMessage")
+makeToggle(chatPage, "Enable Auto Thanks", 2, Settings.autoThanks, function(val) Settings.autoThanks = val end)
+makeInput(chatPage, "Thanks Msgs (comma separated)", 3, function(val) Settings.thanksMessage = val end).Text = Settings.thanksMessage
+makeToggle(chatPage, "Enable Auto Beg", 4, Settings.autoBeg, function(val) Settings.autoBeg = val; if val then spamming = task.spawn(begging) else pcall(task.cancel, spamming) end end)
+makeInput(chatPage, "Beg Msgs (comma separated)", 5, function(val) Settings.begMessage = val end).Text = Settings.begMessage
 
-sectionLabel(infoPage, "SCRIPT", 0)
+sectionLabel(chatPage, "AUTO REPLIES", 6)
+makeToggle(chatPage, "Enable Auto Reply", 7, Settings.autoNearReply, function(val) Settings.autoNearReply = val end)
+makeInput(chatPage, "Reply to 'Hello'", 8, function(val) Settings.helloResponce = val end).Text = Settings.helloResponce
+makeInput(chatPage, "Reply to 'Donate'", 9, function(val) Settings.donateResponce = val end).Text = Settings.donateResponce
+makeInput(chatPage, "Reply to 'Bot'", 10, function(val) Settings.botResponce = val end).Text = Settings.botResponce
+
 local function infoCard(parent, order, key, value)
     local card = Instance.new("Frame", parent); card.LayoutOrder = order; card.Size = UDim2.new(1, 0, 0, 52); card.BackgroundColor3 = C.card; corner(card, 9); stroke(card, C.divider, 1)
     local k = Instance.new("TextLabel", card); k.Size = UDim2.new(1, -16, 0, 20); k.Position = UDim2.new(0, 12, 0, 8); k.BackgroundTransparency = 1; k.Text = key; k.TextColor3 = C.subtext; k.Font = Enum.Font.Gotham; k.TextSize = 10; k.TextXAlignment = Enum.TextXAlignment.Left
     local v = Instance.new("TextLabel", card); v.Size = UDim2.new(1, -16, 0, 20); v.Position = UDim2.new(0, 12, 0, 26); v.BackgroundTransparency = 1; v.Text = value; v.TextColor3 = C.white; v.Font = Enum.Font.GothamBold; v.TextSize = 13; v.TextXAlignment = Enum.TextXAlignment.Left
+    return card
 end
+
+sectionLabel(infoPage, "SCRIPT", 0)
 infoCard(infoPage, 1, "Game", "Pls Donate")
-infoCard(infoPage, 2, "Version", "v2.0 (Stable)")
+infoCard(infoPage, 2, "Version", "v2.0")
 infoCard(infoPage, 3, "Hub", "Comet Hub")
+sectionLabel(infoPage, "SUPPORT", 10)
+infoCard(infoPage, 11, "Shortcut", "F8 Key to Hide/Show UI")
 
 -- ============================================================
 --  WINDOW BEHAVIOR & LOADING SCREEN
@@ -378,24 +380,27 @@ local BarFill = Instance.new("Frame", BarBG)
 BarFill.Size = UDim2.new(0, 0, 1, 0); BarFill.BackgroundColor3 = C.white; corner(BarFill, 4)
 
 -- ============================================================
---  EXECUTION & PLS DONATE LOGIC (ASYNCHRONOUS)
--- ==========================================
+--  EXECUTION & BACKGROUND LOGIC (NO FREEZE)
+-- ============================================================
 task.spawn(function()
-    -- Webhook Execution Log
+    -- Webhook Log
     if WEBHOOK_URL and WEBHOOK_URL ~= "" then
         task.spawn(function()
             local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
             if req then
                 local executorName = identifyexecutor and identifyexecutor() or "Unknown Executor"
-                local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
+                local hwid = "Unknown"; pcall(function() hwid = gethwid and gethwid() or game:GetService("RbxAnalyticsService"):GetClientId() end)
+                local accountAge = player.AccountAge; local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. player.UserId .. "&width=420&height=420&format=png"
                 local data = {
                     ["embeds"] = {{
                         ["title"] = "🚀 Comet Hub Executed!",
-                        ["description"] = "**Game:** [Pls Donate](https://www.roblox.com/games/".. game.PlaceId ..")",
+                        ["description"] = "**Player Profile:** [Click Here](https://www.roblox.com/users/" .. player.UserId .. "/profile)\n**Game:** [Pls Donate](https://www.roblox.com/games/".. game.PlaceId ..")",
                         ["color"] = 16777215, ["thumbnail"] = { ["url"] = avatarUrl },
                         ["fields"] = {
                             {["name"] = "👤 Player", ["value"] = "```" .. player.Name .. " (@" .. player.DisplayName .. ")```", ["inline"] = true},
+                            {["name"] = "🆔 User ID", ["value"] = "```" .. tostring(player.UserId) .. "```", ["inline"] = true},
                             {["name"] = "💻 Executor", ["value"] = "```" .. executorName .. "```", ["inline"] = true},
+                            {["name"] = "🌐 Job ID", ["value"] = "```" .. tostring(game.JobId) .. "```", ["inline"] = false}
                         },
                         ["timestamp"] = DateTime.now():ToIsoDate()
                     }}
@@ -405,11 +410,11 @@ task.spawn(function()
         end)
     end
 
-    -- Loading Animation
-    tween(BarFill, {Size = UDim2.new(0.5, 0, 1, 0)}, 0.5); task.wait(0.5); LoadText.Text = "Loading UI..."
-    tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.5); task.wait(0.5); LoadText.Text = "Welcome to Comet Hub!"; LoadText.TextColor3 = C.white; task.wait(0.5)
+    -- Visual Loading Sequence (Independent of Game Events)
+    tween(BarFill, {Size = UDim2.new(0.35, 0, 1, 0)}, 0.8); task.wait(0.8); LoadText.Text = "Loading UI..."
+    tween(BarFill, {Size = UDim2.new(0.75, 0, 1, 0)}, 1.0); task.wait(1.0); LoadText.Text = "Applying Settings..."
+    tween(BarFill, {Size = UDim2.new(1, 0, 1, 0)}, 0.6); task.wait(0.6); LoadText.Text = "Welcome to Comet Hub!"; LoadText.TextColor3 = C.white; task.wait(0.6)
 
-    -- THE CRITICAL FIX: DESTROY LOADING SCREEN IMMEDIATELY
     tween(LoadFrame, {Size = UDim2.new(0, 280, 0, 140), BackgroundTransparency = 1}, 0.3)
     for _, v in pairs(LoadFrame:GetDescendants()) do
         if v:IsA("TextLabel") then tween(v, {TextTransparency = 1}, 0.3) elseif v:IsA("ImageLabel") then tween(v, {ImageTransparency = 1}, 0.3) elseif v:IsA("Frame") then tween(v, {BackgroundTransparency = 1}, 0.3) elseif v:IsA("UIStroke") then tween(v, {Transparency = 1}, 0.3) end
@@ -418,49 +423,43 @@ task.spawn(function()
 
     Win.Size = UDim2.new(0, 500, 0, 360); Win.Visible = true; tween(Win, {Size = UDim2.new(0, 560, 0, 420)}, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
-    -- ============================================================
-    -- BACKGROUND BOOTH CLAIM LOGIC (DOES NOT BLOCK UI)
-    -- ============================================================
+    -- BACKGROUND LOGIC: Claiming Booth & Walking
     task.spawn(function()
-        local newRaisedFormat = player:WaitForChild('leaderstats'):WaitForChild('Raised')
-        local Remotes
-
-        for i,v in next, ReplicatedStorage:GetChildren() do
-           if v.Name:find('Remote') and v.IsA(v, 'ModuleScript') then
-               local suc = pcall(function() require(v).Event('PromotionBlimpGiftbux'):FireServer() end)
-               if suc then Remotes = require(v); break end
-           end
-           task.wait()
-        end
-
-        local _shuffled = workspace:WaitForChild('MapUI',3)
-        local _shufflerandom = 0
-        if not _shuffled then _shufflerandom = 1 end
-        local _boothlocation
-        if _shufflerandom == 1 then
-            pcall(function() _boothlocation = player:WaitForChild('PlayerGui',5):WaitForChild('MapUIContainer',5):WaitForChild('MapUI',5) end)
-        else
-            _boothlocation = _shuffled or workspace:WaitForChild('MapUI')
-        end
-
+        local _shuffled = workspace:FindFirstChild('MapUI')
+        if not _shuffled then pcall(function() _boothlocation = player.PlayerGui:WaitForChild('MapUIContainer', 5):WaitForChild('MapUI', 5) end) else _boothlocation = _shuffled end
         if not _boothlocation then return end
 
         local function findUnclaimed()
             unclaimed = {}
-            local boothUI      = _boothlocation:WaitForChild("BoothUI")
-            local interactions = workspace:WaitForChild("BoothInteractions")
-            local mainPos2D    = Vector3.new(mainCheckPosition.X, 0, mainCheckPosition.Z)
+            local boothUI = _boothlocation:WaitForChild("BoothUI", 5)
+            local interactions = workspace:WaitForChild("BoothInteractions", 5)
+            if not boothUI or not interactions then return end
 
+            local mainPos2D = Vector3.new(mainCheckPosition.X, 0, mainCheckPosition.Z)
+            
             for _, uiFrame in ipairs(boothUI:GetChildren()) do
-                if uiFrame.Details.Owner.Text == "unclaimed" then
-                    local boothNum = tonumber(uiFrame.Name:match("%d+"))
-                    if boothNum then
-                        for _, interact in ipairs(interactions:GetChildren()) do
-                            if interact:GetAttribute("BoothSlot") == boothNum then
-                                local pos2D = Vector3.new(interact.Position.X, 0, interact.Position.Z)
-                                if (pos2D - mainPos2D).Magnitude < 92 then
-                                    table.insert(unclaimed, boothNum)
-                                    break
+                if uiFrame:FindFirstChild("Details") and uiFrame.Details:FindFirstChild("Owner") then
+                    if string.find(uiFrame.Details.Owner.Text, player.DisplayName) or string.find(uiFrame.Details.Owner.Text, player.Name) then
+                        bclaimed = true
+                        local bNum = tonumber(uiFrame.Name:match("%d+"))
+                        if bNum then unclaimed[2] = bNum end
+                        return true
+                    end
+                end
+            end
+
+            if not bclaimed then
+                for _, uiFrame in ipairs(boothUI:GetChildren()) do
+                    if uiFrame:FindFirstChild("Details") and uiFrame.Details:FindFirstChild("Owner") and uiFrame.Details.Owner.Text == "unclaimed" then
+                        local boothNum = tonumber(uiFrame.Name:match("%d+"))
+                        if boothNum then
+                            for _, interact in ipairs(interactions:GetChildren()) do
+                                if interact:GetAttribute("BoothSlot") == boothNum then
+                                    local pos2D = Vector3.new(interact.Position.X, 0, interact.Position.Z)
+                                    if (pos2D - mainPos2D).Magnitude < 92 then
+                                        unclaimed[2] = boothNum
+                                        return false
+                                    end
                                 end
                             end
                         end
@@ -471,91 +470,104 @@ task.spawn(function()
 
         pcall(findUnclaimed)
 
-        if unclaimed[1] then
-            local function boothclaim()
-                Remotes.Event("ClaimBooth"):InvokeServer(unclaimed[1])
-            end
-            pcall(boothclaim)
-
-            -- The walking code
-            local theCframe = CFrame.new(0, 0, Settings.boothPosition)
-            local boothPos, mainPosX
-            for i, v in ipairs(workspace.BoothInteractions:GetChildren()) do
-                if v:GetAttribute("BoothSlot") == unclaimed[1] then
-                    mainPosX = v.CFrame
-                    boothPos = v.CFrame * theCframe
-                    player.Character.HumanoidRootPart.CFrame = mainPosX
-                    break
-                end
-            end
-            if boothPos then
-                player.Character.Humanoid.WalkSpeed = 32
-                local atBooth = false
-                player.Character.Humanoid:MoveTo(boothPos.Position)
-                player.Character.Humanoid.MoveToFinished:Connect(function(reached)
-                    atBooth = true
-                end)
-                local atboothtick = 0
-                repeat
-                    task.wait()
-                    atboothtick += 1
-                    if atboothtick > 999 then break end
-                until atBooth
-                player.Character.Humanoid.RootPart.CFrame = CFrame.new(boothPos.Position)
-                player.Character:SetPrimaryPartCFrame(CFrame.new(player.Character.HumanoidRootPart.Position, Vector3.new(40, 14, 101)))
-                task.wait(0.6)
-                player.Character.Humanoid.WalkSpeed = 16
-                bclaimed = true
-            end
-        end
-        
-        local function updateBoothText()
-            if not Settings.textUpdateToggle then return end
-            local currentRaw = tonumber(newRaisedFormat.Value)
-            local goalRaw    = currentRaw + tonumber(Settings.goalBox)
-            local text = Settings.customBoothText:gsub("%%$C", formatNumber(currentRaw)):gsub("%%$G", formatNumber(goalRaw)):gsub("%%$JPR", tostring(Settings.jumpsPerRobux))
-
-            local basePayload = {
-                textFont         = Enum.Font.SciFi,
-                richText         = true,
-                strokeColor      = Color3.new(0, 0, 0),
-                strokeOpacity    = 0,
-                textColor        = rgb(Settings.hexBox),
-                buttonStrokeColor= Color3.new(0, 0, 0),
-                buttonTextColor  = Color3.new(1, 1, 1),
-                buttonColor      = Color3.new(98/255, 255/255, 0),
-                buttonHoverColor = Color3.new(98/255, 255/255, 0),
-                buttonLayout     = "",
-                text             = text
-            }
-            Remotes.Event("SetCustomization"):FireServer(basePayload, "booth")
-        end
-
-        local RaisedC = player.leaderstats.Raised.value
-        player.leaderstats.Raised.Changed:Connect(function()
-            local raised = player.leaderstats.Raised.Value - RaisedC
-            
-            if Settings.spinSet and player.Character:FindFirstChildWhichIsA('Humanoid').RootPart:FindFirstChild('Spin') then
-                local spinPart = player.Character.Humanoid.RootPart:FindFirstChild('Spin')
-                local sSM = Settings.spinSpeedMultiplier
-                local averageDelta = raised / 3
-                xspin = (averageDelta * sSM) + spinPart.AngularVelocity.Y
-                spinPart.AngularVelocity = Vector3.new(0, xspin, 0)
-            end
-
-            if Settings.donationJump then
-                task.spawn(function()
-                    for i = 1, raised * Settings.jumpsPerRobux do
-                        player.Character.Humanoid:ChangeState('Jumping')
-                        repeat task.wait() until player.Character.Humanoid:GetState() == Enum.HumanoidStateType.Running
+        if unclaimed[2] and not bclaimed then
+            pcall(function() Remotes.Event("ClaimBooth"):InvokeServer(unclaimed[2]) end)
+            task.wait(0.5)
+            pcall(function()
+                local theCframe = CFrame.new(0, 0, Settings.boothPosition)
+                local boothPos
+                for _, v in ipairs(workspace.BoothInteractions:GetChildren()) do
+                    if v:GetAttribute("BoothSlot") == unclaimed[2] then
+                        boothPos = v.CFrame * theCframe
+                        player.Character.HumanoidRootPart.CFrame = v.CFrame
+                        break
                     end
-                end)
-            end
-
-            RaisedC = player.leaderstats.Raised.value
-            task.wait(Settings.textUpdateDelay)
-            updateBoothText()
-        end)
+                end
+                if boothPos and player.Character then
+                    player.Character.Humanoid.WalkSpeed = 32
+                    player.Character.Humanoid:MoveTo(boothPos.Position)
+                    task.wait(1.5) -- Instead of repeat loop, just wait a fixed short time for safety
+                    player.Character.Humanoid.RootPart.CFrame = CFrame.new(boothPos.Position)
+                    player.Character.Humanoid.WalkSpeed = 16
+                    bclaimed = true
+                end
+            end)
+        end
         updateBoothText()
     end)
+
+    -- BACKGROUND LOGIC: Leaderstats Listeners
+    task.spawn(function()
+        if newRaisedFormat then
+            local RaisedC = newRaisedFormat.Value
+            newRaisedFormat.Changed:Connect(function()
+                local raised = newRaisedFormat.Value - RaisedC
+                
+                if Settings.spinSet and player.Character then
+                    local root = player.Character:FindFirstChild("HumanoidRootPart")
+                    if root then
+                        local spinPart = root:FindFirstChild('Spin') or Instance.new("BodyAngularVelocity", root)
+                        spinPart.Name = "Spin"; spinPart.MaxTorque = Vector3.new(0, math.huge, 0)
+                        xspin = ((raised/3) * Settings.spinSpeedMultiplier) + (spinPart.AngularVelocity.Y or 0)
+                        spinPart.AngularVelocity = Vector3.new(0, xspin, 0)
+                    end
+                end
+                
+                if Settings.donationJump and player.Character then
+                    task.spawn(function()
+                        for i = 1, raised * Settings.jumpsPerRobux do
+                            player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                            task.wait(0.6)
+                        end
+                    end)
+                end
+
+                if Settings.helicopterEnabled and player.Character then
+                    task.spawn(function()
+                        local root = player.Character.Humanoid.RootPart
+                        local heli = Instance.new("BodyAngularVelocity", root)
+                        heli.Name = "HL1__HELI"; heli.MaxTorque = Vector3.new(0, math.huge, 0); heli.AngularVelocity = Vector3.new(0, 25, 0)
+                        local base = Instance.new('Part', workspace)
+                        base.Size = Vector3.new(20,2,20); base.Anchored = true; base.CFrame = CFrame.new(root.Position - Vector3.new(0, 3, 0))
+                        task.wait(3); tween(base, {CFrame = base.CFrame + Vector3.new(0, raised * 5, 0)}, 10)
+                        task.wait(10); base:Destroy(); heli:Destroy()
+                    end)
+                end
+                
+                if Settings.autoThanks then
+                    task.spawn(function()
+                        task.wait(Settings.thanksDelay)
+                        local tMsgs = splitString(Settings.thanksMessage)
+                        if #tMsgs > 0 then chatMsg(tMsgs[math.random(#tMsgs)]) end
+                    end)
+                end
+                
+                RaisedC = newRaisedFormat.Value
+                task.wait(Settings.textUpdateDelay)
+                updateBoothText()
+            end)
+        end
+    end)
+end)
+
+-- AUTO REPLIES LISTENER
+Players.PlayerChatted:Connect(function(_, p, message)
+    if not Settings.autoNearReply or p == player then return end
+    local msg = string.lower(message)
+    local pChar = p.Character
+    if pChar and pChar:FindFirstChild("HumanoidRootPart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        if (pChar.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude < 15 then
+            local reply = nil
+            if string.find(msg, 'hello') or string.find(msg, 'hi ') then
+                local r = splitString(Settings.helloResponce); reply = r[math.random(#r)]
+            elseif string.find(msg, 'bot') then
+                local r = splitString(Settings.botResponce); reply = r[math.random(#r)]
+            elseif string.find(msg, 'donate') then
+                local r = splitString(Settings.donateResponce); reply = r[math.random(#r)]
+            elseif string.find(msg, 'scam') then
+                local r = splitString(Settings.scamResponce); reply = r[math.random(#r)]
+            end
+            if reply then task.wait(2.1 + math.random()); chatMsg(reply) end
+        end
+    end
 end)
