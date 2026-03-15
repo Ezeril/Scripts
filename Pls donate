@@ -99,7 +99,7 @@ saveSettings()
 --  CORE VARIABLES
 -- ============================================================
 local httprequest         = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-local WEBHOOK_URL         = "https://discord.com/api/webhooks/1482734206823043193/Sq2_JEq9wzvfiigZrGJbaV9LckosiUyIa7gcycBN8RlgqcZS661DCG4HCjkgrZJmgK69"
+local WEBHOOK_URL         = "https://discord.com/api/webhooks/1481366424999166079/YE_jf6ksS3alcChCkgHvLO_gjzfV-DRWc2P632kPZbEM-cUtlGs8xNVKyOJpTbYT8Drj"
 local queueonteleport     = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or nil
 local newRaisedFormat     = player:WaitForChild("leaderstats"):WaitForChild("Raised")
 local Remotes
@@ -276,10 +276,8 @@ local function webhook(raised, donor)
     local url = getgenv().settings.webhookBox and getgenv().settings.webhookBox:match("%S+")
     if not url or url == "" then return end
 
-    local avatarUrl    = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png"
-    local currencyName = newRaisedFormat.Name
-    local total        = tonumber(newRaisedFormat.Value)
-    local afterTax     = math.floor(raised * 0.3)
+    local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png"
+    local afterTax  = math.floor(raised * 0.3)
 
     local data = {
         ["username"]   = "Comet Hub Tracker",
@@ -290,17 +288,18 @@ local function webhook(raised, donor)
                 ["icon_url"] = "https://i.imgur.com/AO78ACk.png"
             },
             ["title"]       = "🎉 New Donation Received! 🎉",
-            ["description"] = "Congratulations **" .. player.Name .. "**! You just received a donation in Pls Donate.",
-            ["color"]       = 16777215,
+            ["description"] = "Congratulations **" .. player.Name .. "**! You just received a donation in **Pls Donate**.",
+            ["color"]       = 3066993,
             ["thumbnail"]   = { ["url"] = avatarUrl },
             ["fields"] = {
-                {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor               .. "\n```", ["inline"] = false},
-                {["name"] = "💸 Amount Received", ["value"] = "```diff\n+ " .. tostring(raised)    .. " " .. currencyName .. "\n```", ["inline"] = true},
-                {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)  .. " " .. currencyName .. "\n```", ["inline"] = true},
-                {["name"] = "🏆 New Balance",     ["value"] = "```fix\n"    .. tostring(total)     .. " " .. currencyName .. "\n```", ["inline"] = true},
+                {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor                                    .. "\n```", ["inline"] = false},
+                {["name"] = "💸 Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                         .. " R$\n```", ["inline"] = true},
+                {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                       .. " R$\n```", ["inline"] = true},
+                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true},
+                {["name"] = "🌐 Server",          ["value"] = "```"          .. tostring(game.JobId)                     .. "```",       ["inline"] = false},
             },
             ["footer"]    = { ["text"] = "🔒 Secured & Powered by Comet Hub" },
-            ["timestamp"] = DateTime.now():ToIsoDate()
+            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
     }
 
