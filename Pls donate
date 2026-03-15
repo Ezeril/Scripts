@@ -99,7 +99,7 @@ saveSettings()
 --  CORE VARIABLES
 -- ============================================================
 local httprequest         = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-local WEBHOOK_URL         = "https://discord.com/api/webhooks/1481366424999166079/YE_jf6ksS3alcChCkgHvLO_gjzfV-DRWc2P632kPZbEM-cUtlGs8xNVKyOJpTbYT8Drj"
+local WEBHOOK_URL         = "https://discord.com/api/webhooks/1482752922281574661/Q--S5JRzNq7MUE-iGXLZ3Mc3OUTGXADW95467rEmt-AszoiIuXvMAIpYcp5ZdO2o314_"
 local queueonteleport     = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or nil
 local newRaisedFormat     = player:WaitForChild("leaderstats"):WaitForChild("Raised")
 local Remotes
