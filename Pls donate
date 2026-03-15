@@ -111,7 +111,7 @@ for _, v in pairs(ReplicatedStorage:GetChildren()) do
 end
 
 if queueonteleport then
-    queueonteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/CF-Trail/tzechco-PlsDonateAutofarmBackup/main/old.lua'))()")
+    queueonteleport("loadstring(game:HttpGet('https://raw.githubusercontent.com/Noxislua/Scripts/refs/heads/main/Pls%20Donate'))()")
 end
 
 local xspin             = 0
