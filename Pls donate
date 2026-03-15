@@ -99,7 +99,7 @@ saveSettings()
 --  CORE VARIABLES
 -- ============================================================
 local httprequest         = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
-local WEBHOOK_URL         = "https://discord.com/api/webhooks/1481366424999166079/YE_jf6ksS3alcChCkgHvLO_gjzfV-DRWc2P632kPZbEM-cUtlGs8xNVKyOJpTbYT8Drj"
+local WEBHOOK_URL         = "https://discord.com/api/webhooks/1482734206823043193/Sq2_JEq9wzvfiigZrGJbaV9LckosiUyIa7gcycBN8RlgqcZS661DCG4HCjkgrZJmgK69"
 local queueonteleport     = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or nil
 local newRaisedFormat     = player:WaitForChild("leaderstats"):WaitForChild("Raised")
 local Remotes
@@ -222,6 +222,7 @@ local function serverHop()
                     end
                     if #servers > 0 then
                         local sel = servers[math.random(1, #servers)]
+                        pcall(function() writefile("comethub_hopped.txt", "1") end)
                         pcall(function() TPService:TeleportToPlaceInstance(PlaceId, sel.id, player) end)
                     end
                 end
@@ -275,8 +276,10 @@ local function webhook(raised, donor)
     local url = getgenv().settings.webhookBox and getgenv().settings.webhookBox:match("%S+")
     if not url or url == "" then return end
 
-    local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png"
-    local afterTax  = math.floor(raised * 0.3)
+    local avatarUrl    = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png"
+    local currencyName = newRaisedFormat.Name
+    local total        = tonumber(newRaisedFormat.Value)
+    local afterTax     = math.floor(raised * 0.3)
 
     local data = {
         ["username"]   = "Comet Hub Tracker",
@@ -287,17 +290,17 @@ local function webhook(raised, donor)
                 ["icon_url"] = "https://i.imgur.com/AO78ACk.png"
             },
             ["title"]       = "🎉 New Donation Received! 🎉",
-            ["description"] = "Congratulations **" .. player.Name .. "**! You just received a donation in **Pls Donate**.",
-            ["color"]       = 3066993,
+            ["description"] = "Congratulations **" .. player.Name .. "**! You just received a donation in Pls Donate.",
+            ["color"]       = 16777215,
             ["thumbnail"]   = { ["url"] = avatarUrl },
             ["fields"] = {
-                {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor                              .. "\n```", ["inline"] = false},
-                {["name"] = "💸 Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                  .. " R$\n```", ["inline"] = true},
-                {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                .. " R$\n```", ["inline"] = true},
-                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true},
+                {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor               .. "\n```", ["inline"] = false},
+                {["name"] = "💸 Amount Received", ["value"] = "```diff\n+ " .. tostring(raised)    .. " " .. currencyName .. "\n```", ["inline"] = true},
+                {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)  .. " " .. currencyName .. "\n```", ["inline"] = true},
+                {["name"] = "🏆 New Balance",     ["value"] = "```fix\n"    .. tostring(total)     .. " " .. currencyName .. "\n```", ["inline"] = true},
             },
             ["footer"]    = { ["text"] = "🔒 Secured & Powered by Comet Hub" },
-            ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+            ["timestamp"] = DateTime.now():ToIsoDate()
         }}
     }
 
@@ -1763,8 +1766,13 @@ task.spawn(function()
         end
     end
 
-    -- Webhook after SH
-    if getgenv().settings.webhookAfterSH then
+    -- Webhook after SH (only when genuinely hopped, not on manual re-execute)
+    local justHopped = false
+    if pcall(function() return isfile end) and isfile("comethub_hopped.txt") then
+        justHopped = true
+        pcall(function() delfile("comethub_hopped.txt") end)
+    end
+    if getgenv().settings.webhookAfterSH and justHopped then
         if player.DisplayName ~= player.Name then
             oldWebhook(player.DisplayName.." (@"..player.Name..") serverhopped")
         else
