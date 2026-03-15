@@ -295,7 +295,7 @@ local function webhook(raised, donor)
                 {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor                                    .. "\n```", ["inline"] = false},
                 {["name"] = "💸 Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                         .. " R$\n```", ["inline"] = true},
                 {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                       .. " R$\n```", ["inline"] = true},
-                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)* 0.7) .. " R$\n```", ["inline"] = true}
+                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true}
             },
             ["footer"]    = { ["text"] = "🔒 Secured & Powered by Comet Hub" },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
