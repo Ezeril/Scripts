@@ -277,7 +277,7 @@ local function webhook(raised, donor)
     if not url or url == "" then return end
 
     local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png"
-    local afterTax  = math.floor(raised * 0.3)
+    local afterTax  = math.floor(raised * 0.7)
 
     local data = {
         ["username"]   = "Comet Hub Tracker",
@@ -289,14 +289,13 @@ local function webhook(raised, donor)
             },
             ["title"]       = "🎉 New Donation Received! 🎉",
             ["description"] = "Congratulations **" .. player.Name .. "**! You just received a donation in **Pls Donate**.",
-            ["color"]       = 3066993,
+            ["color"]       = 16777215,
             ["thumbnail"]   = { ["url"] = avatarUrl },
             ["fields"] = {
                 {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor                                    .. "\n```", ["inline"] = false},
                 {["name"] = "💸 Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                         .. " R$\n```", ["inline"] = true},
                 {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                       .. " R$\n```", ["inline"] = true},
-                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true},
-                {["name"] = "🌐 Server",          ["value"] = "```"          .. tostring(game.JobId)                     .. "```",       ["inline"] = false},
+                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)* 0.7)) .. " R$\n```", ["inline"] = true}
             },
             ["footer"]    = { ["text"] = "🔒 Secured & Powered by Comet Hub" },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
