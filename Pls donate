@@ -277,7 +277,7 @@ local function webhook(raised, donor)
     if not url or url == "" then return end
 
     local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png"
-    local afterTax  = math.floor(raised * 0.7)
+    local afterTax  = raised
 
     local data = {
         ["username"]   = "Comet Hub Tracker",
