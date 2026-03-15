@@ -1,7 +1,5 @@
 -- ============================================================
 --  COMET HUB (Pls Donate) - Full Feature Edition v3.0
---  Design : Script 1 (Comet Hub)
---  Logic  : Script 2 (szze / CF-Trail)
 -- ============================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -18,7 +16,7 @@ end
 --  SERVICES
 -- ============================================================
 local identifyexecutor    = identifyexecutor or function() return 'Unknown' end
-local cloneref            = (identifyexecutor() ~= "Synapse Z" and not identifyexecutor():find("Codex") and cloneref) or function(o) return o end
+local cloneref            = function(o) return o end
 
 local Players             = cloneref(game:GetService("Players"))
 local HttpService         = cloneref(game:GetService("HttpService"))
@@ -35,18 +33,7 @@ if not workspace then workspace = game:GetService('Workspace') end
 local player    = Players.LocalPlayer
 local uid       = player.UserId
 
--- Xeno/Solara warning
-if identifyexecutor and (identifyexecutor():find('Xeno') or identifyexecutor():find('Solara')) then
-    task.spawn(function()
-        for i = 0, 2 do
-            game:GetService("StarterGui"):SetCore("SendNotification",{
-                Title = "Solara/Xeno are unsupported",
-                Text  = "Please change your executor.",
-            })
-            task.wait(1)
-        end
-    end)
-end
+
 
 -- ============================================================
 --  SETTINGS DEFINITION
@@ -308,7 +295,6 @@ local function webhook(raised, donor)
                 {["name"] = "💸 Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                  .. " R$\n```", ["inline"] = true},
                 {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                .. " R$\n```", ["inline"] = true},
                 {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true},
-                {["name"] = "🌐 Server ID",        ["value"] = "```" .. tostring(game.JobId) .. "```",              ["inline"] = false},
             },
             ["footer"]    = { ["text"] = "🔒 Secured & Powered by Comet Hub" },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
@@ -1251,18 +1237,13 @@ end)
 -- ============================================================
 --  INFO TAB
 -- ============================================================
-sectionLabel(infoPage,"SCRIPT INFO",0)
+sectionLabel(infoPage,"SCRIPT",0)
 infoCard(infoPage,1,"Game","Pls Donate")
-infoCard(infoPage,2,"Version","v3.0 — Full Feature Edition")
-infoCard(infoPage,3,"UI Design","Comet Hub")
-infoCard(infoPage,4,"Logic","szze / CF-Trail")
-sectionLabel(infoPage,"SHORTCUTS",5)
-infoCard(infoPage,6,"Toggle UI","F8 or RightShift")
-infoCard(infoPage,7,"Minimize","-  button (top right)")
-infoCard(infoPage,8,"Settings File","plsdonatesettings.txt")
-sectionLabel(infoPage,"NOTES",9)
-infoCard(infoPage,10,"Multi-line boxes","Type values, one per line. Click outside to save.")
-infoCard(infoPage,11,"Dropdowns","Click the button on the right to cycle options.")
+infoCard(infoPage,2,"Version","v3.0")
+infoCard(infoPage,3,"Hub","Comet Hub")
+infoCard(infoPage,4,"Credits","noxis.lua")
+sectionLabel(infoPage,"SUPPORT",10)
+infoCard(infoPage,11,"Shortcut","F8 / RightShift to Hide/Show UI")
 
 -- ============================================================
 --  WINDOW BEHAVIOR
