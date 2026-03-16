@@ -200,39 +200,46 @@ local function choosePlaceId()
     else return 8737602449 end
 end
 
+local _hopDebounce = false
+
 local function serverHop()
-    while task.wait(1.5) do
-        if httprequest then
-            task.spawn(function()
-                local PlaceId = choosePlaceId()
-                local JobId   = game.JobId
-                local ok, req = pcall(function()
-                    return httprequest({ Url = string.format(
-                        "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId) })
-                end)
-                if not ok then return end
-                local success, body = pcall(function() return HttpService:JSONDecode(req.Body) end)
-                if success and body and body.data then
-                    local servers = {}
-                    for _, server in pairs(body.data) do
-                        if server.playing < 25 and server.id ~= JobId and server.playing > 12 then
-                            table.insert(servers, server)
-                        end
-                    end
-                    if #servers > 0 then
-                        local sel = servers[math.random(1, #servers)]
-                        pcall(function() writefile("comethub_hopped.txt", "1") end)
-                        pcall(function() TPService:TeleportToPlaceInstance(PlaceId, sel.id, player) end)
+    if _hopDebounce then return end
+    _hopDebounce = true
+
+    if httprequest then
+        local PlaceId = choosePlaceId()
+        local JobId   = game.JobId
+        local ok, req = pcall(function()
+            return httprequest({ Url = string.format(
+                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&limit=100&excludeFullGames=true", PlaceId) })
+        end)
+        if ok then
+            local success, body = pcall(function() return HttpService:JSONDecode(req.Body) end)
+            if success and body and body.data then
+                local servers = {}
+                for _, server in pairs(body.data) do
+                    if server.playing < 25 and server.id ~= JobId and server.playing > 12 then
+                        table.insert(servers, server)
                     end
                 end
-            end)
+                if #servers > 0 then
+                    local sel = servers[math.random(1, #servers)]
+                    pcall(function() writefile("comethub_hopped.txt", "1") end)
+                    pcall(function() TPService:TeleportToPlaceInstance(PlaceId, sel.id, player) end)
+                end
+            end
         end
     end
+
+    task.wait(5)
+    _hopDebounce = false
 end
 
 local function waitServerHop()
     task.wait(getgenv().settings.serverHopDelay * 60)
-    serverHop()
+    if getgenv().settings.serverHopToggle then
+        serverHop()
+    end
 end
 
 local function hopSet()
