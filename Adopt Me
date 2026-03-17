@@ -1,5 +1,5 @@
 -- ============================================================
---  V | Hub — Adopt Me  |  Version 3.0 FINAL
+--  V | Hub — Adopt Me  |  Version 3.1 (Fixed)
 -- ============================================================
 
 local OrionLib
@@ -19,6 +19,82 @@ local WS      = game:GetService("Workspace")
 local LP      = Players.LocalPlayer
 local API     = RS:WaitForChild("API", 10)
 
+-- ──────────────────── Recherche de remote ──────────────────
+-- Cherche recursivement dans API par nom exact ou partiel
+local remoteCache = {}
+local function findRemote(name, searchFolder)
+    if remoteCache[name] then return remoteCache[name] end
+    local folder = searchFolder or API
+    if not folder then return nil end
+    -- Cherche exact
+    local r = folder:FindFirstChild(name)
+    if r then remoteCache[name] = r return r end
+    -- Cherche recursif
+    for _, child in ipairs(folder:GetDescendants()) do
+        if child.Name == name then
+            remoteCache[name] = child
+            return child
+        end
+    end
+    return nil
+end
+
+-- Cherche par mot-cle partiel (pour retrouver les remotes renommees)
+local function findRemotePartial(keyword)
+    if not API then return nil end
+    for _, child in ipairs(API:GetDescendants()) do
+        if child.Name:lower():find(keyword:lower()) then
+            return child
+        end
+    end
+    return nil
+end
+
+-- ──────────────────── Detection auto des remotes ───────────
+-- La remote de nourriture change souvent de nom
+-- On cherche par pattern connu
+local foodRemote = nil
+local useBlockRemote = nil
+
+local function detectRemotes()
+    if not API then return end
+    -- Cherche la remote nourriture (longue chaine de lettres = remote obfusquee)
+    for _, child in ipairs(API:GetChildren()) do
+        if child.ClassName == "RemoteFunction" then
+            -- Les remotes obfusquees ont des noms > 10 chars aleatoires
+            if #child.Name > 10 and child.Name:match("^[a-zA-Z]+$") then
+                -- Teste si c'est la remote food en l'invoquant avec args connus
+                local ok = pcall(function()
+                    child:InvokeServer("food", "cafeteria_sandwich", { buy_count = 0 })
+                end)
+                if ok then
+                    foodRemote = child
+                    print("[VHub] Remote food trouvee:", child.Name)
+                end
+                -- Teste UseBlock
+                local ok2 = pcall(function()
+                    child:InvokeServer("test", "UseBlock", nil, nil)
+                end)
+                if ok2 then
+                    useBlockRemote = child
+                    print("[VHub] Remote UseBlock trouvee:", child.Name)
+                end
+            end
+        end
+    end
+    -- Fallback : prend la premiere RemoteFunction avec nom long
+    if not foodRemote then
+        for _, child in ipairs(API:GetChildren()) do
+            if child.ClassName == "RemoteFunction" and #child.Name > 15 then
+                foodRemote = child
+                useBlockRemote = child
+                print("[VHub] Remote fallback:", child.Name)
+                break
+            end
+        end
+    end
+end
+
 -- ──────────────────── Utilitaires ──────────────────────────
 local function tp(cf)
     local c = LP.Character
@@ -27,22 +103,38 @@ local function tp(cf)
     end
 end
 
-local function invoke(name, ...)
-    if not API then return end
-    local r = API:FindFirstChild(name)
-    if not r then warn("[VHub] Remote introuvable:", name) return end
-    local args = {...}
-    local ok, res = pcall(function() return r:InvokeServer(table.unpack(args)) end)
-    if not ok then warn("[VHub] Erreur:", name, res) end
-    return ok and res or nil
+local function invokeFood(cat, id, count)
+    if not foodRemote then
+        detectRemotes()
+    end
+    if not foodRemote then
+        warn("[VHub] Remote food introuvable")
+        return false
+    end
+    local ok, res = pcall(function()
+        return foodRemote:InvokeServer(cat, id, { buy_count = count or 1 })
+    end)
+    if not ok then warn("[VHub] invokeFood error:", res) end
+    return ok
 end
 
-local function fire(name, ...)
-    if not API then return end
-    local r = API:FindFirstChild(name)
-    if not r then warn("[VHub] Remote introuvable:", name) return end
+local function invokeUseBlock(itemId, petModel)
+    if not useBlockRemote then detectRemotes() end
+    if not useBlockRemote then warn("[VHub] Remote UseBlock introuvable") return false end
+    local ok, res = pcall(function()
+        return useBlockRemote:InvokeServer(itemId, "UseBlock", nil, petModel)
+    end)
+    if not ok then warn("[VHub] invokeUseBlock error:", res) end
+    return ok
+end
+
+local function safeInvoke(remoteName, ...)
+    local r = findRemote(remoteName)
+    if not r then warn("[VHub] Remote introuvable:", remoteName) return end
     local args = {...}
-    pcall(function() r:FireServer(table.unpack(args)) end)
+    local ok, res = pcall(function() return r:InvokeServer(table.unpack(args)) end)
+    if not ok then warn("[VHub] Erreur:", remoteName, res) end
+    return ok and res or nil
 end
 
 local function notify(title, msg, t)
@@ -57,21 +149,30 @@ local function getPet()
     return chars and chars:FindFirstChild(LP.Name) or nil
 end
 
+local function safeFsys(moduleName)
+    local ok1, Fsys = pcall(function()
+        return require(RS:WaitForChild("Fsys", 5)).load
+    end)
+    if not ok1 or not Fsys then return nil, "Fsys indisponible" end
+    local ok2, mod = pcall(function() return Fsys(moduleName) end)
+    if not ok2 or not mod then return nil, moduleName .. " indisponible" end
+    return mod, nil
+end
+
 -- ──────────────────── Fenetre ──────────────────────────────
 local Window = OrionLib:MakeWindow({
-    Name = "V | Hub — Adopt Me v3",
+    Name = "V | Hub — Adopt Me v3.1",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFileName = "VHub_v3"
+    ConfigFileName = "VHub_v31"
 })
 
-local TpTab      = Window:MakeTab({ Name = "Teleport",   Icon = "rbxassetid://4483345998" })
-local FarmTab    = Window:MakeTab({ Name = "Auto Farm",  Icon = "rbxassetid://4483345998" })
-local FoodTab    = Window:MakeTab({ Name = "Nourriture", Icon = "rbxassetid://4483345998" })
-local PetTab     = Window:MakeTab({ Name = "Pet Soins",  Icon = "rbxassetid://4483345998" })
-local DailyTab   = Window:MakeTab({ Name = "Dailies",    Icon = "rbxassetid://4483345998" })
-local ToolsTab   = Window:MakeTab({ Name = "Outils",     Icon = "rbxassetid://4483345998" })
-local DebugTab   = Window:MakeTab({ Name = "Debug",      Icon = "rbxassetid://4483345998" })
+local TpTab    = Window:MakeTab({ Name = "Teleport",   Icon = "rbxassetid://4483345998" })
+local FarmTab  = Window:MakeTab({ Name = "Auto Farm",  Icon = "rbxassetid://4483345998" })
+local FoodTab  = Window:MakeTab({ Name = "Nourriture", Icon = "rbxassetid://4483345998" })
+local PetTab   = Window:MakeTab({ Name = "Pet Soins",  Icon = "rbxassetid://4483345998" })
+local DailyTab = Window:MakeTab({ Name = "Dailies",    Icon = "rbxassetid://4483345998" })
+local DebugTab = Window:MakeTab({ Name = "Debug",      Icon = "rbxassetid://4483345998" })
 
 -- ================================================================
 --  TAB 1 — TELEPORT
@@ -82,15 +183,15 @@ local locations = {
     ["Summer"]             = CFrame.new(-680.53, 30.32, -1505.96),
     ["Camp Site"]          = CFrame.new(-54.11,  33.17, -1069.69),
     ["School"]             = CFrame.new(-317.57, 29.39, -1493.24),
-    ["Fire Hydrant/Potty"] = CFrame.new(-365.44, 29.35, -1220.08),
+    ["Fire Hydrant"]       = CFrame.new(-365.44, 29.35, -1220.08),
     ["Pizza Place"]        = CFrame.new(-124.81, 29.24, -1683.14),
     ["Salon"]              = CFrame.new(-154.42, 29.34, -1774.67),
     ["Hospital"]           = CFrame.new(-188.99, 29.42, -1452.32),
 }
 
 TpTab:AddSection({ Name = "Lieux" })
-for name, cf in pairs(locations) do
-    local n, c = name, cf
+for locName, locCF in pairs(locations) do
+    local n, c = locName, locCF
     TpTab:AddButton({
         Name = n,
         Callback = function()
@@ -103,38 +204,37 @@ end
 -- ================================================================
 --  TAB 2 — AUTO FARM
 -- ================================================================
-local autoTp      = false
-local autoTpDelay = 3
-local autoFood    = false
-local autoFoodDelay = 8
+local _autoTp      = false
+local _autoTpDelay = 3
+local _autoFood    = false
+local _autoFoodDelay = 8
 
 FarmTab:AddSection({ Name = "Auto Teleport" })
 
 FarmTab:AddSlider({
-    Name = "Delai teleport (s)", Min = 1, Max = 20, Default = 3,
+    Name = "Delai (s)", Min = 1, Max = 20, Default = 3,
     Color = Color3.fromRGB(100, 200, 255), Increment = 1, ValueName = "s",
-    Callback = function(v) autoTpDelay = v end
+    Callback = function(v) _autoTpDelay = v end
 })
 
 FarmTab:AddToggle({
     Name = "Activer Auto Teleport", Default = false, Save = true,
     Callback = function(on)
-        autoTp = on
-        if on then
-            notify("Auto Farm", "Teleport demarre !", 2)
-            task.spawn(function()
-                local list = {}
-                for _, cf in pairs(locations) do list[#list+1] = cf end
-                local i = 1
-                while autoTp do
-                    tp(list[i])
-                    i = (i % #list) + 1
-                    task.wait(autoTpDelay)
-                end
-            end)
-        else
-            notify("Auto Farm", "Teleport arrete.", 2)
-        end
+        _autoTp = on
+        if not on then return end
+        notify("Auto Farm", "Teleport demarre !", 2)
+        task.spawn(function()
+            local list = {}
+            for _, cf in pairs(locations) do
+                list[#list + 1] = cf
+            end
+            local i = 1
+            while _autoTp do
+                tp(list[i])
+                i = (i % #list) + 1
+                task.wait(_autoTpDelay)
+            end
+        end)
     end
 })
 
@@ -143,63 +243,70 @@ FarmTab:AddSection({ Name = "Auto Achat Nourriture" })
 FarmTab:AddSlider({
     Name = "Delai achat (s)", Min = 3, Max = 60, Default = 8,
     Color = Color3.fromRGB(255, 180, 100), Increment = 1, ValueName = "s",
-    Callback = function(v) autoFoodDelay = v end
+    Callback = function(v) _autoFoodDelay = v end
 })
 
--- Items avec leurs remotes et categories confirmees
-local autoFoodItems = {
-    { label = "Sandwich",  remote = "oDLNaqkcfYdpaMV", cat = "food", id = "cafeteria_sandwich" },
-    { label = "Apple",     remote = "oDLNaqkcfYdpaMV", cat = "food", id = "teachers_apple"     },
-    { label = "Pizza",     remote = "oDLNaqkcfYdpaMV", cat = "food", id = "pizza_shop_pizza"   },
-}
+FarmTab:AddToggle({
+    Name = "Auto Sandwich", Default = false, Save = true,
+    Callback = function(on)
+        _autoFood = on
+        if not on then return end
+        task.spawn(function()
+            while _autoFood do
+                invokeFood("food", "cafeteria_sandwich", 1)
+                task.wait(_autoFoodDelay)
+            end
+        end)
+    end
+})
 
-for _, item in ipairs(autoFoodItems) do
-    local it = item
-    FarmTab:AddToggle({
-        Name = "Auto " .. it.label, Default = false, Save = true,
-        Callback = function(on)
-            task.spawn(function()
-                while on do
-                    invoke(it.remote, it.cat, it.id, { buy_count = 1 })
-                    task.wait(autoFoodDelay)
-                end
-            end)
-        end
-    })
-end
+FarmTab:AddToggle({
+    Name = "Auto Apple", Default = false, Save = true,
+    Callback = function(on)
+        task.spawn(function()
+            while on do
+                invokeFood("food", "teachers_apple", 1)
+                task.wait(_autoFoodDelay)
+            end
+        end)
+    end
+})
 
 -- ================================================================
---  TAB 3 — NOURRITURE (achat manuel)
+--  TAB 3 — NOURRITURE (manuel)
 -- ================================================================
-FoodTab:AddSection({ Name = "Acheter de la nourriture" })
+FoodTab:AddSection({ Name = "Acheter" })
 
--- Remote confirmee : oDLNaqkcfYdpaMV("food", item_id, {buy_count=1})
-local foodItems = {
-    { label = "Sandwich",       cat = "food", id = "cafeteria_sandwich"  },
-    { label = "Apple",          cat = "food", id = "teachers_apple"      },
-    { label = "Pizza",          cat = "food", id = "pizza_shop_pizza"    },
-    { label = "Free Pizza",     cat = "food", id = "free_pizza"          },
-    { label = "Water Cup",      cat = "food", id = "water_paper_cup"     },
-    { label = "Soda Water",     cat = "food", id = "soda_fountain_water" },
-    { label = "Coffee",         cat = "food", id = "coffee_paper_cup"    },
-    { label = "Green Tea",      cat = "food", id = "green_tea_cup"       },
-    { label = "Squeaky Bone",   cat = "food", id = "squeaky_bone"        },
-}
-
+local _foodQty = 1
 FoodTab:AddSlider({
     Name = "Quantite", Min = 1, Max = 10, Default = 1,
     Color = Color3.fromRGB(255, 200, 50), Increment = 1, ValueName = "x",
-    Callback = function(v) _G.foodQty = v end
+    Callback = function(v) _foodQty = v end
 })
-_G.foodQty = 1
 
-for _, item in ipairs(foodItems) do
-    local it = item
+local foodList = {
+    { "Sandwich",     "food", "cafeteria_sandwich"  },
+    { "Apple",        "food", "teachers_apple"      },
+    { "Pizza",        "food", "pizza_shop_pizza"    },
+    { "Free Pizza",   "food", "free_pizza"          },
+    { "Water Cup",    "food", "water_paper_cup"     },
+    { "Soda Water",   "food", "soda_fountain_water" },
+    { "Coffee",       "food", "coffee_paper_cup"    },
+    { "Green Tea",    "food", "green_tea_cup"       },
+    { "Squeaky Bone", "food", "squeaky_bone"        },
+}
+
+for _, item in ipairs(foodList) do
+    local label, cat, id = item[1], item[2], item[3]
     FoodTab:AddButton({
-        Name = "Obtenir " .. it.label,
+        Name = "Obtenir " .. label,
         Callback = function()
-            invoke("oDLNaqkcfYdpaMV", it.cat, it.id, { buy_count = _G.foodQty or 1 })
-            notify("Nourriture", it.label .. " x" .. (_G.foodQty or 1) .. " obtenu !", 2)
+            local ok = invokeFood(cat, id, _foodQty)
+            if ok then
+                notify("Nourriture", label .. " x" .. _foodQty .. " obtenu !", 2)
+            else
+                notify("Erreur", "Remote introuvable - check Debug", 3)
+            end
         end
     })
 end
@@ -207,122 +314,90 @@ end
 -- ================================================================
 --  TAB 4 — PET SOINS
 -- ================================================================
-PetTab:AddSection({ Name = "Soigner le pet (UseBlock)" })
+PetTab:AddSection({ Name = "Soigner le pet" })
 
--- Remote confirmee : dKRQHNHdtnfhJbRfLfRxcjVjbimBrpmiuwui
--- Pattern : InvokeServer("item_id", "UseBlock", nil, petModel)
-local healItems = {
-    { label = "Water (hydrate)",    id = "water_paper_cup"     },
-    { label = "Soda Water",         id = "soda_fountain_water" },
-    { label = "Sandwich (nourrir)", id = "cafeteria_sandwich"  },
-    { label = "Apple",              id = "teachers_apple"      },
-    { label = "Pizza",              id = "pizza_shop_pizza"    },
-    { label = "Coffee",             id = "coffee_paper_cup"    },
-    { label = "Green Tea",          id = "green_tea_cup"       },
+local healList = {
+    { "Water (hydrate)",    "water_paper_cup"    },
+    { "Soda Water",         "soda_fountain_water"},
+    { "Sandwich (nourrir)", "cafeteria_sandwich" },
+    { "Apple",              "teachers_apple"     },
+    { "Pizza",              "pizza_shop_pizza"   },
+    { "Coffee",             "coffee_paper_cup"   },
+    { "Green Tea",          "green_tea_cup"      },
 }
 
-for _, item in ipairs(healItems) do
-    local it = item
+for _, item in ipairs(healList) do
+    local label, id = item[1], item[2]
     PetTab:AddButton({
-        Name = it.label,
+        Name = label,
         Callback = function()
             local pet = getPet()
-            if not pet then
-                notify("Erreur", "Pet introuvable dans Workspace", 3)
-                return
+            if not pet then notify("Erreur", "Pet introuvable", 3) return end
+            local ok = invokeUseBlock(id, pet)
+            if ok then
+                notify("Pet Soins", label .. " utilise !", 2)
+            else
+                notify("Erreur", "Remote introuvable - check Debug", 3)
             end
-            local r = API and API:FindFirstChild("dKRQHNHdtnfhJbRfLfRxcjVjbimBrpmiuwui")
-            if not r then
-                notify("Erreur", "Remote UseBlock introuvable", 3)
-                return
-            end
-            pcall(function() r:InvokeServer(it.id, "UseBlock", nil, pet) end)
-            notify("Pet Soins", it.label .. " utilise !", 2)
         end
     })
 end
 
-PetTab:AddSection({ Name = "Pet Leash" })
-
-PetTab:AddButton({
-    Name = "Equiper Pet Leash",
-    Callback = function()
-        -- Remote confirmee : PetAPI/EquipPetLeash
-        local pet = getPet()
-        if not pet then notify("Erreur", "Pet introuvable", 3) return end
-        invoke("PetAPI/EquipPetLeash", nil, pet)
-        notify("Pet", "Leash equipe !", 2)
-    end
-})
-
--- Auto soins loop
-local autoCure = false
-local autoCureDelay = 10
+local _autoCure      = false
+local _autoCureDelay = 10
 
 PetTab:AddSection({ Name = "Auto Soins Loop" })
 
 PetTab:AddSlider({
     Name = "Delai soins (s)", Min = 5, Max = 60, Default = 10,
     Color = Color3.fromRGB(150, 255, 150), Increment = 1, ValueName = "s",
-    Callback = function(v) autoCureDelay = v end
+    Callback = function(v) _autoCureDelay = v end
 })
 
 PetTab:AddToggle({
     Name = "Auto Water Loop", Default = false, Save = true,
     Callback = function(on)
-        autoCure = on
-        if on then
-            task.spawn(function()
-                while autoCure do
-                    local pet = getPet()
-                    if pet then
-                        local r = API and API:FindFirstChild("dKRQHNHdtnfhJbRfLfRxcjVjbimBrpmiuwui")
-                        if r then pcall(function() r:InvokeServer("water_paper_cup", "UseBlock", nil, pet) end) end
-                    end
-                    task.wait(autoCureDelay)
-                end
-            end)
-        end
+        _autoCure = on
+        if not on then return end
+        task.spawn(function()
+            while _autoCure do
+                local pet = getPet()
+                if pet then invokeUseBlock("water_paper_cup", pet) end
+                task.wait(_autoCureDelay)
+            end
+        end)
     end
 })
 
 -- ================================================================
 --  TAB 5 — DAILIES
 -- ================================================================
-DailyTab:AddSection({ Name = "Claim via DailiesClient" })
+DailyTab:AddSection({ Name = "Dailies via Fsys" })
 
 DailyTab:AddButton({
-    Name = "Dump toutes les Dailies actives (F9)",
+    Name = "Dump Dailies actives (F9)",
     Callback = function()
-        local ok, Fsys = pcall(function()
-            return require(RS:WaitForChild("Fsys")).load
-        end)
-        if not ok then notify("Erreur", "Fsys indisponible", 3) return end
-        local ok2, DC = pcall(function() return Fsys("DailiesClient") end)
-        if not ok2 then notify("Erreur", "DailiesClient indisponible", 3) return end
+        local DC, err = safeFsys("DailiesClient")
+        if not DC then notify("Erreur", err, 3) return end
         local manager = DC.get_manager()
         local count = 0
         for tabKind, tab in pairs(manager.serialized_tabs or {}) do
             for dailyId, data in pairs(tab.active_dailies or {}) do
-                print(("[VHub Daily] Tab:%s | ID:%s | State:%s"):format(
+                print(("[VHub] Tab:%s | ID:%s | State:%s"):format(
                     tabKind, dailyId, tostring(data.state)
                 ))
                 count = count + 1
             end
         end
-        notify("Dailies", count .. " dailies trouvees dans F9", 4)
+        notify("Dailies", count .. " dailies dans F9", 4)
     end
 })
 
 DailyTab:AddButton({
-    Name = "Do Action sur toutes les Dailies",
+    Name = "Do Action toutes Dailies",
     Callback = function()
-        local ok, Fsys = pcall(function()
-            return require(RS:WaitForChild("Fsys")).load
-        end)
-        if not ok then notify("Erreur", "Fsys indisponible", 3) return end
-        local ok2, DC = pcall(function() return Fsys("DailiesClient") end)
-        if not ok2 then notify("Erreur", "DailiesClient indisponible", 3) return end
+        local DC, err = safeFsys("DailiesClient")
+        if not DC then notify("Erreur", err, 3) return end
         local manager = DC.get_manager()
         local count = 0
         for _, tab in pairs(manager.serialized_tabs or {}) do
@@ -336,77 +411,32 @@ DailyTab:AddButton({
     end
 })
 
-DailyTab:AddSection({ Name = "Acheter nourriture en boucle (Stars)" })
-
-DailyTab:AddButton({
-    Name = "Spam Sandwich (genere des stars)",
-    Callback = function()
-        task.spawn(function()
-            for _ = 1, 5 do
-                invoke("oDLNaqkcfYdpaMV", "food", "cafeteria_sandwich", { buy_count = 1 })
-                task.wait(1)
-            end
-            notify("Dailies", "5x Sandwich achetes !", 2)
-        end)
-    end
-})
-
 -- ================================================================
---  TAB 6 — OUTILS
+--  TAB 6 — DEBUG
 -- ================================================================
-ToolsTab:AddSection({ Name = "Stroller" })
-
-ToolsTab:AddButton({
-    Name = "UseStroller sur pet",
-    Callback = function()
-        local pet = getPet()
-        if not pet then notify("Erreur", "Pet introuvable", 3) return end
-        -- Remote confirmee : AdoptAPI/UseStroller
-        local r = API and API:FindFirstChild("AdoptAPI/UseStroller")
-            or API and API:FindFirstChild("UseStroller")
-        if not r then
-            -- Cherche dans toute l'API
-            for _, child in ipairs(API:GetChildren()) do
-                if child.Name:lower():find("stroller") then r = child break end
-            end
-        end
-        if not r then notify("Erreur", "Remote UseStroller introuvable", 3) return end
-        pcall(function() r:InvokeServer(LP, pet, nil) end)
-        notify("Stroller", "Utilise !", 2)
-    end
-})
-
-ToolsTab:AddSection({ Name = "Donnees Star Rewards (ref)" })
-
-local starInfo = {
-    "9   -> Magician Wand Grappling Hook",
-    "65  -> Hovercraft",
-    "120 -> Log Throw Toy",
-    "180 -> Frog Stroller",
-    "225 -> Red Panda Cupcake",
-    "280 -> Mermaid Propeller",
-    "340 -> Planet Car",
-    "400 -> Pomeranian",
-    "450 -> Wind Turbine Earrings",
-    "520 -> Flower Car",
-    "600 -> Orca",
-    "660 -> [DIAMOND EGG]",
-}
-for _, s in ipairs(starInfo) do ToolsTab:AddLabel(s) end
-
--- ================================================================
---  TAB 7 — DEBUG
--- ================================================================
-DebugTab:AddSection({ Name = "Outils de debug" })
+DebugTab:AddSection({ Name = "Detection automatique" })
 
 DebugTab:AddButton({
-    Name = "Dump toutes les remotes API (F9)",
+    Name = "Detecter les remotes (AUTO)",
+    Callback = function()
+        detectRemotes()
+        local msg = "Food: " .. (foodRemote and foodRemote.Name or "NON TROUVE")
+        notify("Debug", msg, 5)
+        print("[VHub] Food remote:", foodRemote and foodRemote.Name or "nil")
+        print("[VHub] UseBlock remote:", useBlockRemote and useBlockRemote.Name or "nil")
+    end
+})
+
+DebugTab:AddButton({
+    Name = "Dump TOUTES les remotes API (F9)",
     Callback = function()
         if not API then notify("Erreur", "API introuvable", 3) return end
         local count = 0
-        for _, r in ipairs(API:GetChildren()) do
-            print(("[VHub API] %s | %s"):format(r.ClassName, r.Name))
-            count = count + 1
+        for _, r in ipairs(API:GetDescendants()) do
+            if r:IsA("RemoteFunction") or r:IsA("RemoteEvent") then
+                print(("[VHub] %s | %s"):format(r.ClassName, r:GetFullName()))
+                count = count + 1
+            end
         end
         notify("Debug", count .. " remotes dans F9", 4)
     end
@@ -415,12 +445,8 @@ DebugTab:AddButton({
 DebugTab:AddButton({
     Name = "Dump CloudValues (F9)",
     Callback = function()
-        local ok, Fsys = pcall(function()
-            return require(RS:WaitForChild("Fsys")).load
-        end)
-        if not ok then notify("Erreur", "Fsys indisponible", 3) return end
-        local ok2, CV = pcall(function() return Fsys("CloudValues") end)
-        if not ok2 then notify("Erreur", "CloudValues indisponible", 3) return end
+        local CV, err = safeFsys("CloudValues")
+        if not CV then notify("Erreur", err, 3) return end
         for category, keys in pairs(CV.values or {}) do
             for key, val in pairs(keys) do
                 print(("[VHub CV] %s -> %s = %s"):format(category, key, tostring(val)))
@@ -431,20 +457,22 @@ DebugTab:AddButton({
 })
 
 DebugTab:AddButton({
-    Name = "Stop tous les loops",
+    Name = "STOP tous les loops",
     Callback = function()
-        autoTp = false
-        autoFood = false
-        autoCure = false
+        _autoTp    = false
+        _autoFood  = false
+        _autoCure  = false
         notify("Reset", "Tous les loops arretes !", 2)
     end
 })
 
 DebugTab:AddSection({ Name = "Infos" })
-DebugTab:AddLabel("V | Hub v3.0 — Adopt Me")
-DebugTab:AddLabel("Remotes verifiees depuis le code source du jeu")
-DebugTab:AddLabel("Tab Sugarfest arrive avec BoardGameNetService")
+DebugTab:AddLabel("V | Hub v3.1 — Remote auto-detection")
+DebugTab:AddLabel("Si remote introuvable : clic 'Detecter les remotes'")
+
+-- ──────────────────── Detection au lancement ───────────────
+task.spawn(detectRemotes)
 
 -- ──────────────────── Init ─────────────────────────────────
 OrionLib:Init()
-notify("V | Hub v3.0", "Charge avec succes ! Bonne session !", 5)
+notify("V | Hub v3.1", "Charge ! Detection remotes en cours...", 5)
