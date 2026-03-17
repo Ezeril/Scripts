@@ -1,1 +1,322 @@
+-- ============================================================
+--  V | Hub — Adopt Me | Version 2.1 (Fixed)
+-- ============================================================
 
+-- Fix #1 : URL Orion avec fallback automatique
+local OrionLib
+local urls = {
+    "https://raw.githubusercontent.com/nicosanto/Orion/main/source",
+    "https://raw.githubusercontent.com/jensonhirst/Orion/main/source",
+}
+for _, url in ipairs(urls) do
+    local ok, result = pcall(function()
+        OrionLib = loadstring(game:HttpGet(url))()
+    end)
+    if ok and OrionLib then break end
+end
+if not OrionLib then
+    error("[VHub] Impossible de charger Orion Library. Verifie ta connexion.")
+end
+
+-- ──────────────────── Services ─────────────────────────────
+local Players  = game:GetService("Players")
+local RS       = game:GetService("ReplicatedStorage")
+local WS       = game:GetService("Workspace")
+local LP       = Players.LocalPlayer
+
+-- Fix #2 : on ne touche JAMAIS a ServerScriptService depuis le client
+-- Acces a l'API uniquement via ReplicatedStorage
+local API = RS:WaitForChild("API", 10)
+if not API then
+    warn("[VHub] API introuvable dans ReplicatedStorage")
+end
+
+-- ──────────────────── Utilitaires ──────────────────────────
+
+-- Teleportation securisee
+local function tp(cframe)
+    local char = LP.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = cframe
+    end
+end
+
+-- Fix #3 : InvokeServer securise avec pcall (evite les crashes)
+local function safeInvoke(remoteName, ...)
+    if not API then return end
+    local remote = API:FindFirstChild(remoteName)
+    if not remote then
+        warn("[VHub] Remote introuvable : " .. tostring(remoteName))
+        return
+    end
+    local args = {...}
+    local ok, result = pcall(function()
+        return remote:InvokeServer(table.unpack(args))
+    end)
+    if not ok then
+        warn("[VHub] Erreur InvokeServer (" .. remoteName .. ") : " .. tostring(result))
+    end
+    return ok and result or nil
+end
+
+-- Notification rapide
+local function notify(title, msg, t)
+    OrionLib:MakeNotification({
+        Name    = title,
+        Content = msg,
+        Image   = "rbxassetid://4483345998",
+        Time    = t or 3
+    })
+end
+
+-- ──────────────────── Fenetre principale ───────────────────
+local Window = OrionLib:MakeWindow({
+    Name           = "V | Hub — Adopt Me",
+    HidePremium    = false,
+    SaveConfig     = true,
+    ConfigFileName = "VHub_AdoptMe"
+})
+
+-- ──────────────────── Onglets ──────────────────────────────
+local FarmTab     = Window:MakeTab({ Name = "Manual Farm", Icon = "rbxassetid://4483345998" })
+local AutoTab     = Window:MakeTab({ Name = "Auto Farm",   Icon = "rbxassetid://4483345998" })
+local ItemsTab    = Window:MakeTab({ Name = "Items",       Icon = "rbxassetid://4483345998" })
+local SettingsTab = Window:MakeTab({ Name = "Settings",    Icon = "rbxassetid://4483345998" })
+local SocialsTab  = Window:MakeTab({ Name = "Socials",     Icon = "rbxassetid://4483345998" })
+
+-- ================================================================
+--  TAB 1 — MANUAL FARM
+-- ================================================================
+local locations = {
+    ["Main Area"]          = CFrame.new(-250.04, 29.62, -1496.05),
+    ["Playground"]         = CFrame.new(-369.69, 45.95, -1841.37),
+    ["Summer"]             = CFrame.new(-680.53, 30.32, -1505.96),
+    ["Camp Site"]          = CFrame.new(-54.11,  33.17, -1069.69),
+    ["School"]             = CFrame.new(-317.57, 29.39, -1493.24),
+    ["Fire Hydrant/Potty"] = CFrame.new(-365.44, 29.35, -1220.08),
+    ["Pizza Place"]        = CFrame.new(-124.81, 29.24, -1683.14),
+    ["Salon"]              = CFrame.new(-154.42, 29.34, -1774.67),
+    ["Hospital"]           = CFrame.new(-188.99, 29.42, -1452.32),
+}
+
+FarmTab:AddSection({ Name = "Lieux disponibles" })
+
+for name, cf in pairs(locations) do
+    local locCF   = cf
+    local locName = name
+    FarmTab:AddButton({
+        Name     = locName,
+        Callback = function()
+            tp(locCF)
+            notify("Teleportation", "-> " .. locName, 2)
+        end
+    })
+end
+
+-- ================================================================
+--  TAB 2 — AUTO FARM
+-- ================================================================
+local autoTpRunning = false
+local autoTpDelay   = 3
+local autoFeedOn    = false
+local autoFeedDelay = 5
+
+AutoTab:AddSection({ Name = "Auto Teleport" })
+
+AutoTab:AddSlider({
+    Name      = "Delai entre teleports (s)",
+    Min       = 1,
+    Max       = 15,
+    Default   = 3,
+    Color     = Color3.fromRGB(100, 200, 255),
+    Increment = 1,
+    ValueName = "s",
+    Callback  = function(v) autoTpDelay = v end
+})
+
+AutoTab:AddToggle({
+    Name    = "Activer Auto Teleport",
+    Default = false,
+    Flag    = "autotp",
+    Save    = true,
+    Callback = function(enabled)
+        autoTpRunning = enabled
+        if enabled then
+            notify("Auto Farm", "Demarre !", 2)
+            task.spawn(function()
+                -- Fix : on copie la liste une seule fois, pas a chaque iteration
+                local list = {}
+                for _, cf in pairs(locations) do
+                    list[#list + 1] = cf
+                end
+                local i = 1
+                while autoTpRunning do
+                    tp(list[i])
+                    i = (i % #list) + 1
+                    task.wait(autoTpDelay)
+                end
+            end)
+        else
+            notify("Auto Farm", "Arrete.", 2)
+        end
+    end
+})
+
+AutoTab:AddSection({ Name = "Auto Nourriture" })
+
+AutoTab:AddSlider({
+    Name      = "Delai entre repas (s)",
+    Min       = 2,
+    Max       = 30,
+    Default   = 5,
+    Color     = Color3.fromRGB(255, 180, 100),
+    Increment = 1,
+    ValueName = "s",
+    Callback  = function(v) autoFeedDelay = v end
+})
+
+AutoTab:AddToggle({
+    Name    = "Auto Sandwich Loop",
+    Default = false,
+    Flag    = "autofeed",
+    Save    = true,
+    Callback = function(enabled)
+        autoFeedOn = enabled
+        if enabled then
+            task.spawn(function()
+                while autoFeedOn do
+                    safeInvoke("oDLNaqkcfYdpaMV", "food", "cafeteria_sandwich", { buy_count = 1 })
+                    task.wait(autoFeedDelay)
+                end
+            end)
+        end
+    end
+})
+
+-- ================================================================
+--  TAB 3 — ITEMS
+-- ================================================================
+ItemsTab:AddSection({ Name = "Nourriture" })
+
+local foodList = {
+    { label = "Sandwich", category = "food", id = "cafeteria_sandwich" },
+    { label = "Apple",    category = "food", id = "teachers_apple"     },
+}
+
+for _, item in ipairs(foodList) do
+    local i = item
+    ItemsTab:AddButton({
+        Name     = "Obtenir " .. i.label,
+        Callback = function()
+            safeInvoke("oDLNaqkcfYdpaMV", i.category, i.id, { buy_count = 1 })
+            notify("Items", i.label .. " obtenu !", 2)
+        end
+    })
+end
+
+ItemsTab:AddSection({ Name = "Utilitaires" })
+
+ItemsTab:AddButton({
+    Name     = "Obtenir Water",
+    Callback = function()
+        -- Fix : on cible uniquement le workspace (accessible client-side)
+        local charFolder = WS:FindFirstChild("PlayerCharacters")
+        if not charFolder then
+            notify("Erreur", "PlayerCharacters introuvable", 3)
+            return
+        end
+        local charModel = charFolder:FindFirstChild(LP.Name)
+        if not charModel then
+            notify("Erreur", "Personnage introuvable", 3)
+            return
+        end
+        if not API then return end
+        local remote = API:FindFirstChild("dKRQHNHdtnfhJbRfLfRxcjVjbimBrpmiuwui")
+        if not remote then
+            notify("Erreur", "Remote Water introuvable", 3)
+            return
+        end
+        pcall(function()
+            remote:InvokeServer("f-11", "UseBlock", nil, charModel)
+        end)
+        notify("Items", "Water obtenu !", 2)
+    end
+})
+
+ItemsTab:AddSection({ Name = "Recompenses Star (infos)" })
+
+local starRewards = {
+    "9   stars -> Magician Wand Grappling Hook",
+    "65  stars -> Hovercraft",
+    "120 stars -> Log Throw Toy",
+    "180 stars -> Frog Stroller",
+    "225 stars -> Red Panda Cupcake",
+    "280 stars -> Mermaid Propeller",
+    "340 stars -> Planet Car",
+    "400 stars -> Pomeranian (Pet)",
+    "450 stars -> Wind Turbine Earrings",
+    "520 stars -> Flower Car",
+    "600 stars -> Orca (Pet)",
+    "660 stars -> [Diamond Egg]",
+}
+for _, r in ipairs(starRewards) do
+    ItemsTab:AddLabel(r)
+end
+
+-- ================================================================
+--  TAB 4 — SETTINGS
+--  Fix #4 : SUPPRESSION de applyGameSetting qui causait
+--  "attempt to escape directory" (sandbox violation)
+--  On affiche uniquement les IDs connus pour reference
+-- ================================================================
+SettingsTab:AddSection({ Name = "IDs de parametres connus" })
+SettingsTab:AddParagraph(
+    "Reference des IDs internes",
+    "disable_ailments | pet_radial_menu | vehicle_camera_follows\n" ..
+    "furniture_advanced_colors | backpack_retain_filter\n" ..
+    "char_icons | arachnophobia_mode | friends_are_family\n" ..
+    "family_requests | party_requests | trade_requests\n" ..
+    "spawn_location | display_rank | display_vip"
+)
+
+SettingsTab:AddSection({ Name = "Debug API" })
+
+SettingsTab:AddButton({
+    Name     = "Lister les Remotes API (F9)",
+    Callback = function()
+        if not API then
+            notify("Debug", "API introuvable", 3)
+            return
+        end
+        for _, child in ipairs(API:GetChildren()) do
+            print("[VHub]", child.ClassName, "->", child.Name)
+        end
+        notify("Debug", "Liste affichee dans la console (F9)", 4)
+    end
+})
+
+SettingsTab:AddButton({
+    Name     = "Reset toggles Auto Farm",
+    Callback = function()
+        autoTpRunning = false
+        autoFeedOn    = false
+        notify("Reset", "Auto Farm arrete.", 2)
+    end
+})
+
+-- ================================================================
+--  TAB 5 — SOCIALS
+-- ================================================================
+SocialsTab:AddSection({ Name = "Credits" })
+SocialsTab:AddLabel("V | Hub — Version 2.1 Fixed")
+SocialsTab:AddLabel("Corrections : URL Orion, sandbox, pcall, malformed string")
+
+SocialsTab:AddSection({ Name = "Avertissement" })
+SocialsTab:AddParagraph(
+    "Attention",
+    "L'utilisation d'exploits viole les CGU de Roblox et peut entrainer un ban permanent. Utilise a tes propres risques."
+)
+
+-- ──────────────────── Init (OBLIGATOIRE) ───────────────────
+OrionLib:Init()
+notify("V | Hub", "Script charge avec succes !", 4)
