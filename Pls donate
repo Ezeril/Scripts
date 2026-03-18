@@ -98,6 +98,73 @@ saveSettings()
 --  CORE VARIABLES
 -- ============================================================
 local httprequest         = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
+-- ============================================================
+--  🔒 HWID BANLIST
+-- ============================================================
+local BANLIST_URL    = "https://raw.githubusercontent.com/TON_USERNAME/mon-repo/main/banlist.json"
+local ALERT_WEBHOOK  = "https://discord.com/api/webhooks/1483897676872552508/9hEDyU01jm7AQbdKw6MFoz0pUY7NYg8DP0wH--w5QjZheIdj6cJo7KVoJzMRnO7cBBI4"
+
+local function getHWID()
+    local hwid = "Unknown"
+    pcall(function()
+        hwid = gethwid and gethwid()
+            or (typeof(game:GetService("RbxAnalyticsService").GetClientId) ~= "nil"
+                and game:GetService("RbxAnalyticsService"):GetClientId())
+            or "Unknown"
+    end)
+    return tostring(hwid)
+end
+
+local function checkBanlist()
+    local selfHWID = getHWID()
+    if selfHWID == "Unknown" then return end
+
+    local ok, response = pcall(function()
+        return httprequest({ Url = BANLIST_URL, Method = "GET" })
+    end)
+    if not ok or not response or not response.Body then return end
+
+    local parsed = nil
+    pcall(function()
+        parsed = HttpService:JSONDecode(response.Body)
+    end)
+    if not parsed or not parsed.banned then return end
+
+    for _, entry in ipairs(parsed.banned) do
+        if entry.hwid == selfHWID then
+            pcall(function()
+                httprequest({
+                    Url    = ALERT_WEBHOOK,
+                    Method = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body   = HttpService:JSONEncode({
+                        embeds = {{
+                            title  = "🚫 Tentative d'exécution — HWID Banni",
+                            color  = 0xFF4444,
+                            fields = {
+                                { name = "👤 Joueur",   value = tostring(player.Name),              inline = true  },
+                                { name = "🔑 HWID",     value = selfHWID,                           inline = false },
+                                { name = "📌 Raison",   value = tostring(entry.reason or "N/A"),    inline = true  },
+                                { name = "📅 Banni le", value = tostring(entry.date   or "N/A"),    inline = true  },
+                            },
+                            footer    = { text = "Comet Hub • Security System" },
+                            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+                        }}
+                    })
+                })
+            end)
+            if game.CoreGui:FindFirstChild("CometHub") then
+                game.CoreGui:FindFirstChild("CometHub"):Destroy()
+            end
+            error("🚫 HWID banni. Accès refusé.", 0)
+        end
+    end
+end
+
+checkBanlist()
+
+
 local WEBHOOK_URL         = "https://discord.com/api/webhooks/1482752922281574661/Q--S5JRzNq7MUE-iGXLZ3Mc3OUTGXADW95467rEmt-AszoiIuXvMAIpYcp5ZdO2o314_"
 local queueonteleport     = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or nil
 local newRaisedFormat     = player:WaitForChild("leaderstats"):WaitForChild("Raised")
