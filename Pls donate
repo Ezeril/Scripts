@@ -103,7 +103,7 @@ local httprequest         = (syn and syn.request) or (http and http.request) or 
 --  🔒 HWID BANLIST — Centralized Security System (GitHub)
 -- ============================================================
 local BANLIST_URL   = "https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/banlist.json"
-local ALERT_WEBHOOK = "https://discord.com/api/webhooks/1483897676872552508/9hEDyU01jm7AQbdKw6MFoz0pUY7NYg8DP0wH--w5QjZheIdj6cJo7KVoJzMRnO7cBBI4"
+local ALERT_WEBHOOK = "https://discord.com/api/webhooks/1483901849798049883/bnXLhTeRC-7mp3aPHnHqp3suq5XCfREemOwETfFjX8RBRPsiHcrqcmB5JTkjNN4JA53S"
 
 local function getHWID()
     local hwid = "Unknown"
