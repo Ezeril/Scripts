@@ -1,7 +1,8 @@
 -- ============================================================
---  V | Hub — Adopt Me  |  Version 3.1 (Fixed)
+--  V | Hub — Adopt Me | Version 4.0 (Quest Auto-Farm)
 -- ============================================================
 
+-- ── ORION ────────────────────────────────────────────────────
 local OrionLib
 for _, url in ipairs({
     "https://raw.githubusercontent.com/nicosanto/Orion/main/source",
@@ -12,129 +13,174 @@ for _, url in ipairs({
 end
 assert(OrionLib, "[VHub] Orion introuvable.")
 
--- ──────────────────── Services ─────────────────────────────
-local Players = game:GetService("Players")
-local RS      = game:GetService("ReplicatedStorage")
-local WS      = game:GetService("Workspace")
-local LP      = Players.LocalPlayer
-local API     = RS:WaitForChild("API", 10)
+-- ── SERVICES ─────────────────────────────────────────────────
+local Players     = game:GetService("Players")
+local RS          = game:GetService("ReplicatedStorage")
+local WS          = game:GetService("Workspace")
+local LP          = Players.LocalPlayer
+local API         = RS:WaitForChild("API", 15)
 
--- ──────────────────── Recherche de remote ──────────────────
--- Cherche recursivement dans API par nom exact ou partiel
-local remoteCache = {}
-local function findRemote(name, searchFolder)
-    if remoteCache[name] then return remoteCache[name] end
-    local folder = searchFolder or API
-    if not folder then return nil end
-    -- Cherche exact
-    local r = folder:FindFirstChild(name)
-    if r then remoteCache[name] = r return r end
-    -- Cherche recursif
-    for _, child in ipairs(folder:GetDescendants()) do
-        if child.Name == name then
-            remoteCache[name] = child
-            return child
-        end
-    end
-    return nil
+-- ── REMOTE REGISTRY ──────────────────────────────────────────
+local Remotes = { food = nil, useBlock = nil, allFound = {} }
+
+-- ── HOOK REMOTES (capture les invocations du jeu lui-même) ───
+local function hookRemotes()
+    -- Nécessite un executor supportant getrawmetatable / setreadonly
+    local ok = pcall(function()
+        local mt = getrawmetatable(game)
+        local oldIndex = mt.__index
+        setreadonly(mt, false)
+        mt.__index = newcclosure(function(self, key)
+            if key == "InvokeServer" and self:IsA("RemoteFunction") then
+                if self:IsDescendantOf(API) then
+                    if not Remotes.allFound[self.Name] then
+                        Remotes.allFound[self.Name] = self
+                        print("[VHub HOOK] Remote capturée:", self.Name)
+                    end
+                end
+            end
+            return oldIndex(self, key)
+        end)
+        setreadonly(mt, true)
+    end)
+    if not ok then print("[VHub] Hook non supporté, scan classique utilisé") end
 end
 
--- Cherche par mot-cle partiel (pour retrouver les remotes renommees)
-local function findRemotePartial(keyword)
-    if not API then return nil end
-    for _, child in ipairs(API:GetDescendants()) do
-        if child.Name:lower():find(keyword:lower()) then
-            return child
-        end
-    end
-    return nil
-end
-
--- ──────────────────── Detection auto des remotes ───────────
--- La remote de nourriture change souvent de nom
--- On cherche par pattern connu
-local foodRemote = nil
-local useBlockRemote = nil
-
-local function detectRemotes()
+-- ── SCAN CLASSIQUE (fallback + init) ─────────────────────────
+local function scanRemotes()
     if not API then return end
-    -- Cherche la remote nourriture (longue chaine de lettres = remote obfusquee)
-    for _, child in ipairs(API:GetChildren()) do
-        if child.ClassName == "RemoteFunction" then
-            -- Les remotes obfusquees ont des noms > 10 chars aleatoires
-            if #child.Name > 10 and child.Name:match("^[a-zA-Z]+$") then
-                -- Teste si c'est la remote food en l'invoquant avec args connus
+    for _, child in ipairs(API:GetDescendants()) do
+        if child:IsA("RemoteFunction") or child:IsA("RemoteEvent") then
+            Remotes.allFound[child.Name] = child
+        end
+    end
+    -- Identification heuristique par test d'invocation
+    if not Remotes.food then
+        for _, child in ipairs(API:GetChildren()) do
+            if child:IsA("RemoteFunction") and #child.Name > 15 then
                 local ok = pcall(function()
                     child:InvokeServer("food", "cafeteria_sandwich", { buy_count = 0 })
                 end)
                 if ok then
-                    foodRemote = child
-                    print("[VHub] Remote food trouvee:", child.Name)
+                    Remotes.food = child
+                    Remotes.useBlock = child
+                    print("[VHub SCAN] Remote principale (obf):", child.Name)
+                    break
                 end
-                -- Teste UseBlock
-                local ok2 = pcall(function()
-                    child:InvokeServer("test", "UseBlock", nil, nil)
-                end)
-                if ok2 then
-                    useBlockRemote = child
-                    print("[VHub] Remote UseBlock trouvee:", child.Name)
-                end
-            end
-        end
-    end
-    -- Fallback : prend la premiere RemoteFunction avec nom long
-    if not foodRemote then
-        for _, child in ipairs(API:GetChildren()) do
-            if child.ClassName == "RemoteFunction" and #child.Name > 15 then
-                foodRemote = child
-                useBlockRemote = child
-                print("[VHub] Remote fallback:", child.Name)
-                break
             end
         end
     end
 end
 
--- ──────────────────── Utilitaires ──────────────────────────
-local function tp(cf)
+-- ── FSYS LOADER ──────────────────────────────────────────────
+local function loadFsys(moduleName)
+    local ok1, Fsys = pcall(function()
+        return require(RS:WaitForChild("Fsys", 5)).load
+    end)
+    if not ok1 or not Fsys then return nil, "Fsys indisponible" end
+    local ok2, mod = pcall(function() return Fsys(moduleName) end)
+    return (ok2 and mod) and mod or nil, ok2 and "ok" or moduleName .. " introuvable"
+end
+
+-- ── GUIDE / QUEST CLIENT ──────────────────────────────────────
+-- Adopt Me a renommé le système en "Guide" (Dec 2025)
+-- On essaie tous les noms possibles
+local GuideClient = nil
+local GUIDE_CANDIDATES = {
+    "GuideClient", "QuestClient", "DailiesClient",
+    "TaskClient",  "MissionClient", "ChallengeClient",
+    "GuideManager","QuestManager",  "TaskBoardClient"
+}
+
+local function initGuideClient()
+    for _, name in ipairs(GUIDE_CANDIDATES) do
+        local mod, _ = loadFsys(name)
+        if mod then
+            GuideClient = mod
+            print("[VHub] Module quêtes trouvé:", name)
+            return GuideClient
+        end
+    end
+    warn("[VHub] Aucun module quêtes trouvé (utiliser Debug > Dump Fsys)")
+    return nil
+end
+
+-- Récupère les quêtes/tâches actives (compatible ancienne + nouvelle structure)
+local function getActiveQuests()
+    if not GuideClient then initGuideClient() end
+    if not GuideClient then return {} end
+
+    local quests = {}
+    pcall(function()
+        -- Essai de récupérer le manager
+        local manager = nil
+        for _, method in ipairs({ "get_manager", "GetManager", "getManager" }) do
+            if GuideClient[method] then
+                manager = GuideClient[method]()
+                break
+            end
+        end
+        if not manager then
+            -- Certains modules exposent directement les données
+            manager = GuideClient
+        end
+
+        -- Structure A: guide_entries (Guide system Dec 2025)
+        for entryId, entry in pairs(manager.guide_entries or manager.entries or {}) do
+            table.insert(quests, {
+                id       = tostring(entryId),
+                state    = entry.state or entry.completion_state or "active",
+                progress = entry.progress or 0,
+                data     = entry,
+            })
+        end
+
+        -- Structure B: serialized_tabs (anciens Dailies/Task Board)
+        for tabKind, tab in pairs(manager.serialized_tabs or {}) do
+            for qId, data in pairs(tab.active_quests or tab.active_dailies or {}) do
+                table.insert(quests, {
+                    id       = tostring(qId),
+                    tabKind  = tabKind,
+                    state    = data.state or "active",
+                    progress = data.progress or 0,
+                    data     = data,
+                })
+            end
+        end
+
+        -- Structure C: tasks (Task Board Christmas 2025)
+        for taskId, task in pairs(manager.tasks or manager.active_tasks or {}) do
+            table.insert(quests, {
+                id    = tostring(taskId),
+                state = task.completed and "completed" or "active",
+                data  = task,
+            })
+        end
+    end)
+    return quests
+end
+
+-- ── COORDONNÉES ───────────────────────────────────────────────
+-- Utilise Debug > Dump Position pour mettre à jour si besoin
+local Locations = {
+    school       = CFrame.new(-317.57, 29.39,  -1493.24),
+    pet_school   = CFrame.new(-400.0,  30.0,   -1200.0),   -- ⚠ À vérifier
+    playground   = CFrame.new(-369.69, 45.95,  -1841.37),
+    hospital     = CFrame.new(-188.99, 29.42,  -1452.32),
+    pizza        = CFrame.new(-124.81, 29.24,  -1683.14),
+    salon        = CFrame.new(-154.42, 29.34,  -1774.67),
+    campsite     = CFrame.new(-54.11,  33.17,  -1069.69),
+    fire_hydrant = CFrame.new(-365.44, 29.35,  -1220.08),
+    main         = CFrame.new(-250.04, 29.62,  -1496.05),
+}
+
+-- ── UTILITAIRES ───────────────────────────────────────────────
+local function tp(cf, wait_time)
     local c = LP.Character
     if c and c:FindFirstChild("HumanoidRootPart") then
         c.HumanoidRootPart.CFrame = cf
     end
-end
-
-local function invokeFood(cat, id, count)
-    if not foodRemote then
-        detectRemotes()
-    end
-    if not foodRemote then
-        warn("[VHub] Remote food introuvable")
-        return false
-    end
-    local ok, res = pcall(function()
-        return foodRemote:InvokeServer(cat, id, { buy_count = count or 1 })
-    end)
-    if not ok then warn("[VHub] invokeFood error:", res) end
-    return ok
-end
-
-local function invokeUseBlock(itemId, petModel)
-    if not useBlockRemote then detectRemotes() end
-    if not useBlockRemote then warn("[VHub] Remote UseBlock introuvable") return false end
-    local ok, res = pcall(function()
-        return useBlockRemote:InvokeServer(itemId, "UseBlock", nil, petModel)
-    end)
-    if not ok then warn("[VHub] invokeUseBlock error:", res) end
-    return ok
-end
-
-local function safeInvoke(remoteName, ...)
-    local r = findRemote(remoteName)
-    if not r then warn("[VHub] Remote introuvable:", remoteName) return end
-    local args = {...}
-    local ok, res = pcall(function() return r:InvokeServer(table.unpack(args)) end)
-    if not ok then warn("[VHub] Erreur:", remoteName, res) end
-    return ok and res or nil
+    if wait_time then task.wait(wait_time) end
 end
 
 local function notify(title, msg, t)
@@ -144,335 +190,482 @@ local function notify(title, msg, t)
     })
 end
 
-local function getPet()
-    local chars = WS:FindFirstChild("PlayerCharacters")
-    return chars and chars:FindFirstChild(LP.Name) or nil
+-- Fire les ProximityPrompts dans un rayon donné autour du joueur
+local function fireNearbyPrompts(radius, maxCount)
+    local char = LP.Character
+    if not char then return 0 end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return 0 end
+    local count = 0
+    for _, obj in ipairs(WS:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            local part = obj.Parent
+            if part and part:IsA("BasePart") then
+                if (hrp.Position - part.Position).Magnitude < (radius or 20) then
+                    pcall(function() fireproximityprompt(obj) end)
+                    count = count + 1
+                    task.wait(0.3)
+                    if maxCount and count >= maxCount then break end
+                end
+            end
+        end
+    end
+    return count
 end
 
-local function safeFsys(moduleName)
-    local ok1, Fsys = pcall(function()
-        return require(RS:WaitForChild("Fsys", 5)).load
+local function invokeFood(cat, id, count)
+    if not Remotes.food then scanRemotes() end
+    if not Remotes.food then
+        warn("[VHub] Remote food introuvable")
+        return false
+    end
+    local ok, res = pcall(function()
+        return Remotes.food:InvokeServer(cat, id, { buy_count = count or 1 })
     end)
-    if not ok1 or not Fsys then return nil, "Fsys indisponible" end
-    local ok2, mod = pcall(function() return Fsys(moduleName) end)
-    if not ok2 or not mod then return nil, moduleName .. " indisponible" end
-    return mod, nil
+    if not ok then warn("[VHub] invokeFood:", res) end
+    return ok
 end
 
--- ──────────────────── Fenetre ──────────────────────────────
+-- ── QUEST HANDLERS ────────────────────────────────────────────
+-- Chaque handler = une action à effectuer pour avancer la quête
+
+local questHandlers = {}
+
+questHandlers["school"] = function()
+    tp(Locations.school, 1.5)
+    -- Cherche l'objet école dans le workspace
+    local schoolObj = WS:FindFirstChild("School")
+                   or WS:FindFirstChild("Nursery_School")
+                   or WS:FindFirstChild("AdoptMe_School")
+    if schoolObj then
+        for _, v in ipairs(schoolObj:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                pcall(function() fireproximityprompt(v) end)
+                task.wait(1)
+                break
+            end
+        end
+    else
+        fireNearbyPrompts(25, 3)
+    end
+    task.wait(3)
+    return true
+end
+
+questHandlers["pet_school"] = function()
+    tp(Locations.pet_school, 1.5)
+    fireNearbyPrompts(25, 3)
+    task.wait(3)
+    return true
+end
+
+questHandlers["playground"] = function()
+    tp(Locations.playground, 1.5)
+    local pg = WS:FindFirstChild("Playground")
+    if pg then
+        for _, v in ipairs(pg:GetDescendants()) do
+            if v:IsA("ProximityPrompt") then
+                pcall(function() fireproximityprompt(v) end)
+                task.wait(1)
+                break
+            end
+        end
+    else
+        fireNearbyPrompts(30, 3)
+    end
+    return true
+end
+
+questHandlers["hospital"] = function()
+    tp(Locations.hospital, 1.5)
+    fireNearbyPrompts(25, 2)
+    return true
+end
+
+questHandlers["feed_pet"] = function()
+    return invokeFood("food", "cafeteria_sandwich", 1)
+end
+
+questHandlers["water_pet"] = function()
+    return invokeFood("food", "water_paper_cup", 1)
+end
+
+questHandlers["pizza"] = function()
+    tp(Locations.pizza, 1.5)
+    fireNearbyPrompts(20, 2)
+    return true
+end
+
+questHandlers["salon"] = function()
+    tp(Locations.salon, 1.5)
+    fireNearbyPrompts(20, 2)
+    return true
+end
+
+-- ── RÉSOLUTION DU TYPE DE QUÊTE ───────────────────────────────
+local keywordMap = {
+    { patterns = { "school", "class", "ecole", "nursery" },         handler = "school"    },
+    { patterns = { "pet_school", "petschool", "pet school" },        handler = "pet_school"},
+    { patterns = { "playground", "play", "swing", "slide" },         handler = "playground"},
+    { patterns = { "hospital", "sick", "heal", "doctor", "malade" }, handler = "hospital"  },
+    { patterns = { "feed", "food", "eat", "hungry", "nourri" },      handler = "feed_pet"  },
+    { patterns = { "water", "drink", "soif", "thirst" },             handler = "water_pet" },
+    { patterns = { "pizza" },                                         handler = "pizza"     },
+    { patterns = { "salon", "bath", "groom", "hair" },               handler = "salon"     },
+}
+
+local function resolveHandler(questId)
+    local id = questId:lower()
+    for _, entry in ipairs(keywordMap) do
+        for _, pat in ipairs(entry.patterns) do
+            if id:find(pat) then
+                return questHandlers[entry.handler], entry.handler
+            end
+        end
+    end
+    return nil, "unknown"
+end
+
+-- ── AUTO QUEST FARM LOOP ──────────────────────────────────────
+local _autoQuestLoop  = false
+local _autoQuestDelay = 5
+local _skipCompleted  = true
+
+local function runQuestFarm()
+    local quests = getActiveQuests()
+    if #quests == 0 then
+        print("[VHub] Aucune quête active détectée.")
+        notify("Quêtes", "Aucune quête trouvée → voir Debug", 4)
+        return
+    end
+
+    print(("[VHub] %d quête(s) détectée(s)"):format(#quests))
+
+    for _, quest in ipairs(quests) do
+        if not _autoQuestLoop then break end
+
+        local state = tostring(quest.state or ""):lower()
+        if _skipCompleted and (state == "completed" or state == "claimed" or state == "done") then
+            print("[VHub] SKIP (complétée):", quest.id)
+        else
+            local handler, handlerName = resolveHandler(quest.id)
+            print(("[VHub] Quête: %s → handler: %s"):format(quest.id, handlerName))
+
+            if handler then
+                local ok, err = pcall(handler)
+                if ok then
+                    notify("Quest ✅", quest.id:sub(1, 25), 2)
+                else
+                    warn("[VHub] Erreur handler:", handlerName, err)
+                end
+            else
+                print("[VHub] Pas de handler → ID complet:", quest.id)
+                notify("Quest ❓", "No handler: " .. quest.id:sub(1, 20), 3)
+            end
+
+            task.wait(_autoQuestDelay)
+        end
+    end
+end
+
+-- ================================================================
+--  GUI
+-- ================================================================
 local Window = OrionLib:MakeWindow({
-    Name = "V | Hub — Adopt Me v3.1",
+    Name = "V | Hub — Adopt Me v4.0",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFileName = "VHub_v31"
+    ConfigFileName = "VHub_v40"
 })
 
-local TpTab    = Window:MakeTab({ Name = "Teleport",   Icon = "rbxassetid://4483345998" })
-local FarmTab  = Window:MakeTab({ Name = "Auto Farm",  Icon = "rbxassetid://4483345998" })
-local FoodTab  = Window:MakeTab({ Name = "Nourriture", Icon = "rbxassetid://4483345998" })
-local PetTab   = Window:MakeTab({ Name = "Pet Soins",  Icon = "rbxassetid://4483345998" })
-local DailyTab = Window:MakeTab({ Name = "Dailies",    Icon = "rbxassetid://4483345998" })
-local DebugTab = Window:MakeTab({ Name = "Debug",      Icon = "rbxassetid://4483345998" })
+local QuestTab  = Window:MakeTab({ Name = "🎯 Quest Farm",  Icon = "rbxassetid://4483345998" })
+local TpTab     = Window:MakeTab({ Name = "📍 Téléport",    Icon = "rbxassetid://4483345998" })
+local ActionTab = Window:MakeTab({ Name = "⚡ Actions",     Icon = "rbxassetid://4483345998" })
+local DebugTab  = Window:MakeTab({ Name = "🔍 Debug",       Icon = "rbxassetid://4483345998" })
 
--- ================================================================
---  TAB 1 — TELEPORT
--- ================================================================
-local locations = {
-    ["Main Area"]          = CFrame.new(-250.04, 29.62, -1496.05),
-    ["Playground"]         = CFrame.new(-369.69, 45.95, -1841.37),
-    ["Summer"]             = CFrame.new(-680.53, 30.32, -1505.96),
-    ["Camp Site"]          = CFrame.new(-54.11,  33.17, -1069.69),
-    ["School"]             = CFrame.new(-317.57, 29.39, -1493.24),
-    ["Fire Hydrant"]       = CFrame.new(-365.44, 29.35, -1220.08),
-    ["Pizza Place"]        = CFrame.new(-124.81, 29.24, -1683.14),
-    ["Salon"]              = CFrame.new(-154.42, 29.34, -1774.67),
-    ["Hospital"]           = CFrame.new(-188.99, 29.42, -1452.32),
-}
+-- ── TAB QUEST FARM ────────────────────────────────────────────
+QuestTab:AddSection({ Name = "Configuration" })
 
-TpTab:AddSection({ Name = "Lieux" })
-for locName, locCF in pairs(locations) do
-    local n, c = locName, locCF
-    TpTab:AddButton({
-        Name = n,
-        Callback = function()
-            tp(c)
-            notify("Teleport", "-> " .. n, 2)
-        end
-    })
-end
-
--- ================================================================
---  TAB 2 — AUTO FARM
--- ================================================================
-local _autoTp      = false
-local _autoTpDelay = 3
-local _autoFood    = false
-local _autoFoodDelay = 8
-
-FarmTab:AddSection({ Name = "Auto Teleport" })
-
-FarmTab:AddSlider({
-    Name = "Delai (s)", Min = 1, Max = 20, Default = 3,
+QuestTab:AddSlider({
+    Name = "Délai entre quêtes (s)", Min = 2, Max = 20, Default = 5,
     Color = Color3.fromRGB(100, 200, 255), Increment = 1, ValueName = "s",
-    Callback = function(v) _autoTpDelay = v end
+    Callback = function(v) _autoQuestDelay = v end
 })
 
-FarmTab:AddToggle({
-    Name = "Activer Auto Teleport", Default = false, Save = true,
+QuestTab:AddToggle({
+    Name = "Skip quêtes complétées", Default = true, Save = true,
+    Callback = function(v) _skipCompleted = v end
+})
+
+QuestTab:AddSection({ Name = "Auto Farm" })
+
+QuestTab:AddToggle({
+    Name = "🔄 Auto Quest Loop (toutes les 30s)", Default = false, Save = true,
     Callback = function(on)
-        _autoTp = on
-        if not on then return end
-        notify("Auto Farm", "Teleport demarre !", 2)
+        _autoQuestLoop = on
+        if not on then notify("Quest", "Loop stoppé !", 2) return end
+        notify("Quest Farm", "Auto quêtes démarré !", 3)
         task.spawn(function()
-            local list = {}
-            for _, cf in pairs(locations) do
-                list[#list + 1] = cf
-            end
-            local i = 1
-            while _autoTp do
-                tp(list[i])
-                i = (i % #list) + 1
-                task.wait(_autoTpDelay)
+            while _autoQuestLoop do
+                pcall(runQuestFarm)
+                -- Attente entre chaque cycle complet
+                local waited = 0
+                while _autoQuestLoop and waited < 30 do
+                    task.wait(1)
+                    waited = waited + 1
+                end
             end
         end)
     end
 })
 
-FarmTab:AddSection({ Name = "Auto Achat Nourriture" })
-
-FarmTab:AddSlider({
-    Name = "Delai achat (s)", Min = 3, Max = 60, Default = 8,
-    Color = Color3.fromRGB(255, 180, 100), Increment = 1, ValueName = "s",
-    Callback = function(v) _autoFoodDelay = v end
+QuestTab:AddButton({
+    Name = "▶ Exécuter quêtes (1 cycle)",
+    Callback = function()
+        notify("Quest", "Exécution en cours...", 2)
+        task.spawn(function()
+            _autoQuestLoop = true -- Active temporairement pour que les handlers fonctionnent
+            pcall(runQuestFarm)
+            _autoQuestLoop = false
+        end)
+    end
 })
 
-FarmTab:AddToggle({
-    Name = "Auto Sandwich", Default = false, Save = true,
-    Callback = function(on)
-        _autoFood = on
-        if not on then return end
+QuestTab:AddButton({
+    Name = "📋 Lister quêtes actives → F9",
+    Callback = function()
         task.spawn(function()
-            while _autoFood do
-                invokeFood("food", "cafeteria_sandwich", 1)
-                task.wait(_autoFoodDelay)
+            local quests = getActiveQuests()
+            if #quests == 0 then
+                notify("Quêtes", "Aucune quête (check Debug > Dump GuideClient)", 5)
+                return
+            end
+            notify("Quêtes", ("%d quête(s) → F9"):format(#quests), 4)
+            for _, q in ipairs(quests) do
+                local _, hName = resolveHandler(q.id)
+                print(("[VHub QUEST] ID: %-30s | State: %-12s | Handler: %s"):format(
+                    q.id, tostring(q.state), hName
+                ))
             end
         end)
     end
 })
 
-FarmTab:AddToggle({
-    Name = "Auto Apple", Default = false, Save = true,
-    Callback = function(on)
-        task.spawn(function()
-            while on do
-                invokeFood("food", "teachers_apple", 1)
-                task.wait(_autoFoodDelay)
-            end
-        end)
-    end
-})
+-- ── TAB TELEPORT ─────────────────────────────────────────────
+TpTab:AddSection({ Name = "Lieux principaux" })
 
--- ================================================================
---  TAB 3 — NOURRITURE (manuel)
--- ================================================================
-FoodTab:AddSection({ Name = "Acheter" })
-
-local _foodQty = 1
-FoodTab:AddSlider({
-    Name = "Quantite", Min = 1, Max = 10, Default = 1,
-    Color = Color3.fromRGB(255, 200, 50), Increment = 1, ValueName = "x",
-    Callback = function(v) _foodQty = v end
-})
-
-local foodList = {
-    { "Sandwich",     "food", "cafeteria_sandwich"  },
-    { "Apple",        "food", "teachers_apple"      },
-    { "Pizza",        "food", "pizza_shop_pizza"    },
-    { "Free Pizza",   "food", "free_pizza"          },
-    { "Water Cup",    "food", "water_paper_cup"     },
-    { "Soda Water",   "food", "soda_fountain_water" },
-    { "Coffee",       "food", "coffee_paper_cup"    },
-    { "Green Tea",    "food", "green_tea_cup"       },
-    { "Squeaky Bone", "food", "squeaky_bone"        },
+local tpButtons = {
+    { "🏫 École (enfant)",   Locations.school       },
+    { "🐾 École du pet",     Locations.pet_school   },
+    { "🛝 Playground",       Locations.playground    },
+    { "🏥 Hôpital",          Locations.hospital     },
+    { "🍕 Pizza Place",      Locations.pizza        },
+    { "💇 Salon",            Locations.salon        },
+    { "⛺ Camp Site",        Locations.campsite     },
+    { "🔥 Fire Hydrant",     Locations.fire_hydrant },
+    { "🏠 Main Area",        Locations.main         },
 }
 
-for _, item in ipairs(foodList) do
-    local label, cat, id = item[1], item[2], item[3]
-    FoodTab:AddButton({
-        Name = "Obtenir " .. label,
+for _, item in ipairs(tpButtons) do
+    local name, cf = item[1], item[2]
+    TpTab:AddButton({
+        Name = name,
         Callback = function()
-            local ok = invokeFood(cat, id, _foodQty)
-            if ok then
-                notify("Nourriture", label .. " x" .. _foodQty .. " obtenu !", 2)
-            else
-                notify("Erreur", "Remote introuvable - check Debug", 3)
-            end
+            tp(cf)
+            notify("Téléport", name, 2)
         end
     })
 end
 
--- ================================================================
---  TAB 4 — PET SOINS
--- ================================================================
-PetTab:AddSection({ Name = "Soigner le pet" })
+-- ── TAB ACTIONS ───────────────────────────────────────────────
+ActionTab:AddSection({ Name = "Nourriture rapide" })
 
-local healList = {
-    { "Water (hydrate)",    "water_paper_cup"    },
-    { "Soda Water",         "soda_fountain_water"},
-    { "Sandwich (nourrir)", "cafeteria_sandwich" },
-    { "Apple",              "teachers_apple"     },
-    { "Pizza",              "pizza_shop_pizza"   },
-    { "Coffee",             "coffee_paper_cup"   },
-    { "Green Tea",          "green_tea_cup"      },
+local quickFood = {
+    { "🥪 Sandwich",   "food", "cafeteria_sandwich"  },
+    { "🍎 Apple",      "food", "teachers_apple"      },
+    { "🍕 Pizza",      "food", "pizza_shop_pizza"    },
+    { "💧 Water Cup",  "food", "water_paper_cup"     },
+    { "☕ Coffee",     "food", "coffee_paper_cup"    },
+    { "🍵 Green Tea",  "food", "green_tea_cup"       },
 }
 
-for _, item in ipairs(healList) do
-    local label, id = item[1], item[2]
-    PetTab:AddButton({
+for _, item in ipairs(quickFood) do
+    local label, cat, id = item[1], item[2], item[3]
+    ActionTab:AddButton({
         Name = label,
         Callback = function()
-            local pet = getPet()
-            if not pet then notify("Erreur", "Pet introuvable", 3) return end
-            local ok = invokeUseBlock(id, pet)
-            if ok then
-                notify("Pet Soins", label .. " utilise !", 2)
-            else
-                notify("Erreur", "Remote introuvable - check Debug", 3)
-            end
+            local ok = invokeFood(cat, id, 1)
+            notify(ok and "✅ Food" or "❌ Erreur", label, 2)
         end
     })
 end
 
-local _autoCure      = false
-local _autoCureDelay = 10
+ActionTab:AddSection({ Name = "Interactions" })
 
-PetTab:AddSection({ Name = "Auto Soins Loop" })
-
-PetTab:AddSlider({
-    Name = "Delai soins (s)", Min = 5, Max = 60, Default = 10,
-    Color = Color3.fromRGB(150, 255, 150), Increment = 1, ValueName = "s",
-    Callback = function(v) _autoCureDelay = v end
-})
-
-PetTab:AddToggle({
-    Name = "Auto Water Loop", Default = false, Save = true,
-    Callback = function(on)
-        _autoCure = on
-        if not on then return end
-        task.spawn(function()
-            while _autoCure do
-                local pet = getPet()
-                if pet then invokeUseBlock("water_paper_cup", pet) end
-                task.wait(_autoCureDelay)
-            end
-        end)
-    end
-})
-
--- ================================================================
---  TAB 5 — DAILIES
--- ================================================================
-DailyTab:AddSection({ Name = "Dailies via Fsys" })
-
-DailyTab:AddButton({
-    Name = "Dump Dailies actives (F9)",
+ActionTab:AddButton({
+    Name = "🔎 Scanner ProximityPrompts (rayon 30)",
     Callback = function()
-        local DC, err = safeFsys("DailiesClient")
-        if not DC then notify("Erreur", err, 3) return end
-        local manager = DC.get_manager()
+        local char = LP.Character
+        local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
         local count = 0
-        for tabKind, tab in pairs(manager.serialized_tabs or {}) do
-            for dailyId, data in pairs(tab.active_dailies or {}) do
-                print(("[VHub] Tab:%s | ID:%s | State:%s"):format(
-                    tabKind, dailyId, tostring(data.state)
-                ))
-                count = count + 1
+        for _, obj in ipairs(WS:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                local part = obj.Parent
+                if part and part:IsA("BasePart") then
+                    local dist = (hrp.Position - part.Position).Magnitude
+                    if dist < 30 then
+                        print(("[VHub PP] %s | dist: %.1f | path: %s"):format(
+                            obj.Name, dist, obj:GetFullName()
+                        ))
+                        count = count + 1
+                    end
+                end
             end
         end
-        notify("Dailies", count .. " dailies dans F9", 4)
+        notify("Scan PP", count .. " prompts proches → F9", 4)
     end
 })
 
-DailyTab:AddButton({
-    Name = "Do Action toutes Dailies",
+ActionTab:AddButton({
+    Name = "⚡ Fire tous ProximityPrompts (rayon 20)",
     Callback = function()
-        local DC, err = safeFsys("DailiesClient")
-        if not DC then notify("Erreur", err, 3) return end
-        local manager = DC.get_manager()
-        local count = 0
-        for _, tab in pairs(manager.serialized_tabs or {}) do
-            for dailyId, _ in pairs(tab.active_dailies or {}) do
-                pcall(function() DC.do_action(dailyId, nil) end)
-                count = count + 1
-                task.wait(0.5)
-            end
-        end
-        notify("Dailies", count .. " actions executees !", 3)
+        local n = fireNearbyPrompts(20)
+        notify("ProximityPrompts", n .. " activés !", 3)
     end
 })
 
--- ================================================================
---  TAB 6 — DEBUG
--- ================================================================
-DebugTab:AddSection({ Name = "Detection automatique" })
+-- ── TAB DEBUG ─────────────────────────────────────────────────
+DebugTab:AddSection({ Name = "Remote Discovery" })
 
 DebugTab:AddButton({
-    Name = "Detecter les remotes (AUTO)",
-    Callback = function()
-        detectRemotes()
-        local msg = "Food: " .. (foodRemote and foodRemote.Name or "NON TROUVE")
-        notify("Debug", msg, 5)
-        print("[VHub] Food remote:", foodRemote and foodRemote.Name or "nil")
-        print("[VHub] UseBlock remote:", useBlockRemote and useBlockRemote.Name or "nil")
-    end
-})
-
-DebugTab:AddButton({
-    Name = "Dump TOUTES les remotes API (F9)",
+    Name = "🔍 Dump toutes les remotes API → F9",
     Callback = function()
         if not API then notify("Erreur", "API introuvable", 3) return end
         local count = 0
         for _, r in ipairs(API:GetDescendants()) do
             if r:IsA("RemoteFunction") or r:IsA("RemoteEvent") then
-                print(("[VHub] %s | %s"):format(r.ClassName, r:GetFullName()))
+                print(("[VHub REMOTE] %-20s | %s"):format(r.ClassName, r:GetFullName()))
                 count = count + 1
             end
         end
-        notify("Debug", count .. " remotes dans F9", 4)
+        notify("Debug", count .. " remotes → F9", 4)
     end
 })
 
 DebugTab:AddButton({
-    Name = "Dump CloudValues (F9)",
+    Name = "🔬 Scan + identifier remotes",
     Callback = function()
-        local CV, err = safeFsys("CloudValues")
-        if not CV then notify("Erreur", err, 3) return end
-        for category, keys in pairs(CV.values or {}) do
-            for key, val in pairs(keys) do
-                print(("[VHub CV] %s -> %s = %s"):format(category, key, tostring(val)))
+        scanRemotes()
+        local msg = "Food: " .. (Remotes.food and Remotes.food.Name or "❌")
+        notify("Debug", msg, 5)
+        print("[VHub] Food remote:", Remotes.food and Remotes.food.Name or "nil")
+    end
+})
+
+DebugTab:AddSection({ Name = "Module Discovery" })
+
+DebugTab:AddButton({
+    Name = "📦 Dump modules Fsys disponibles → F9",
+    Callback = function()
+        task.spawn(function()
+            local ok, Fsys = pcall(function()
+                return require(RS:WaitForChild("Fsys", 5)).load
+            end)
+            if not ok or not Fsys then
+                notify("Erreur", "Fsys introuvable", 3)
+                return
             end
-        end
-        notify("Debug", "CloudValues dans F9", 4)
+            -- Tente de charger chaque candidat
+            local found = 0
+            for _, name in ipairs(GUIDE_CANDIDATES) do
+                local ok2, mod = pcall(function() return Fsys(name) end)
+                if ok2 and mod then
+                    print("[VHub FSYS] ✅ Module trouvé:", name)
+                    for k, v in pairs(mod) do
+                        print(("  [VHub]  .%-25s = %s"):format(k, type(v)))
+                    end
+                    found = found + 1
+                else
+                    print("[VHub FSYS] ❌", name)
+                end
+            end
+            notify("Fsys", found .. " module(s) → F9", 4)
+        end)
     end
 })
 
 DebugTab:AddButton({
-    Name = "STOP tous les loops",
+    Name = "🗂 Dump structure GuideClient → F9",
     Callback = function()
-        _autoTp    = false
-        _autoFood  = false
-        _autoCure  = false
-        notify("Reset", "Tous les loops arretes !", 2)
+        task.spawn(function()
+            initGuideClient()
+            if not GuideClient then
+                notify("Erreur", "GuideClient introuvable → Dump Fsys d'abord", 4)
+                return
+            end
+            print("[VHub] Structure GuideClient:")
+            for k, v in pairs(GuideClient) do
+                print(("  [VHub GC] %-25s = %s"):format(k, type(v)))
+            end
+            -- Dump du manager
+            for _, method in ipairs({ "get_manager", "GetManager", "getManager" }) do
+                if GuideClient[method] then
+                    local ok, manager = pcall(GuideClient[method])
+                    if ok and manager then
+                        print("[VHub] Manager keys:")
+                        for k, v in pairs(manager) do
+                            print(("  [VHub MGR] %-25s = %s"):format(k, type(v)))
+                        end
+                    end
+                    break
+                end
+            end
+            notify("GuideClient", "Structure → F9", 4)
+        end)
+    end
+})
+
+DebugTab:AddSection({ Name = "Outils" })
+
+DebugTab:AddButton({
+    Name = "🧭 Copier ma position → F9",
+    Callback = function()
+        local c   = LP.Character
+        local hrp = c and c:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local p = hrp.Position
+        local cfStr = ("CFrame.new(%.2f, %.2f, %.2f)"):format(p.X, p.Y, p.Z)
+        print("[VHub POS]", cfStr)
+        notify("Position", ("%.1f, %.1f, %.1f"):format(p.X, p.Y, p.Z), 5)
+        -- Tente de copier dans le clipboard
+        pcall(function() setclipboard(cfStr) end)
+    end
+})
+
+DebugTab:AddButton({
+    Name = "⏹ STOP tous les loops",
+    Callback = function()
+        _autoQuestLoop = false
+        notify("Reset", "Tous les loops stoppés !", 2)
     end
 })
 
 DebugTab:AddSection({ Name = "Infos" })
-DebugTab:AddLabel("V | Hub v3.1 — Remote auto-detection")
-DebugTab:AddLabel("Si remote introuvable : clic 'Detecter les remotes'")
+DebugTab:AddLabel("V | Hub v4.0 — Quest Auto-Farm Edition")
+DebugTab:AddLabel("📋 Étape 1: Debug > Dump modules Fsys > F9")
+DebugTab:AddLabel("📋 Étape 2: Debug > Dump GuideClient > F9")
+DebugTab:AddLabel("📋 Étape 3: Quest Farm > Lister quêtes > F9")
+DebugTab:AddLabel("📋 Étape 4: Partage le F9 pour que j'améliore le script")
 
--- ──────────────────── Detection au lancement ───────────────
-task.spawn(detectRemotes)
+-- ── INIT ─────────────────────────────────────────────────────
+task.spawn(function()
+    task.wait(2)
+    hookRemotes()
+    scanRemotes()
+    initGuideClient()
+    print("[VHub v4.0] Initialisé ! Remotes scannées.")
+end)
 
--- ──────────────────── Init ─────────────────────────────────
 OrionLib:Init()
-notify("V | Hub v3.1", "Charge ! Detection remotes en cours...", 5)
+notify("V | Hub v4.0", "Quest Farm Edition chargé ! 🎯", 5)
