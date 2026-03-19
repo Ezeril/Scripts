@@ -100,10 +100,10 @@ saveSettings()
 local httprequest         = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
 
 -- ============================================================
---  HWID BANLIST - Centralized Security System (GitHub)
+--  HWID BANLIST
 -- ============================================================
 local BANLIST_URL   = "https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/banlist.json"
-local ALERT_WEBHOOK = "https://discord.com/api/webhooks/1330541352542539796/v77GRiRkndq0h5WfBtyYdgh29c67L5UAfz4Czw4y6QVq2AFlHYGJZUDhvKOcPA9aXXjk"
+local ALERT_WEBHOOK = "https://discord.com/api/webhooks/1484235962513887293/qpdGNths2XHdRyNysO1WXGU26zXeeL46uDR2_A45v1wsu-tIb9UIoTQJvZdF0P_68hds"
 
 getgenv()._selfHWID = "Unknown"
 pcall(function()
