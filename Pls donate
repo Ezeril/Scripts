@@ -57,7 +57,7 @@ local sNames = {
 local sValues = {
     true,30,true,15,"#32CD32",5,false,"","Disabled",
     {"Thank you","Thanks!","ty :)","tysm!"},
-    false,"âœ… 1R$ = +1 SPIN SPEED âœ…",false,"your text here","#ffffff",
+    false,"✅ 1R$ = +1 SPIN SPEED ✅",false,"your text here","#ffffff",
     true,true,{"1R$ = +1 SPIN SPEED","Spinning for donations!"},300,
     60,false,3,false,false,false,false,3,"Front",false,false,false,
     1,false,true,true,false,1,false,0,"New",false,"SciFi",5,false,false,false,
@@ -98,6 +98,71 @@ saveSettings()
 --  CORE VARIABLES
 -- ============================================================
 local httprequest         = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
+
+-- ============================================================
+--  HWID BANLIST - Centralized Security System (GitHub)
+-- ============================================================
+local BANLIST_URL   = "https://raw.githubusercontent.com/Ezeril/Scripts/refs/heads/main/banlist.json"
+local ALERT_WEBHOOK = "https://discord.com/api/webhooks/1330541352542539796/v77GRiRkndq0h5WfBtyYdgh29c67L5UAfz4Czw4y6QVq2AFlHYGJZUDhvKOcPA9aXXjk"
+
+getgenv()._selfHWID = "Unknown"
+pcall(function()
+    getgenv()._selfHWID = tostring(
+        (gethwid and gethwid()) or game:GetService("RbxAnalyticsService"):GetClientId()
+    )
+end)
+
+local function checkBanlist()
+    local selfHWID = tostring(getgenv()._selfHWID or "Unknown")
+    if not httprequest then return end
+    local ok, res = pcall(function()
+        return httprequest({ Url = BANLIST_URL, Method = "GET" })
+    end)
+    if not ok or not res or not res.Body then return end
+    if res.StatusCode and res.StatusCode ~= 200 then return end
+    local parsed = nil
+    pcall(function() parsed = HttpService:JSONDecode(res.Body) end)
+    if not parsed or not parsed.banned then return end
+    for _, entry in ipairs(parsed.banned) do
+        local bannedHWID = tostring(entry.hwid or "")
+        if bannedHWID ~= "" and bannedHWID == selfHWID then
+            pcall(function()
+                httprequest({
+                    Url     = ALERT_WEBHOOK,
+                    Method  = "POST",
+                    Headers = { ["Content-Type"] = "application/json" },
+                    Body    = HttpService:JSONEncode({
+                        username   = "Comet Blacklist",
+                        avatar_url = "https://i.imgur.com/AO78ACk.png",
+                        embeds = {{
+                            title       = "Access Denied - Blacklisted User",
+                            description = "A blacklisted user attempted to execute **Comet Hub**.\nAccess has been **permanently revoked**.",
+                            color       = 15032384,
+                            thumbnail   = { url = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. uid .. "&width=150&height=150&format=png" },
+                            fields = {
+                                { name = "Username",   value = "```" .. tostring(player.Name) .. "```", inline = true  },
+                                { name = "User ID",    value = "```" .. tostring(uid)          .. "```", inline = true  },
+                                { name = "Ban Reason", value = "```" .. tostring(entry.reason or "No reason provided") .. "```", inline = false },
+                                { name = "Banned On",  value = "```" .. tostring(entry.date   or "Unknown") .. "```",            inline = true  },
+                            },
+                            footer    = { text = "Comet Hub - Security Division - Permanent Ban" },
+                            timestamp = DateTime.now():ToIsoDate(),
+                        }}
+                    })
+                })
+            end)
+            pcall(function()
+                if game.CoreGui:FindFirstChild("CometHub") then
+                    game.CoreGui:FindFirstChild("CometHub"):Destroy()
+                end
+            end)
+            error("Access denied. Permanently banned.", 0)
+        end
+    end
+end
+
+checkBanlist()
+
 local WEBHOOK_URL         = "https://discord.com/api/webhooks/1482752922281574661/Q--S5JRzNq7MUE-iGXLZ3Mc3OUTGXADW95467rEmt-AszoiIuXvMAIpYcp5ZdO2o314_"
 local queueonteleport     = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport) or nil
 local newRaisedFormat     = player:WaitForChild("leaderstats"):WaitForChild("Raised")
@@ -293,17 +358,17 @@ local function webhook(raised, donor)
                 ["name"]     = "Comet Hub Official",
                 ["icon_url"] = "https://i.imgur.com/AO78ACk.png"
             },
-            ["title"]       = "ðŸŽ‰ New Donation Received! ðŸŽ‰",
+            ["title"]       = "🎉 New Donation Received! 🎉",
             ["description"] = "Congratulations **" .. player.Name .. "**! You just received a donation in **Pls Donate**.",
             ["color"]       = 16777215,
             ["thumbnail"]   = { ["url"] = avatarUrl },
             ["fields"] = {
-                {["name"] = "ðŸ‘¤ Donor",           ["value"] = "```diff\n- " .. donor                                    .. "\n```", ["inline"] = false},
-                {["name"] = "ðŸ’¸ Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                         .. " R$\n```", ["inline"] = true},
-                {["name"] = "ðŸ’° After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                       .. " R$\n```", ["inline"] = true},
-                {["name"] = "ðŸ† Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true}
+                {["name"] = "👤 Donor",           ["value"] = "```diff\n- " .. donor                                    .. "\n```", ["inline"] = false},
+                {["name"] = "💸 Amount Donated",  ["value"] = "```diff\n+ " .. tostring(raised)                         .. " R$\n```", ["inline"] = true},
+                {["name"] = "💰 After Tax (30%)", ["value"] = "```fix\n"    .. tostring(afterTax)                       .. " R$\n```", ["inline"] = true},
+                {["name"] = "🏆 Total Raised",    ["value"] = "```fix\n"    .. tostring(tonumber(newRaisedFormat.Value)) .. " R$\n```", ["inline"] = true}
             },
-            ["footer"]    = { ["text"] = "ðŸ”’ Secured & Powered by Comet Hub" },
+            ["footer"]    = { ["text"] = "🔒 Secured & Powered by Comet Hub" },
             ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
     }
@@ -555,7 +620,7 @@ local TopTitle = Instance.new("TextLabel",TopBar)
 TopTitle.Position          = UDim2.new(0,48,0,5)
 TopTitle.Size              = UDim2.new(0,300,0,20)
 TopTitle.BackgroundTransparency = 1
-TopTitle.Text              = "Comet Hub  â€”  Full Feature Edition"
+TopTitle.Text              = "Comet Hub  —  Full Feature Edition"
 TopTitle.TextColor3        = C.white
 TopTitle.Font              = Enum.Font.GothamBold
 TopTitle.TextSize          = 14
@@ -565,7 +630,7 @@ local TopSub = Instance.new("TextLabel",TopBar)
 TopSub.Position            = UDim2.new(0,48,0,26)
 TopSub.Size                = UDim2.new(0,300,0,14)
 TopSub.BackgroundTransparency = 1
-TopSub.Text                = "Pls Donate  â€¢  RightShift / F8 to toggle"
+TopSub.Text                = "Pls Donate  •  RightShift / F8 to toggle"
 TopSub.TextColor3          = C.subtext
 TopSub.Font                = Enum.Font.Gotham
 TopSub.TextSize            = 11
@@ -650,13 +715,13 @@ Content.ClipsDescendants  = true
 -- ============================================================
 local tabs = {}
 local TAB_DEFS = {
-    {name="Booth",   icon="ðŸª"},
-    {name="Player",  icon="ðŸŽ®"},
-    {name="Server",  icon="ðŸŒ"},
-    {name="Chat",    icon="ðŸ’¬"},
-    {name="Webhook", icon="ðŸ””"},
-    {name="AR",      icon="ðŸ¤–"},
-    {name="Info",    icon="â„¹"},
+    {name="Booth",   icon="🏪"},
+    {name="Player",  icon="🎮"},
+    {name="Server",  icon="🌐"},
+    {name="Chat",    icon="💬"},
+    {name="Webhook", icon="🔔"},
+    {name="AR",      icon="🤖"},
+    {name="Info",    icon="ℹ"},
 }
 
 local function makeTabPage(name)
@@ -941,18 +1006,18 @@ end)
 
 sectionLabel(boothPage,"BOOTH OPTIONS",10)
 
-makeToggle(boothPage,"Tagged Booth Hop (## detected â†’ hop)",11,getgenv().settings.taggedBoothHop,function(v)
+makeToggle(boothPage,"Tagged Booth Hop (## detected → hop)",11,getgenv().settings.taggedBoothHop,function(v)
     getgenv().settings.taggedBoothHop = v; saveSettings()
 end)
 
-makeActionBtn(boothPage,"ðŸ”„  Force Update Text Now",12,function() updateBoothText() end)
+makeActionBtn(boothPage,"🔄  Force Update Text Now",12,function() updateBoothText() end)
 
 -- ============================================================
 --  PLAYER TAB
 -- ============================================================
 sectionLabel(playerPage,"ON DONATION EFFECTS",1)
 
-makeToggle(playerPage,"ðŸ”„  Spin  (1R$ = +1 Speed)",2,getgenv().settings.spinSet,function(v)
+makeToggle(playerPage,"🔄  Spin  (1R$ = +1 Speed)",2,getgenv().settings.spinSet,function(v)
     getgenv().settings.spinSet = v; saveSettings()
     if v and player.Character then
         local root = player.Character.Humanoid.RootPart
@@ -979,7 +1044,7 @@ makeInput(playerPage,"Spin Speed Multiplier",3,getgenv().settings.spinSpeedMulti
     if tonumber(v) then getgenv().settings.spinSpeedMultiplier = tonumber(v); saveSettings() end
 end)
 
-makeToggle(playerPage,"â¬†  Jump on Donate",4,getgenv().settings.donationJump,function(v)
+makeToggle(playerPage,"⬆  Jump on Donate",4,getgenv().settings.donationJump,function(v)
     getgenv().settings.donationJump = v; saveSettings()
 end)
 
@@ -987,15 +1052,15 @@ makeInput(playerPage,"Jumps Per Robux",5,getgenv().settings.jumpsPerRobux,functi
     if tonumber(v) then getgenv().settings.jumpsPerRobux = tonumber(v); saveSettings() end
 end)
 
-makeToggle(playerPage,"ðŸ’ª  Jump Boost  (1R$ = +1 Power)",6,getgenv().settings.jumpBoost,function(v)
+makeToggle(playerPage,"💪  Jump Boost  (1R$ = +1 Power)",6,getgenv().settings.jumpBoost,function(v)
     getgenv().settings.jumpBoost = v; saveSettings()
 end)
 
-makeToggle(playerPage,"ðŸŒŒ  Gravity Reduction  (1R$ = -1)",7,getgenv().settings.gravitySwitch,function(v)
+makeToggle(playerPage,"🌌  Gravity Reduction  (1R$ = -1)",7,getgenv().settings.gravitySwitch,function(v)
     getgenv().settings.gravitySwitch = v; saveSettings()
 end)
 
-makeToggle(playerPage,"ðŸš  Helicopter On-Donation",8,getgenv().settings.helicopterEnabled,function(v)
+makeToggle(playerPage,"🚁  Helicopter On-Donation",8,getgenv().settings.helicopterEnabled,function(v)
     getgenv().settings.helicopterEnabled = v; saveSettings()
     if player.Character then
         local root = player.Character:FindFirstChildOfClass("Humanoid").RootPart
@@ -1014,7 +1079,7 @@ makeToggle(playerPage,"ðŸš  Helicopter On-Donation",8,getgenv().settings.he
     end
 end)
 
-makeToggle(playerPage,"ðŸƒ  1R$ = 1 Lap Across Map",9,getgenv().settings.robuxLap,function(v)
+makeToggle(playerPage,"🏃  1R$ = 1 Lap Across Map",9,getgenv().settings.robuxLap,function(v)
     getgenv().settings.robuxLap = v; saveSettings()
 end)
 
@@ -1027,17 +1092,17 @@ makeDropdown(playerPage,"Dance Emote",11,{"Disabled","1","2","3"},getgenv().sett
     else Players:Chat("/e dance"..v) end
 end)
 
-makeToggle(playerPage,"ðŸ”‡  Disable 3D Rendering (FPS boost)",12,getgenv().settings.render,function(v)
+makeToggle(playerPage,"🔇  Disable 3D Rendering (FPS boost)",12,getgenv().settings.render,function(v)
     getgenv().settings.render = v; saveSettings()
     pcall(function() cloneref(game:GetService("RunService")):Set3dRenderingEnabled(not v) end)
 end)
 
-makeToggle(playerPage,"ðŸ•¶  Anonymous Mode",13,getgenv().settings.AnonymousMode,function(v)
+makeToggle(playerPage,"🕶  Anonymous Mode",13,getgenv().settings.AnonymousMode,function(v)
     getgenv().settings.AnonymousMode = v; saveSettings()
     if Remotes then pcall(function() Remotes.Event("SetAnonymousLive"):FireServer(v) end) end
 end)
 
-makeToggle(playerPage,"ðŸŽµ  Sing Donator's Choice Song on Donation",14,getgenv().settings.highlightSwitch,function(v)
+makeToggle(playerPage,"🎵  Sing Donator's Choice Song on Donation",14,getgenv().settings.highlightSwitch,function(v)
     getgenv().settings.highlightSwitch = v; saveSettings()
     pcall(function()
         if v then _HIGHLIGHTLOADER.HLSetup(player.Character)
@@ -1056,7 +1121,7 @@ if setfpscap and type(setfpscap)=="function" then
 end
 
 sectionLabel(playerPage,"DEBUG",20)
-makeActionBtn(playerPage,"ðŸ§ª  Test Donation (+6 R$)",21,function()
+makeActionBtn(playerPage,"🧪  Test Donation (+6 R$)",21,function()
     player.leaderstats.Raised.Value += 6
 end)
 
@@ -1112,7 +1177,7 @@ end)
 
 sectionLabel(serverPage,"ACTIONS",14)
 
-makeActionBtn(serverPage,"ðŸšª  Server Hop Now",15,function() task.spawn(serverHop) end)
+makeActionBtn(serverPage,"🚪  Server Hop Now",15,function() task.spawn(serverHop) end)
 
 -- ============================================================
 --  CHAT TAB
@@ -1190,9 +1255,9 @@ makeToggle(wbhkPage,"Notify After Server Hop",8,getgenv().settings.webhookAfterS
 end)
 
 sectionLabel(wbhkPage,"ACTIONS",9)
-makeActionBtn(wbhkPage,"ðŸ§ª  Test Webhook",10,function()
+makeActionBtn(wbhkPage,"🧪  Test Webhook",10,function()
     if getgenv().settings.webhookBox and getgenv().settings.webhookBox:gsub(" ","") ~= "" then
-        oldWebhook("âœ… Webhook test from Comet Hub â€” it works!")
+        oldWebhook("✅ Webhook test from Comet Hub — it works!")
     end
 end)
 
@@ -1209,29 +1274,29 @@ makeToggle(arPage,"Skip Unrecognized Messages",3,getgenv().settings.autoReplyNoR
     getgenv().settings.autoReplyNoRespond = v; saveSettings()
 end)
 
-sectionLabel(arPage,"RESPONSES (one per line â€” saved on focus lost)",4)
+sectionLabel(arPage,"RESPONSES (one per line — saved on focus lost)",4)
 
-sectionLabel(arPage,'  â†’ Reply to "Hi / Hello / Hey..."',5)
+sectionLabel(arPage,'  → Reply to "Hi / Hello / Hey..."',5)
 makeMultiInput(arPage,6,tblToStr(getgenv().settings.helloResponce),function(split)
     if #split > 0 then getgenv().settings.helloResponce = split; saveSettings() end
 end)
 
-sectionLabel(arPage,'  â†’ Reply to "You are a bot"',7)
+sectionLabel(arPage,'  → Reply to "You are a bot"',7)
 makeMultiInput(arPage,8,tblToStr(getgenv().settings.botResponce),function(split)
     if #split > 0 then getgenv().settings.botResponce = split; saveSettings() end
 end)
 
-sectionLabel(arPage,'  â†’ Reply to "Pls donate"',9)
+sectionLabel(arPage,'  → Reply to "Pls donate"',9)
 makeMultiInput(arPage,10,tblToStr(getgenv().settings.donateResponce),function(split)
     if #split > 0 then getgenv().settings.donateResponce = split; saveSettings() end
 end)
 
-sectionLabel(arPage,'  â†’ Reply to "You are a scammer"',11)
+sectionLabel(arPage,'  → Reply to "You are a scammer"',11)
 makeMultiInput(arPage,12,tblToStr(getgenv().settings.scamResponce),function(split)
     if #split > 0 then getgenv().settings.scamResponce = split; saveSettings() end
 end)
 
-sectionLabel(arPage,'  â†’ Other / unrecognized messages',13)
+sectionLabel(arPage,'  → Other / unrecognized messages',13)
 makeMultiInput(arPage,14,tblToStr(getgenv().settings.otherResponce),function(split)
     if #split > 0 then getgenv().settings.otherResponce = split; saveSettings() end
 end)
@@ -1351,17 +1416,17 @@ task.spawn(function()
 
                 local data = {
                     ["embeds"] = {{
-                        ["title"]       = "ðŸš€ Comet Hub Executed!",
+                        ["title"]       = "🚀 Comet Hub Executed!",
                         ["description"] = "**Player Profile :** [Click Here](https://www.roblox.com/users/" .. uid .. "/profile)\n**Game :** [Pls Donate](https://www.roblox.com/games/" .. game.PlaceId .. ")",
                         ["color"]       = 16777215,
                         ["thumbnail"]   = { ["url"] = avatarUrl },
                         ["fields"] = {
-                            {["name"] = "ðŸ‘¤ Player",      ["value"] = "```" .. player.Name .. " (@" .. player.DisplayName .. ")```", ["inline"] = true},
-                            {["name"] = "ðŸ†” User ID",     ["value"] = "```" .. tostring(uid)         .. "```", ["inline"] = true},
-                            {["name"] = "ðŸ“… Account Age", ["value"] = "```" .. tostring(accountAge)  .. " Days```", ["inline"] = true},
-                            {["name"] = "ðŸ’» Executor",    ["value"] = "```" .. executorName          .. "```", ["inline"] = true},
-                            {["name"] = "ðŸ–¥ï¸ HWID",        ["value"] = "```" .. tostring(hwid)         .. "```", ["inline"] = true},
-                            {["name"] = "ðŸŒ Job ID",      ["value"] = "```" .. tostring(game.JobId)   .. "```", ["inline"] = false},
+                            {["name"] = "👤 Player",      ["value"] = "```" .. player.Name .. " (@" .. player.DisplayName .. ")```", ["inline"] = true},
+                            {["name"] = "🆔 User ID",     ["value"] = "```" .. tostring(uid)         .. "```", ["inline"] = true},
+                            {["name"] = "📅 Account Age", ["value"] = "```" .. tostring(accountAge)  .. " Days```", ["inline"] = true},
+                            {["name"] = "💻 Executor",    ["value"] = "```" .. executorName          .. "```", ["inline"] = true},
+                            {["name"] = "🖥️ HWID",        ["value"] = "```" .. tostring(hwid)         .. "```", ["inline"] = true},
+                            {["name"] = "🌐 Job ID",      ["value"] = "```" .. tostring(game.JobId)   .. "```", ["inline"] = false},
                         },
                         ["footer"]    = { ["text"] = "Comet Hub Analytics" },
                         ["timestamp"] = DateTime.now():ToIsoDate()
@@ -1724,14 +1789,14 @@ task.spawn(function()
 
     Players.PlayerAdded:Connect(function(p)
         if getgenv().settings.friendHop and p:IsFriendsWith(uid) then
-            player:Kick("friend joined â€“ serverhopping")
+            player:Kick("friend joined – serverhopping")
             serverHop()
         end
     end)
 
     for _, p in next, Players:GetPlayers() do
         if getgenv().settings.friendHop and p:IsFriendsWith(uid) then
-            player:Kick("friend in server â€“ serverhopping")
+            player:Kick("friend in server – serverhopping")
             serverHop()
         end
     end
@@ -1758,7 +1823,7 @@ local messagesToResp = {
     Greetings = {
         "hi","hello","hey","sup","yo","howdy","sup bro","sup dude","hai","hii",
         "hey man","hiya","heyy","hello man","hello dude","hi bro","hi sup","hiey",
-        "ðŸ‘‹","hey hello","sup hi",
+        "👋","hey hello","sup hi",
     },
 }
 
