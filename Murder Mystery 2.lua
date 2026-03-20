@@ -1,27 +1,33 @@
 -- =============================================
---   MM2 Auto Collect | EsohaSL Fix - v3.0
---   Fix : pièces déjà récupérées + glissement fluide
+--   MM2 Auto Collect | EsohaSL Fix - v4.0
+--   Fix : détection universelle + glissement lerp
 -- =============================================
 
 local Workspace   = game:GetService("Workspace")
 local Players     = game:GetService("Players")
+local RunService  = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
+    LerpSpeed = 0.2,       -- Vitesse de glissement (0.1 = lent, 0.3 = rapide)
+    CollectDistance = 4,   -- Distance (studs) pour considérer la pièce collectée
 }
 
--- Cache du Container
+-- =============================================
+--   Cache du Container
+-- =============================================
 local CachedContainer = nil
 
 local function GetCoinContainer()
     if CachedContainer and CachedContainer.Parent then
         return CachedContainer
     end
+    -- Scan unique, résultat mis en cache
     for _, v in pairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" or v.Name == "CoinAreas" then
+        if v.Name == "CoinContainer" then
             CachedContainer = v
             return v
         end
@@ -30,25 +36,19 @@ local function GetCoinContainer()
 end
 
 -- =============================================
---   Vérifier si une pièce est encore VALIDE
---   (non récupérée, visible, encore dans le jeu)
+--   Vérifier si une pièce est encore disponible
+--   Sans filtre par nom → universel peu importe la map
 -- =============================================
 local function IsItemValid(item)
     if not item or not item.Parent then return false end
     if not item:IsA("BasePart") then return false end
-
-    -- Si transparente = déjà récupérée ou en train de disparaître
-    if item.Transparency >= 0.9 then return false end
-
-    -- Vérification optionnelle d'un attribut "Active" si MM2 l'utilise
-    local active = item:GetAttribute("Active")
-    if active ~= nil and active == false then return false end
-
+    if item.Transparency >= 0.9 then return false end  -- Invisible = déjà prise
     return true
 end
 
 -- =============================================
---   Trouver l'objet le plus proche ET valide
+--   Trouver la pièce la plus proche et valide
+--   GetChildren() : les pièces sont enfants directs
 -- =============================================
 local function GetNearestItem()
     local Container = GetCoinContainer()
@@ -61,15 +61,13 @@ local function GetNearestItem()
     local Nearest     = nil
     local MinDistance = math.huge
 
-    for _, item in pairs(Container:GetDescendants()) do
-        if item.Name == "Coin_Server" or item.Name == "BeachBall" or item.Name == "CoinArea" then
-            -- ✅ On ne cible que les pièces encore valides
-            if IsItemValid(item) then
-                local distance = (item.Position - Root.Position).Magnitude
-                if distance < MinDistance then
-                    MinDistance = distance
-                    Nearest = item
-                end
+    -- ✅ GetChildren() suffit : workspace.Factory.CoinContainer:GetChildren()
+    for _, item in pairs(Container:GetChildren()) do
+        if IsItemValid(item) then
+            local distance = (item.Position - Root.Position).Magnitude
+            if distance < MinDistance then
+                MinDistance = distance
+                Nearest = item
             end
         end
     end
@@ -78,44 +76,35 @@ local function GetNearestItem()
 end
 
 -- =============================================
---   Glissement fluide vers la cible
---   via Humanoid:MoveTo() (marche naturelle)
+--   Glissement fluide via lerp CFrame
+--   Pas de conflit moteur physique, mouvement visible
 -- =============================================
-local function SmoothMoveTo(target)
-    local Character = LocalPlayer.Character
-    if not Character then return end
+local function GlideTo(target)
+    local timeout = tick() + 4  -- Sécurité max 4 secondes par pièce
 
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    local Root     = Character:FindFirstChild("HumanoidRootPart")
-    if not Humanoid or not Root then return end
+    while tick() < timeout do
+        -- Récupération fraîche à chaque frame
+        local Character = LocalPlayer.Character
+        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 
-    -- On se déplace vers la pièce
-    Humanoid:MoveTo(target.Position)
+        if not Root then break end
 
-    -- Attente d'arrivée avec timeout de 3 secondes
-    -- (évite de rester bloqué si la pièce disparaît en route)
-    local arrived  = false
-    local timeout  = tick() + 3
+        -- La pièce a disparu ou été collectée → on arrête
+        if not IsItemValid(target) then break end
 
-    local conn
-    conn = Humanoid.MoveToFinished:Connect(function()
-        arrived = true
-        conn:Disconnect()
-    end)
+        local TargetPos = target.Position
+        local Distance  = (TargetPos - Root.Position).Magnitude
 
-    -- Boucle d'attente : on annule si la pièce disparaît ou timeout
-    while not arrived and tick() < timeout do
-        if not IsItemValid(target) then
-            -- La pièce a été récupérée en route → on annule le mouvement
-            Humanoid:MoveTo(Root.Position)
-            conn:Disconnect()
-            break
-        end
-        task.wait(0.1)
-    end
+        -- Assez proche → collectée, on passe à la suivante
+        if Distance <= getgenv().Settings.CollectDistance then break end
 
-    if not arrived and conn then
-        conn:Disconnect()
+        -- ✅ Lerp fluide vers la cible (glissement progressif)
+        Root.CFrame = Root.CFrame:Lerp(
+            CFrame.new(TargetPos),
+            getgenv().Settings.LerpSpeed
+        )
+
+        task.wait() -- RunService.Heartbeat implicite
     end
 end
 
@@ -145,13 +134,15 @@ Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
                     local Target = GetNearestItem()
 
                     if Target then
-                        -- ✅ Glissement fluide, annulé si la pièce disparaît
-                        SmoothMoveTo(Target)
+                        GlideTo(Target)  -- Glisse vers la pièce
                         task.wait(0.1)
+                    else
+                        -- Aucune pièce trouvée → on attend avant de rescanner
+                        task.wait(0.5)
                     end
+                else
+                    task.wait(0.5)
                 end
-
-                task.wait(0.2)
             end
         end)
     end
@@ -175,4 +166,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
 
-print("✅ Script MM2 v3.0 chargé avec succès !")
+print("✅ Script MM2 v4.0 chargé !")
