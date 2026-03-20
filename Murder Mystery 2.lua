@@ -1,30 +1,25 @@
 -- =============================================
---   MM2 Auto Collect | EsohaSL Fix - v2.0
---   Corrigé par : analyse complète des bugs
+--   MM2 Auto Collect | EsohaSL Fix - v3.0
+--   Fix : pièces déjà récupérées + glissement fluide
 -- =============================================
 
-local Workspace     = game:GetService("Workspace")
-local Players       = game:GetService("Players")
-local VirtualUser   = game:GetService("VirtualUser")
+local Workspace   = game:GetService("Workspace")
+local Players     = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
 
-local LocalPlayer   = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
 }
 
--- =============================================
---   Cache du Container (évite un scan complet
---   du Workspace à chaque itération de loop)
--- =============================================
+-- Cache du Container
 local CachedContainer = nil
 
 local function GetCoinContainer()
-    -- Si le cache est encore valide, on le réutilise directement
     if CachedContainer and CachedContainer.Parent then
         return CachedContainer
     end
-    -- Sinon on scanne une seule fois et on cache le résultat
     for _, v in pairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" or v.Name == "CoinAreas" then
             CachedContainer = v
@@ -35,8 +30,25 @@ local function GetCoinContainer()
 end
 
 -- =============================================
---   Trouver l'objet le plus proche
---   GetDescendants() pour les objets imbriqués
+--   Vérifier si une pièce est encore VALIDE
+--   (non récupérée, visible, encore dans le jeu)
+-- =============================================
+local function IsItemValid(item)
+    if not item or not item.Parent then return false end
+    if not item:IsA("BasePart") then return false end
+
+    -- Si transparente = déjà récupérée ou en train de disparaître
+    if item.Transparency >= 0.9 then return false end
+
+    -- Vérification optionnelle d'un attribut "Active" si MM2 l'utilise
+    local active = item:GetAttribute("Active")
+    if active ~= nil and active == false then return false end
+
+    return true
+end
+
+-- =============================================
+--   Trouver l'objet le plus proche ET valide
 -- =============================================
 local function GetNearestItem()
     local Container = GetCoinContainer()
@@ -46,12 +58,13 @@ local function GetNearestItem()
     local Root = Character and Character:FindFirstChild("HumanoidRootPart")
     if not Root then return nil end
 
-    local Nearest    = nil
+    local Nearest     = nil
     local MinDistance = math.huge
 
     for _, item in pairs(Container:GetDescendants()) do
         if item.Name == "Coin_Server" or item.Name == "BeachBall" or item.Name == "CoinArea" then
-            if item:IsA("BasePart") then
+            -- ✅ On ne cible que les pièces encore valides
+            if IsItemValid(item) then
                 local distance = (item.Position - Root.Position).Magnitude
                 if distance < MinDistance then
                     MinDistance = distance
@@ -65,6 +78,48 @@ local function GetNearestItem()
 end
 
 -- =============================================
+--   Glissement fluide vers la cible
+--   via Humanoid:MoveTo() (marche naturelle)
+-- =============================================
+local function SmoothMoveTo(target)
+    local Character = LocalPlayer.Character
+    if not Character then return end
+
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    local Root     = Character:FindFirstChild("HumanoidRootPart")
+    if not Humanoid or not Root then return end
+
+    -- On se déplace vers la pièce
+    Humanoid:MoveTo(target.Position)
+
+    -- Attente d'arrivée avec timeout de 3 secondes
+    -- (évite de rester bloqué si la pièce disparaît en route)
+    local arrived  = false
+    local timeout  = tick() + 3
+
+    local conn
+    conn = Humanoid.MoveToFinished:Connect(function()
+        arrived = true
+        conn:Disconnect()
+    end)
+
+    -- Boucle d'attente : on annule si la pièce disparaît ou timeout
+    while not arrived and tick() < timeout do
+        if not IsItemValid(target) then
+            -- La pièce a été récupérée en route → on annule le mouvement
+            Humanoid:MoveTo(Root.Position)
+            conn:Disconnect()
+            break
+        end
+        task.wait(0.1)
+    end
+
+    if not arrived and conn then
+        conn:Disconnect()
+    end
+end
+
+-- =============================================
 --   UI Library
 -- =============================================
 local Library = loadstring(game:HttpGet(
@@ -75,7 +130,7 @@ local Window = Library:CreateWindow("MM2 | EsohaSL Fix")
 Window:Section("esohasl.net")
 
 -- =============================================
---   Toggle : Auto Collect Coins / Ball
+--   Toggle : Auto Collect
 -- =============================================
 Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
     getgenv().Settings.AutoBallonEnabled = state
@@ -83,34 +138,27 @@ Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
     if state then
         task.spawn(function()
             while getgenv().Settings.AutoBallonEnabled do
-
-                -- Récupération sécurisée du personnage à chaque cycle
                 local Character = LocalPlayer.Character
                 local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 
                 if Root then
                     local Target = GetNearestItem()
 
-                    -- Double check : la cible existe encore ? (peut avoir été collectée)
-                    if Target and Target.Parent then
-
-                        -- ✅ Téléportation directe : évite le conflit avec le moteur physique
-                        -- On utilise uniquement la Position pour ne pas hériter
-                        -- de la rotation bizarre de la pièce/ballon
-                        Root.CFrame = CFrame.new(Target.Position)
-
-                        task.wait(0.15) -- Délai pour s'assurer de la collecte
+                    if Target then
+                        -- ✅ Glissement fluide, annulé si la pièce disparaît
+                        SmoothMoveTo(Target)
+                        task.wait(0.1)
                     end
                 end
 
-                task.wait(0.2) -- Pause entre chaque cycle de scan
+                task.wait(0.2)
             end
         end)
     end
 end)
 
 -- =============================================
---   Bouton : Copier lien YouTube
+--   Bouton : Lien YouTube
 -- =============================================
 Window:Button("YouTube: EsohaSL", function()
     if setclipboard then
@@ -127,4 +175,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
 
-print("✅ Script MM2 mis à jour avec succès !")
+print("✅ Script MM2 v3.0 chargé avec succès !")
