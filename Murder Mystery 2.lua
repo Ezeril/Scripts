@@ -1,7 +1,6 @@
 -- =============================================
---   MM2 Auto Collect | EsohaSL Fix - v6.0
---   Fix : structure réelle CoinVisual > DecalPart
---          + détection dynamique toutes maps MM2
+--   MM2 Auto Collect | EsohaSL Fix - v7.0
+--   Fix : check sur MainCoin (seul enfant fiable)
 -- =============================================
 
 local Workspace   = game:GetService("Workspace")
@@ -18,48 +17,33 @@ getgenv().Settings = {
 
 local CachedContainer = nil
 
--- =============================================
---   Scan dynamique : trouve CoinContainer
---   peu importe la map (Hotel, House2, Factory...)
--- =============================================
 local function GetCoinContainer()
     if CachedContainer and CachedContainer.Parent then
         return CachedContainer
     end
-
-    -- Invalide le cache si la map a changé
     CachedContainer = nil
-
     for _, v in pairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" then
             CachedContainer = v
-            print("[MM2] CoinContainer trouvé dans :", v:GetFullName())
+            print("[MM2] Map détectée :", v:GetFullName())
             return v
         end
     end
-
     return nil
 end
 
 -- =============================================
---   Structure réelle :
---   Coin_Server (Part, Transparency=1)
---     └── CoinVisual
---           └── DecalPart (BasePart)
---   Si DecalPart absent = pièce déjà collectée
+--   ✅ Vérification sur MainCoin uniquement
+--   MainCoin Transparency=0 → pièce disponible
+--   MainCoin absent ou Transparency=1 → collectée
 -- =============================================
 local function IsItemValid(item)
     if not item or not item.Parent then return false end
     if not item:IsA("BasePart") then return false end
 
-    local visual = item:FindFirstChild("CoinVisual")
-    if not visual then return false end
-
-    local decal = visual:FindFirstChild("DecalPart")
-    if not decal then return false end
-
-    -- DecalPart disparaît ou devient transparent quand collecté
-    if decal:IsA("BasePart") and decal.Transparency >= 0.9 then return false end
+    local mainCoin = item:FindFirstChild("MainCoin")
+    if not mainCoin then return false end
+    if mainCoin.Transparency >= 0.9 then return false end
 
     return true
 end
@@ -88,9 +72,6 @@ local function GetNearestItem()
     return Nearest
 end
 
--- =============================================
---   Glissement lerp
--- =============================================
 local function GlideTo(target)
     local timeout = tick() + 5
 
@@ -113,14 +94,11 @@ local function GlideTo(target)
     end
 end
 
--- =============================================
---   Reset du cache quand la map change
---   (le CoinContainer change à chaque round)
--- =============================================
+-- Reset cache automatique au changement de map
 Workspace.DescendantRemoving:Connect(function(removed)
     if removed == CachedContainer then
         CachedContainer = nil
-        print("[MM2] Map changée, cache CoinContainer resetté")
+        print("[MM2] Nouvelle map, cache resetté")
     end
 end)
 
@@ -149,7 +127,6 @@ Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
                         GlideTo(Target)
                         task.wait(0.1)
                     else
-                        -- Aucune pièce dispo ou entre deux rounds
                         task.wait(0.5)
                     end
                 else
@@ -172,4 +149,4 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
 
-print("✅ Script MM2 v6.0 chargé !")
+print("✅ Script MM2 v7.0 chargé !")
