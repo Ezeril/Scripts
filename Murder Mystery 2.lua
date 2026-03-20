@@ -1,31 +1,27 @@
 -- =============================================
---   MM2 Auto Collect | EsohaSL Fix - v4.0
---   Fix : détection universelle + glissement lerp
+--   MM2 Auto Collect | EsohaSL Fix - v5.0
+--   Fix : Coin_Server = hitbox invisible,
+--          CoinVisual = vraie pièce visible
 -- =============================================
 
 local Workspace   = game:GetService("Workspace")
 local Players     = game:GetService("Players")
-local RunService  = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
-    LerpSpeed = 0.2,       -- Vitesse de glissement (0.1 = lent, 0.3 = rapide)
-    CollectDistance = 4,   -- Distance (studs) pour considérer la pièce collectée
+    LerpSpeed         = 0.18,
+    CollectDistance   = 5,
 }
 
--- =============================================
---   Cache du Container
--- =============================================
 local CachedContainer = nil
 
 local function GetCoinContainer()
     if CachedContainer and CachedContainer.Parent then
         return CachedContainer
     end
-    -- Scan unique, résultat mis en cache
     for _, v in pairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" then
             CachedContainer = v
@@ -36,20 +32,24 @@ local function GetCoinContainer()
 end
 
 -- =============================================
---   Vérifier si une pièce est encore disponible
---   Sans filtre par nom → universel peu importe la map
+--   Vérification corrigée :
+--   Coin_Server est TOUJOURS Transparency=1 (hitbox)
+--   On vérifie CoinVisual à la place
 -- =============================================
 local function IsItemValid(item)
     if not item or not item.Parent then return false end
     if not item:IsA("BasePart") then return false end
-    if item.Transparency >= 0.9 then return false end  -- Invisible = déjà prise
+
+    -- La pièce visible est l'enfant CoinVisual
+    local visual = item:FindFirstChild("CoinVisual")
+    if not visual then return false end  -- Pas de visual = déjà collectée ou invalide
+
+    -- Si CoinVisual est transparent = pièce collectée/en train de disparaître
+    if visual:IsA("BasePart") and visual.Transparency >= 0.9 then return false end
+
     return true
 end
 
--- =============================================
---   Trouver la pièce la plus proche et valide
---   GetChildren() : les pièces sont enfants directs
--- =============================================
 local function GetNearestItem()
     local Container = GetCoinContainer()
     if not Container then return nil end
@@ -61,9 +61,9 @@ local function GetNearestItem()
     local Nearest     = nil
     local MinDistance = math.huge
 
-    -- ✅ GetChildren() suffit : workspace.Factory.CoinContainer:GetChildren()
     for _, item in pairs(Container:GetChildren()) do
-        if IsItemValid(item) then
+        -- Filtre par nom + validité
+        if item.Name == "Coin_Server" and IsItemValid(item) then
             local distance = (item.Position - Root.Position).Magnitude
             if distance < MinDistance then
                 MinDistance = distance
@@ -76,40 +76,32 @@ local function GetNearestItem()
 end
 
 -- =============================================
---   Glissement fluide via lerp CFrame
---   Pas de conflit moteur physique, mouvement visible
+--   Glissement lerp vers la cible
 -- =============================================
 local function GlideTo(target)
-    local timeout = tick() + 4  -- Sécurité max 4 secondes par pièce
+    local timeout = tick() + 5
 
     while tick() < timeout do
-        -- Récupération fraîche à chaque frame
         local Character = LocalPlayer.Character
         local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 
         if not Root then break end
+        if not IsItemValid(target) then break end  -- Disparue en route
 
-        -- La pièce a disparu ou été collectée → on arrête
-        if not IsItemValid(target) then break end
+        local distance = (target.Position - Root.Position).Magnitude
+        if distance <= getgenv().Settings.CollectDistance then break end
 
-        local TargetPos = target.Position
-        local Distance  = (TargetPos - Root.Position).Magnitude
-
-        -- Assez proche → collectée, on passe à la suivante
-        if Distance <= getgenv().Settings.CollectDistance then break end
-
-        -- ✅ Lerp fluide vers la cible (glissement progressif)
         Root.CFrame = Root.CFrame:Lerp(
-            CFrame.new(TargetPos),
+            CFrame.new(target.Position + Vector3.new(0, 0, 0)),
             getgenv().Settings.LerpSpeed
         )
 
-        task.wait() -- RunService.Heartbeat implicite
+        task.wait()
     end
 end
 
 -- =============================================
---   UI Library
+--   UI
 -- =============================================
 local Library = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true
@@ -118,9 +110,6 @@ local Library = loadstring(game:HttpGet(
 local Window = Library:CreateWindow("MM2 | EsohaSL Fix")
 Window:Section("esohasl.net")
 
--- =============================================
---   Toggle : Auto Collect
--- =============================================
 Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
     getgenv().Settings.AutoBallonEnabled = state
 
@@ -132,13 +121,11 @@ Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
 
                 if Root then
                     local Target = GetNearestItem()
-
                     if Target then
-                        GlideTo(Target)  -- Glisse vers la pièce
+                        GlideTo(Target)
                         task.wait(0.1)
                     else
-                        -- Aucune pièce trouvée → on attend avant de rescanner
-                        task.wait(0.5)
+                        task.wait(0.5) -- Aucune pièce dispo, on attend
                     end
                 else
                     task.wait(0.5)
@@ -148,22 +135,16 @@ Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
     end
 end)
 
--- =============================================
---   Bouton : Lien YouTube
--- =============================================
 Window:Button("YouTube: EsohaSL", function()
     if setclipboard then
         setclipboard("https://youtube.com/@esohasl")
     end
 end)
 
--- =============================================
---   Anti-AFK
--- =============================================
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
 
-print("✅ Script MM2 v4.0 chargé !")
+print("✅ Script MM2 v5.0 chargé !")
