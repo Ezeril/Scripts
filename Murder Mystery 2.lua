@@ -1,3 +1,4 @@
+-- ✅ Chargement de Rayfield
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -68,7 +69,6 @@ local WalkSpeedSlider = MainTab:CreateSlider({
    end,
 })
 
--- ✅ FIX 4 : Flag unique "Slider2"
 local JumpSlider = MainTab:CreateSlider({
    Name = "Jump",
    Range = {0, 300},
@@ -77,7 +77,6 @@ local JumpSlider = MainTab:CreateSlider({
    CurrentValue = 50,
    Flag = "Slider2",
    Callback = function(Value)
-      -- ✅ FIX 2 : 'Value' avec majuscule
       game:GetService("Players").LocalPlayer.Character.Humanoid.JumpPower = Value
    end,
 })
@@ -372,7 +371,6 @@ local EspButton = mm2Tab:CreateButton({
             end
          end
 
-         -- ✅ FIX 3 : 'm' remplacé par 'v' dans toute la boucle
          for _, v in pairs(wp:GetChildren()) do
             if tostring(v) == "Bank" or tostring(v) == "Bank2" or tostring(v) == "BioLab" or tostring(v) == "Factory" then
                nameMap = v.Name
@@ -381,12 +379,11 @@ local EspButton = mm2Tab:CreateButton({
             elseif tostring(v) == "Workplace" or tostring(v) == "Mineshaft" or tostring(v) == "Hotel" then
                nameMap = v.Name
             elseif tostring(v) == "MilBase" or tostring(v) == "PoliceStation" then
-               nameMap = v.Name -- ✅ FIX 3 : était 'm.Name'
+               nameMap = v.Name
             elseif tostring(v) == "Hospital2" or tostring(v) == "Mansion2" or tostring(v) == "Lab2" then
                nameMap = v.Name
             end
 
-            -- ✅ FIX 3 : 'tostring(m)' remplacé par 'tostring(v)'
             if tostring(v) == "GunDrop" then
                local bgui = Instance.new("BillboardGui", v)
                bgui.Name = "EGUI"
@@ -417,9 +414,7 @@ local EspButton = mm2Tab:CreateButton({
                            c.CFrame = lplr.Character.LowerTorso.CFrame
                         end
                      end
-                     if tostring(lplr.PlayerGui.MainGUI.Game.CashBag.Coins.Text) == "10" then
-                        break
-                     end
+                     if tostring(lplr.PlayerGui.MainGUI.Game.CashBag.Coins.Text) == "10" then break end
                      wait(0.7)
                   end
                end
@@ -434,9 +429,7 @@ local EspButton = mm2Tab:CreateButton({
                            c.CFrame = lplr.Character.LowerTorso.CFrame
                         end
                      end
-                     if tostring(lplr.PlayerGui.MainGUI.Game.CashBag.Coins.Text) == "15" then
-                        break
-                     end
+                     if tostring(lplr.PlayerGui.MainGUI.Game.CashBag.Coins.Text) == "15" then break end
                      wait(0.7)
                   end
                end
@@ -467,12 +460,8 @@ local EspButton = mm2Tab:CreateButton({
       end
 
       mouse.KeyDown:Connect(function(keyDown)
-         if keyDown == "l" then
-            tpCoin()
-         end
-         if keyDown == "k" then
-            bringGun()
-         end
+         if keyDown == "l" then tpCoin() end
+         if keyDown == "k" then bringGun() end
          if keyDown == "c" then
             changeWS(0)
             SendChat("Walk Speed :" .. lplr.Character.Humanoid.WalkSpeed)
@@ -620,7 +609,71 @@ local GrabGunButton = mm2Tab:CreateButton({
    end,
 })
 
--- ✅ FIX 1 : 'Tab' remplacé par 'mm2Tab'
+-- ✅ AUTO FARM AJOUTÉ ICI
+local autoFarmActive = false
+
+local AutoFarmToggle = mm2Tab:CreateToggle({
+   Name = "Auto Farm Coins",
+   CurrentValue = false,
+   Flag = "AutoFarm1",
+   Callback = function(Value)
+      autoFarmActive = Value
+
+      if Value then
+         Rayfield:Notify({
+            Title = "Auto Farm",
+            Content = "Auto Farm activé !",
+            Duration = 3,
+            Image = nil,
+         })
+
+         task.spawn(function()
+            while autoFarmActive do
+               local wp = game:GetService("Workspace")
+               local lplr = game:GetService("Players").LocalPlayer
+               local char = lplr.Character
+
+               for _, mapName in pairs({
+                  "Bank","Bank2","BioLab","Factory","House2",
+                  "Office3","Office2","Workplace","Mineshaft",
+                  "Hotel","MilBase","PoliceStation","Hospital2",
+                  "Mansion2","Lab2"
+               }) do
+                  local map = wp:FindFirstChild(mapName)
+                  if map then
+                     local coinContainer = map:FindFirstChild("CoinContainer")
+                     if coinContainer and char and char:FindFirstChild("LowerTorso") then
+                        for _, coin in pairs(coinContainer:GetChildren()) do
+                           if coin:IsA("BasePart") then
+                              coin.CFrame = char.LowerTorso.CFrame
+                              task.wait(0.1)
+                           end
+                        end
+                     end
+                  end
+               end
+
+               if wp:FindFirstChild("GunDrop") and char and char:FindFirstChild("HumanoidRootPart") then
+                  char.HumanoidRootPart.CFrame = wp.GunDrop.CFrame
+                  task.wait(0.2)
+               end
+
+               task.wait(1)
+            end
+         end)
+
+      else
+         autoFarmActive = false
+         Rayfield:Notify({
+            Title = "Auto Farm",
+            Content = "Auto Farm désactivé !",
+            Duration = 3,
+            Image = nil,
+         })
+      end
+   end,
+})
+
 local ExampleButton = mm2Tab:CreateButton({
    Name = "Button Example",
    Callback = function()
