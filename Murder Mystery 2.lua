@@ -1,12 +1,15 @@
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
-    CollectRange = 4,       -- Distance (studs) pour considérer l'item collecté
-    MoveTimeout = 8,        -- Timeout max en secondes pour atteindre un item
+    CollectRange    = 3,    -- Distance pour considérer l'item collecté (studs)
+    GlideSpeed      = 60,   -- Studs par seconde (plus haut = plus rapide)
+    StepSize        = 0.5,  -- Taille de chaque pas (plus petit = collecte plus fiable)
+    MoveTimeout     = 10,   -- Timeout max en secondes par item
     BlacklistDuration = 5,  -- Secondes avant de réessayer un item raté
 }
 
@@ -30,10 +33,10 @@ local function GetItemPosition(item)
 end
 
 local function IsItemValid(item)
-    return item and item.Parent and GetItemPosition(item) ~= nil
+    return item and item.Parent ~= nil and GetItemPosition(item) ~= nil
 end
 
--- ─── Sélection de la cible la plus proche (avec blacklist) ──────────────────
+-- ─── Sélection de la cible la plus proche ───────────────────────────────────
 
 local function GetNearestItem(blacklist)
     local Container = GetCoinContainer()
@@ -52,7 +55,6 @@ local function GetNearestItem(blacklist)
                        or item.Name == "CoinArea"
 
         if validName and IsItemValid(item) then
-            -- Ignorer si dans la blacklist et délai pas encore expiré
             local blacklistedUntil = blacklist[item]
             if not blacklistedUntil or now >= blacklistedUntil then
                 local pos = GetItemPosition(item)
@@ -68,44 +70,67 @@ local function GetNearestItem(blacklist)
     return Nearest
 end
 
--- ─── Déplacement naturel via Humanoid:MoveTo() (glisse, pas TP) ─────────────
+-- ─── Glisse pas à pas (traverse les murs, déclenche les Touched) ─────────────
 
-local function WalkTo(targetPos)
-    local Character = LocalPlayer.Character
-    if not Character then return false end
+local function GlideTo(targetPos)
+    local Settings = getgenv().Settings
+    local deadline = tick() + Settings.MoveTimeout
 
-    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-    local Root     = Character:FindFirstChild("HumanoidRootPart")
-    if not Humanoid or not Root then return false end
+    while tick() < deadline and getgenv().Settings.AutoBallonEnabled do
+        local Character = LocalPlayer.Character
+        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+        if not Root then return false end
 
-    Humanoid:MoveTo(targetPos)
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 
-    local deadline = tick() + getgenv().Settings.MoveTimeout
-    while tick() < deadline do
-        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            return false
+        -- Désactiver le PlatformStand pour éviter que le perso tombe
+        if Humanoid then
+            Humanoid.PlatformStand = false
+            -- Empêcher Roblox de corriger la position (anti-correction physique)
+            Humanoid.AutoRotate = false
         end
-        local dist = (LocalPlayer.Character.HumanoidRootPart.Position - targetPos).Magnitude
-        if dist <= getgenv().Settings.CollectRange then
-            return true   -- On est arrivé à portée
+
+        local currentPos = Root.Position
+        local direction = (targetPos - currentPos)
+        local distance = direction.Magnitude
+
+        -- Arrivé à portée de collecte → succès
+        if distance <= Settings.CollectRange then
+            if Humanoid then Humanoid.AutoRotate = true end
+            return true
         end
-        task.wait(0.1)
+
+        -- Calculer le prochain pas
+        local stepDist = math.min(Settings.StepSize, distance)
+        local nextPos  = currentPos + direction.Unit * stepDist
+
+        -- Déplacer via CFrame (traverse les murs, pas de physique)
+        -- On conserve l'orientation actuelle du perso
+        Root.CFrame = CFrame.new(nextPos) * (Root.CFrame - Root.CFrame.Position)
+
+        -- Délai basé sur la vitesse (StepSize / GlideSpeed = temps par pas)
+        task.wait(Settings.StepSize / Settings.GlideSpeed)
     end
 
-    return false  -- Timeout → on blackliste cet item temporairement
+    -- Rétablir AutoRotate en cas de timeout
+    local Character = LocalPlayer.Character
+    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+    if Humanoid then Humanoid.AutoRotate = true end
+
+    return false -- Timeout
 end
 
 -- ─── Boucle principale ──────────────────────────────────────────────────────
 
 local function StartAutoCollect()
-    local blacklist = {}  -- [item] = tick() d'expiration
+    local blacklist = {}
 
     while getgenv().Settings.AutoBallonEnabled do
         local Character = LocalPlayer.Character
         local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 
         if Root then
-            -- Nettoyer la blacklist des items qui ont disparu
+            -- Nettoyer la blacklist des items disparus
             for item in pairs(blacklist) do
                 if not IsItemValid(item) then
                     blacklist[item] = nil
@@ -115,24 +140,25 @@ local function StartAutoCollect()
             local Target = GetNearestItem(blacklist)
 
             if Target then
-                local startPos = GetItemPosition(Target)
-                if startPos then
-                    local reached = WalkTo(startPos)
+                local targetPos = GetItemPosition(Target)
+                if targetPos then
+                    -- Snapshot de la position AVANT de glisser
+                    -- (au cas où l'item bouge, ex: BeachBall)
+                    local reached = GlideTo(targetPos)
 
                     if not reached then
-                        -- Timeout : on blackliste temporairement cet item
+                        -- Timeout → blacklist temporaire
                         blacklist[Target] = tick() + getgenv().Settings.BlacklistDuration
                     end
-                    -- Si l'item a disparu tout seul (collecté), pas besoin d'action
                 end
             else
-                -- Aucun item dispo → on vide la blacklist et on attend
+                -- Aucun item dispo, on vide la blacklist et on attend
                 blacklist = {}
                 task.wait(1)
             end
         end
 
-        task.wait(0.15)
+        task.wait(0.1)
     end
 end
 
