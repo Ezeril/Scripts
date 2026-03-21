@@ -1,15 +1,16 @@
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
-    CollectRange      = 3,   -- Distance pour considérer l'item collecté (studs)
-    GlideSpeed        = 60,  -- Studs par seconde
-    StepSize          = 0.5, -- Taille de chaque pas
-    MoveTimeout       = 10,  -- Timeout max en secondes par item
-    BlacklistDuration = 5,   -- Secondes avant de réessayer un item raté
+    CollectRange      = 3,
+    GlideSpeed        = 60,
+    StepSize          = 0.5,
+    MoveTimeout       = 10,
+    BlacklistDuration = 5,
 }
 
 -- ─── Utilitaires ────────────────────────────────────────────────────────────
@@ -35,16 +36,37 @@ local function IsItemValid(item)
     return item and item.Parent ~= nil and GetItemPosition(item) ~= nil
 end
 
--- ─── Collisions du personnage ────────────────────────────────────────────────
+-- ─── Noclip Loop (RunService.Stepped = avant le calcul physique) ─────────────
 
-local function SetCharacterCollision(enabled)
-    local Character = LocalPlayer.Character
-    if not Character then return end
-    for _, part in pairs(Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = enabled
+local noclipConnection = nil
+
+local function EnableNoclip()
+    if noclipConnection then return end
+    noclipConnection = RunService.Stepped:Connect(function()
+        if not getgenv().Settings.AutoBallonEnabled then
+            -- Réactiver les collisions
+            local Character = LocalPlayer.Character
+            if Character then
+                for _, part in pairs(Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+            return
         end
-    end
+
+        local Character = LocalPlayer.Character
+        if not Character then return end
+
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
 end
 
 -- ─── Sélection de la cible la plus proche ───────────────────────────────────
@@ -81,59 +103,52 @@ local function GetNearestItem(blacklist)
     return Nearest
 end
 
--- ─── Glisse pas à pas (traverse les murs, déclenche les Touched) ─────────────
+-- ─── Glisse pas à pas ────────────────────────────────────────────────────────
 
 local function GlideTo(targetPos)
     local Settings = getgenv().Settings
     local deadline = tick() + Settings.MoveTimeout
 
-    -- Désactiver les collisions AVANT de glisser
-    SetCharacterCollision(false)
-
     while tick() < deadline and getgenv().Settings.AutoBallonEnabled do
         local Character = LocalPlayer.Character
         local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-        if not Root then
-            SetCharacterCollision(true)
-            return false
-        end
+        if not Root then return false end
 
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+
         if Humanoid then
+            -- PlatformStand = true suspend le moteur physique du Humanoid
+            -- pour éviter les corrections de position pendant le glide
+            Humanoid.PlatformStand = true
             Humanoid.AutoRotate = false
-            Humanoid.PlatformStand = true -- Empêche l'animation de lutter contre le mouvement
         end
 
         local currentPos = Root.Position
-        local direction = targetPos - currentPos
+        local direction = (targetPos - currentPos)
         local distance = direction.Magnitude
 
-        -- Arrivé à portée → succès
         if distance <= Settings.CollectRange then
-            SetCharacterCollision(true)
             if Humanoid then
-                Humanoid.AutoRotate = true
                 Humanoid.PlatformStand = false
+                Humanoid.AutoRotate = true
             end
             return true
         end
 
-        -- Prochain pas vers la cible
         local stepDist = math.min(Settings.StepSize, distance)
-        local nextPos = currentPos + direction.Unit * stepDist
+        local nextPos  = currentPos + direction.Unit * stepDist
 
         Root.CFrame = CFrame.new(nextPos) * (Root.CFrame - Root.CFrame.Position)
 
         task.wait(Settings.StepSize / Settings.GlideSpeed)
     end
 
-    -- Réactiver dans tous les cas (timeout, désactivation)
-    SetCharacterCollision(true)
+    -- Timeout : rétablir le Humanoid
     local Character = LocalPlayer.Character
     local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
     if Humanoid then
-        Humanoid.AutoRotate = true
         Humanoid.PlatformStand = false
+        Humanoid.AutoRotate = true
     end
 
     return false
@@ -149,7 +164,6 @@ local function StartAutoCollect()
         local Root = Character and Character:FindFirstChild("HumanoidRootPart")
 
         if Root then
-            -- Nettoyer la blacklist des items disparus
             for item in pairs(blacklist) do
                 if not IsItemValid(item) then
                     blacklist[item] = nil
@@ -188,6 +202,7 @@ Window:Section("esohasl.net")
 Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
     getgenv().Settings.AutoBallonEnabled = state
     if state then
+        EnableNoclip()               -- ← Active le noclip via Stepped
         task.spawn(StartAutoCollect)
     end
 end)
@@ -204,12 +219,6 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-end)
-
--- Réactiver les collisions si le personnage respawn
-LocalPlayer.CharacterAdded:Connect(function()
-    getgenv().Settings.AutoBallonEnabled = false
-    SetCharacterCollision(true)
 end)
 
 print("Script MM2 chargé avec succès !")
