@@ -1,18 +1,18 @@
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
 local VirtualUser = game:GetService("VirtualUser")
-
 local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
-    TweenSpeed = 1.5 -- Temps pour aller à l'objet (plus bas = plus rapide)
+    CollectRange = 4,       -- Distance (studs) pour considérer l'item collecté
+    MoveTimeout = 8,        -- Timeout max en secondes pour atteindre un item
+    BlacklistDuration = 5,  -- Secondes avant de réessayer un item raté
 }
 
--- Fonction dynamique pour trouver le dossier des pièces/ballons sur n'importe quelle map
+-- ─── Utilitaires ────────────────────────────────────────────────────────────
+
 local function GetCoinContainer()
-    -- On cherche un objet nommé "CoinContainer" dans le Workspace (vu dans tes logs F9)
     for _, v in pairs(Workspace:GetDescendants()) do
         if v.Name == "CoinContainer" or v.Name == "CoinAreas" then
             return v
@@ -21,28 +21,46 @@ local function GetCoinContainer()
     return nil
 end
 
--- Obtenir l'objet (Pièce ou Ballon) le plus proche
-local function GetNearestItem()
+local function GetItemPosition(item)
+    if not item or not item.Parent then return nil end
+    local ok, pos = pcall(function()
+        return item:IsA("BasePart") and item.Position or item:GetPivot().Position
+    end)
+    return ok and pos or nil
+end
+
+local function IsItemValid(item)
+    return item and item.Parent and GetItemPosition(item) ~= nil
+end
+
+-- ─── Sélection de la cible la plus proche (avec blacklist) ──────────────────
+
+local function GetNearestItem(blacklist)
     local Container = GetCoinContainer()
     if not Container then return nil end
 
-    local Nearest = nil
-    local MinDistance = math.huge
     local Character = LocalPlayer.Character
     local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-
     if not Root then return nil end
 
-    for _, item in pairs(Container:GetChildren()) do
-        -- On cible "Coin_Server" ou "BeachBall" d'après tes scans
-        if item.Name == "Coin_Server" or item.Name == "BeachBall" or item.Name == "CoinArea" then
-            -- Vérifier si l'objet a une position physique
-            local pos = item:IsA("BasePart") and item.Position or item:GetPivot().Position
-            local distance = (pos - Root.Position).Magnitude
-            
-            if distance < MinDistance then
-                MinDistance = distance
-                Nearest = item
+    local Nearest, MinDist = nil, math.huge
+    local now = tick()
+
+    for _, item in pairs(Container:GetDescendants()) do
+        local validName = item.Name == "Coin_Server"
+                       or item.Name == "BeachBall"
+                       or item.Name == "CoinArea"
+
+        if validName and IsItemValid(item) then
+            -- Ignorer si dans la blacklist et délai pas encore expiré
+            local blacklistedUntil = blacklist[item]
+            if not blacklistedUntil or now >= blacklistedUntil then
+                local pos = GetItemPosition(item)
+                local dist = (pos - Root.Position).Magnitude
+                if dist < MinDist then
+                    MinDist = dist
+                    Nearest = item
+                end
             end
         end
     end
@@ -50,56 +68,102 @@ local function GetNearestItem()
     return Nearest
 end
 
--- Library UI
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true))()
-local Window = Library:CreateWindow("MM2 | EsohaSL Fix")
+-- ─── Déplacement naturel via Humanoid:MoveTo() (glisse, pas TP) ─────────────
 
+local function WalkTo(targetPos)
+    local Character = LocalPlayer.Character
+    if not Character then return false end
+
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    local Root     = Character:FindFirstChild("HumanoidRootPart")
+    if not Humanoid or not Root then return false end
+
+    Humanoid:MoveTo(targetPos)
+
+    local deadline = tick() + getgenv().Settings.MoveTimeout
+    while tick() < deadline do
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            return false
+        end
+        local dist = (LocalPlayer.Character.HumanoidRootPart.Position - targetPos).Magnitude
+        if dist <= getgenv().Settings.CollectRange then
+            return true   -- On est arrivé à portée
+        end
+        task.wait(0.1)
+    end
+
+    return false  -- Timeout → on blackliste cet item temporairement
+end
+
+-- ─── Boucle principale ──────────────────────────────────────────────────────
+
+local function StartAutoCollect()
+    local blacklist = {}  -- [item] = tick() d'expiration
+
+    while getgenv().Settings.AutoBallonEnabled do
+        local Character = LocalPlayer.Character
+        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+        if Root then
+            -- Nettoyer la blacklist des items qui ont disparu
+            for item in pairs(blacklist) do
+                if not IsItemValid(item) then
+                    blacklist[item] = nil
+                end
+            end
+
+            local Target = GetNearestItem(blacklist)
+
+            if Target then
+                local startPos = GetItemPosition(Target)
+                if startPos then
+                    local reached = WalkTo(startPos)
+
+                    if not reached then
+                        -- Timeout : on blackliste temporairement cet item
+                        blacklist[Target] = tick() + getgenv().Settings.BlacklistDuration
+                    end
+                    -- Si l'item a disparu tout seul (collecté), pas besoin d'action
+                end
+            else
+                -- Aucun item dispo → on vide la blacklist et on attend
+                blacklist = {}
+                task.wait(1)
+            end
+        end
+
+        task.wait(0.15)
+    end
+end
+
+-- ─── UI ─────────────────────────────────────────────────────────────────────
+
+local Library = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true
+))()
+
+local Window = Library:CreateWindow("MM2 | EsohaSL Fix")
 Window:Section("esohasl.net")
 
--- Toggle Auto Collect
 Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
     getgenv().Settings.AutoBallonEnabled = state
-    
     if state then
-        task.spawn(function()
-            while getgenv().Settings.AutoBallonEnabled do
-                -- Dans MM2, on vérifie souvent si le joueur est en jeu via son équipe ou un attribut
-                local isAlive = LocalPlayer:GetAttribute("Alive") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart"))
-                
-                if isAlive then
-                    local Target = GetNearestItem()
-
-                    if Target then
-                        local Root = LocalPlayer.Character.HumanoidRootPart
-                        local TargetPos = Target:IsA("BasePart") and Target.CFrame or Target:GetPivot()
-
-                        local Tween = TweenService:Create(Root, TweenInfo.new(getgenv().Settings.TweenSpeed, Enum.EasingStyle.Linear), {
-                            CFrame = TargetPos
-                        })
-                        
-                        Tween:Play()
-                        Tween.Completed:Wait()
-                        task.wait(0.1) -- Petit délai pour être sûr de collecter
-                    end
-                end
-                task.wait(0.2)
-            end
-        end)
+        task.spawn(StartAutoCollect)
     end
 end)
 
--- Copier le lien YouTube
 Window:Button("YouTube: EsohaSL", function()
     if setclipboard then
         setclipboard("https://youtube.com/@esohasl")
     end
 end)
 
--- Anti-AFK (Idle)
+-- ─── Anti-AFK ───────────────────────────────────────────────────────────────
+
 LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
 end)
 
-print("Script MM2 mis à jour avec succès !")
+print("Script MM2 chargé avec succès !")
