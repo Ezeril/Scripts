@@ -1,16 +1,15 @@
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 getgenv().Settings = {
     AutoBallonEnabled = false,
-    CollectRange    = 3,    -- Distance pour considérer l'item collecté (studs)
-    GlideSpeed      = 60,   -- Studs par seconde (plus haut = plus rapide)
-    StepSize        = 0.5,  -- Taille de chaque pas (plus petit = collecte plus fiable)
-    MoveTimeout     = 10,   -- Timeout max en secondes par item
-    BlacklistDuration = 5,  -- Secondes avant de réessayer un item raté
+    CollectRange      = 3,   -- Distance pour considérer l'item collecté (studs)
+    GlideSpeed        = 60,  -- Studs par seconde
+    StepSize          = 0.5, -- Taille de chaque pas
+    MoveTimeout       = 10,  -- Timeout max en secondes par item
+    BlacklistDuration = 5,   -- Secondes avant de réessayer un item raté
 }
 
 -- ─── Utilitaires ────────────────────────────────────────────────────────────
@@ -34,6 +33,18 @@ end
 
 local function IsItemValid(item)
     return item and item.Parent ~= nil and GetItemPosition(item) ~= nil
+end
+
+-- ─── Collisions du personnage ────────────────────────────────────────────────
+
+local function SetCharacterCollision(enabled)
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    for _, part in pairs(Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = enabled
+        end
+    end
 end
 
 -- ─── Sélection de la cible la plus proche ───────────────────────────────────
@@ -76,48 +87,56 @@ local function GlideTo(targetPos)
     local Settings = getgenv().Settings
     local deadline = tick() + Settings.MoveTimeout
 
+    -- Désactiver les collisions AVANT de glisser
+    SetCharacterCollision(false)
+
     while tick() < deadline and getgenv().Settings.AutoBallonEnabled do
         local Character = LocalPlayer.Character
         local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-        if not Root then return false end
+        if not Root then
+            SetCharacterCollision(true)
+            return false
+        end
 
         local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-
-        -- Désactiver le PlatformStand pour éviter que le perso tombe
         if Humanoid then
-            Humanoid.PlatformStand = false
-            -- Empêcher Roblox de corriger la position (anti-correction physique)
             Humanoid.AutoRotate = false
+            Humanoid.PlatformStand = true -- Empêche l'animation de lutter contre le mouvement
         end
 
         local currentPos = Root.Position
-        local direction = (targetPos - currentPos)
+        local direction = targetPos - currentPos
         local distance = direction.Magnitude
 
-        -- Arrivé à portée de collecte → succès
+        -- Arrivé à portée → succès
         if distance <= Settings.CollectRange then
-            if Humanoid then Humanoid.AutoRotate = true end
+            SetCharacterCollision(true)
+            if Humanoid then
+                Humanoid.AutoRotate = true
+                Humanoid.PlatformStand = false
+            end
             return true
         end
 
-        -- Calculer le prochain pas
+        -- Prochain pas vers la cible
         local stepDist = math.min(Settings.StepSize, distance)
-        local nextPos  = currentPos + direction.Unit * stepDist
+        local nextPos = currentPos + direction.Unit * stepDist
 
-        -- Déplacer via CFrame (traverse les murs, pas de physique)
-        -- On conserve l'orientation actuelle du perso
         Root.CFrame = CFrame.new(nextPos) * (Root.CFrame - Root.CFrame.Position)
 
-        -- Délai basé sur la vitesse (StepSize / GlideSpeed = temps par pas)
         task.wait(Settings.StepSize / Settings.GlideSpeed)
     end
 
-    -- Rétablir AutoRotate en cas de timeout
+    -- Réactiver dans tous les cas (timeout, désactivation)
+    SetCharacterCollision(true)
     local Character = LocalPlayer.Character
     local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-    if Humanoid then Humanoid.AutoRotate = true end
+    if Humanoid then
+        Humanoid.AutoRotate = true
+        Humanoid.PlatformStand = false
+    end
 
-    return false -- Timeout
+    return false
 end
 
 -- ─── Boucle principale ──────────────────────────────────────────────────────
@@ -142,17 +161,12 @@ local function StartAutoCollect()
             if Target then
                 local targetPos = GetItemPosition(Target)
                 if targetPos then
-                    -- Snapshot de la position AVANT de glisser
-                    -- (au cas où l'item bouge, ex: BeachBall)
                     local reached = GlideTo(targetPos)
-
                     if not reached then
-                        -- Timeout → blacklist temporaire
                         blacklist[Target] = tick() + getgenv().Settings.BlacklistDuration
                     end
                 end
             else
-                -- Aucun item dispo, on vide la blacklist et on attend
                 blacklist = {}
                 task.wait(1)
             end
@@ -190,6 +204,12 @@ LocalPlayer.Idled:Connect(function()
     VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
     task.wait(0.1)
     VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+end)
+
+-- Réactiver les collisions si le personnage respawn
+LocalPlayer.CharacterAdded:Connect(function()
+    getgenv().Settings.AutoBallonEnabled = false
+    SetCharacterCollision(true)
 end)
 
 print("Script MM2 chargé avec succès !")
