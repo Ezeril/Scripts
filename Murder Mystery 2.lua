@@ -1,224 +1,303 @@
-local Workspace = game:GetService("Workspace")
+local success, coreGui = pcall(game.GetService, game, "CoreGui")
+local success, hui = pcall(gethui or get_hidden_ui or gethiddenui or gethiddengui)
 local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-
-getgenv().Settings = {
-    AutoBallonEnabled = false,
-    CollectRange      = 3,
-    GlideSpeed        = 60,
-    StepSize          = 0.5,
-    MoveTimeout       = 10,
-    BlacklistDuration = 5,
-}
-
--- ─── Utilitaires ────────────────────────────────────────────────────────────
-
-local function GetCoinContainer()
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v.Name == "CoinContainer" or v.Name == "CoinAreas" then
-            return v
-        end
-    end
-    return nil
-end
-
-local function GetItemPosition(item)
-    if not item or not item.Parent then return nil end
-    local ok, pos = pcall(function()
-        return item:IsA("BasePart") and item.Position or item:GetPivot().Position
-    end)
-    return ok and pos or nil
-end
-
-local function IsItemValid(item)
-    return item and item.Parent ~= nil and GetItemPosition(item) ~= nil
-end
-
--- ─── Noclip Loop (RunService.Stepped = avant le calcul physique) ─────────────
-
-local noclipConnection = nil
-
-local function EnableNoclip()
-    if noclipConnection then return end
-    noclipConnection = RunService.Stepped:Connect(function()
-        if not getgenv().Settings.AutoBallonEnabled then
-            -- Réactiver les collisions
-            local Character = LocalPlayer.Character
-            if Character then
-                for _, part in pairs(Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = true
-                    end
-                end
-            end
-            noclipConnection:Disconnect()
-            noclipConnection = nil
-            return
-        end
-
-        local Character = LocalPlayer.Character
-        if not Character then return end
-
-        for _, part in pairs(Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end)
-end
-
--- ─── Sélection de la cible la plus proche ───────────────────────────────────
-
-local function GetNearestItem(blacklist)
-    local Container = GetCoinContainer()
-    if not Container then return nil end
-
-    local Character = LocalPlayer.Character
-    local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-    if not Root then return nil end
-
-    local Nearest, MinDist = nil, math.huge
-    local now = tick()
-
-    for _, item in pairs(Container:GetDescendants()) do
-        local validName = item.Name == "Coin_Server"
-                       or item.Name == "BeachBall"
-                       or item.Name == "CoinArea"
-
-        if validName and IsItemValid(item) then
-            local blacklistedUntil = blacklist[item]
-            if not blacklistedUntil or now >= blacklistedUntil then
-                local pos = GetItemPosition(item)
-                local dist = (pos - Root.Position).Magnitude
-                if dist < MinDist then
-                    MinDist = dist
-                    Nearest = item
-                end
-            end
-        end
-    end
-
-    return Nearest
-end
-
--- ─── Glisse pas à pas ────────────────────────────────────────────────────────
-
-local function GlideTo(targetPos)
-    local Settings = getgenv().Settings
-    local deadline = tick() + Settings.MoveTimeout
-
-    while tick() < deadline and getgenv().Settings.AutoBallonEnabled do
-        local Character = LocalPlayer.Character
-        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-        if not Root then return false end
-
-        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
-
-        if Humanoid then
-            -- PlatformStand = true suspend le moteur physique du Humanoid
-            -- pour éviter les corrections de position pendant le glide
-            Humanoid.PlatformStand = true
-            Humanoid.AutoRotate = false
-        end
-
-        local currentPos = Root.Position
-        local direction = (targetPos - currentPos)
-        local distance = direction.Magnitude
-
-        if distance <= Settings.CollectRange then
-            if Humanoid then
-                Humanoid.PlatformStand = false
-                Humanoid.AutoRotate = true
-            end
-            return true
-        end
-
-        local stepDist = math.min(Settings.StepSize, distance)
-        local nextPos  = currentPos + direction.Unit * stepDist
-
-        Root.CFrame = CFrame.new(nextPos) * (Root.CFrame - Root.CFrame.Position)
-
-        task.wait(Settings.StepSize / Settings.GlideSpeed)
-    end
-
-    -- Timeout : rétablir le Humanoid
-    local Character = LocalPlayer.Character
-    local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-    if Humanoid then
-        Humanoid.PlatformStand = false
-        Humanoid.AutoRotate = true
-    end
-
-    return false
-end
-
--- ─── Boucle principale ──────────────────────────────────────────────────────
-
-local function StartAutoCollect()
-    local blacklist = {}
-
-    while getgenv().Settings.AutoBallonEnabled do
-        local Character = LocalPlayer.Character
-        local Root = Character and Character:FindFirstChild("HumanoidRootPart")
-
-        if Root then
-            for item in pairs(blacklist) do
-                if not IsItemValid(item) then
-                    blacklist[item] = nil
-                end
-            end
-
-            local Target = GetNearestItem(blacklist)
-
-            if Target then
-                local targetPos = GetItemPosition(Target)
-                if targetPos then
-                    local reached = GlideTo(targetPos)
-                    if not reached then
-                        blacklist[Target] = tick() + getgenv().Settings.BlacklistDuration
-                    end
-                end
-            else
-                blacklist = {}
-                task.wait(1)
-            end
-        end
-
-        task.wait(0.1)
-    end
-end
-
--- ─── UI ─────────────────────────────────────────────────────────────────────
-
-local Library = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wally2", true
-))()
-
-local Window = Library:CreateWindow("MM2 | EsohaSL Fix")
-Window:Section("esohasl.net")
-
-Window:Toggle("Auto Collect Coins/Ball", {}, function(state)
-    getgenv().Settings.AutoBallonEnabled = state
-    if state then
-        EnableNoclip()               -- ← Active le noclip via Stepped
-        task.spawn(StartAutoCollect)
-    end
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer;
+local playerGui = player:WaitForChild("PlayerGui")
+local function notify(text)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = "Notification",
+			Text = text,
+			Duration = 3
+		})
+	end)
+end;
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MM2 Script"
+screenGui.ResetOnSpawn = false;
+screenGui.Parent = (hui or coreGui or playerGui);
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 350, 0, 390)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -195)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BackgroundTransparency = 0.5;
+mainFrame.BorderSizePixel = 0;
+mainFrame.Parent = screenGui;
+mainFrame.Active = true;
+mainFrame.Draggable = true;
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 18)
+local borderStroke = Instance.new("UIStroke")
+borderStroke.Parent = mainFrame;
+borderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border;
+borderStroke.Thickness = 3;
+local function getRainbowColor(t)
+	local frequency = 2;
+	local red = math.floor(math.sin(frequency * t + 0) * 127 + 128)
+	local green = math.floor(math.sin(frequency * t + 2) * 127 + 128)
+	local blue = math.floor(math.sin(frequency * t + 4) * 127 + 128)
+	return Color3.fromRGB(red, green, blue)
+end;
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Text = "MM2"
+title.BackgroundTransparency = 1;
+title.Font = Enum.Font.GothamBold;
+title.TextScaled = true;
+RunService.RenderStepped:Connect(function()
+	local color = getRainbowColor(tick())
+	borderStroke.Color = color;
+	title.TextColor3 = color
 end)
-
-Window:Button("YouTube: EsohaSL", function()
-    if setclipboard then
-        setclipboard("https://youtube.com/@esohasl")
-    end
+local tpGunButton = Instance.new("TextButton", mainFrame)
+tpGunButton.Size = UDim2.new(0.9, 0, 0, 40)
+tpGunButton.Position = UDim2.new(0.05, 0, 0, 50)
+tpGunButton.Text = "TELEPORT GUN"
+tpGunButton.Font = Enum.Font.GothamBold;
+tpGunButton.TextScaled = true;
+tpGunButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", tpGunButton).CornerRadius = UDim.new(0, 10)
+local function getBlackRedColor(t)
+	local freq = 2;
+	local red = math.floor((math.sin(freq * t) * 0.5 + 0.5) * 255)
+	return Color3.fromRGB(red, 0, 0)
+end;
+RunService.RenderStepped:Connect(function()
+	tpGunButton.BackgroundColor3 = getBlackRedColor(tick())
 end)
-
--- ─── Anti-AFK ───────────────────────────────────────────────────────────────
-
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-    task.wait(0.1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
+tpGunButton.MouseButton1Click:Connect(function()
+	local gunDrop = Workspace:FindFirstChild("GunDrop")
+	if gunDrop and player.Character then
+		player.Character:SetPrimaryPartCFrame(gunDrop.CFrame + Vector3.new(0, 5, 0))
+		notify("Teleported to Gun Drop")
+	else
+		notify("No Gun Drop Found!")
+	end
 end)
-
-print("Script MM2 chargé avec succès !")
+local function styleButton(button)
+	button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	button.TextColor3 = Color3.new(1, 1, 1)
+end;
+local espToggle = Instance.new("TextButton", mainFrame)
+espToggle.Size = UDim2.new(0.9, 0, 0, 40)
+espToggle.Position = UDim2.new(0.05, 0, 0, 100)
+espToggle.Text = "ESP: Off"
+espToggle.Font = Enum.Font.GothamBold;
+espToggle.TextScaled = true;
+Instance.new("UICorner", espToggle).CornerRadius = UDim.new(0, 10)
+styleButton(espToggle)
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "ESPHolder"
+ESPFolder.Parent = game.CoreGui;
+local espEnabled = false;
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled;
+	espToggle.Text = espEnabled and "ESP: On" or "ESP: Off"
+	notify("ESP " .. (espEnabled and "Enabled" or "Disabled"))
+end)
+local highlights = {}
+local rememberedMurderer = nil;
+local rememberedSheriff = nil;
+local currentMurderer = "Unknown"
+local currentSheriff = "Unknown"
+function createOrUpdateHighlight(target)
+	if target == player then
+		return
+	end;
+	local highlight = highlights[target.Name]
+	if not highlight then
+		highlight = Instance.new("Highlight")
+		highlight.Name = "PlayerHighlight"
+		highlight.FillTransparency = 0.7;
+		highlight.OutlineTransparency = 0.01;
+		highlight.Parent = ESPFolder;
+		highlight.Adornee = target.Character;
+		highlights[target.Name] = highlight
+	end;
+	highlight.Adornee = target.Character;
+	if target.Name == currentMurderer then
+		highlight.FillColor = Color3.new(1, 0, 0)
+	elseif target.Name == currentSheriff then
+		highlight.FillColor = Color3.new(0, 0, 1)
+	else
+		highlight.FillColor = Color3.new(0, 1, 0)
+	end;
+	highlight.Enabled = espEnabled
+end;
+function createOrUpdateESPLabel(target)
+	local billboard = ESPFolder:FindFirstChild(target.Name .. "Billboard")
+	if not billboard then
+		billboard = Instance.new("BillboardGui")
+		billboard.Name = target.Name .. "Billboard"
+		billboard.AlwaysOnTop = true;
+		billboard.Size = UDim2.new(0, 200, 0, 50)
+		billboard.ExtentsOffset = Vector3.new(0, 3, 0)
+		billboard.Parent = ESPFolder;
+		local text = Instance.new("TextLabel")
+		text.Name = "Text"
+		text.TextSize = 20;
+		text.Font = Enum.Font.GothamBold;
+		text.BackgroundTransparency = 1;
+		text.Size = UDim2.new(1, 0, 1, 0)
+		text.Parent = billboard
+	end;
+	local head = target.Character and target.Character:FindFirstChild("Head")
+	local hrp = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+	local localHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local distance = "N/A"
+	if hrp and localHRP then
+		distance = math.floor((hrp.Position - localHRP.Position).Magnitude)
+	end;
+	billboard.Adornee = head;
+	billboard.Enabled = espEnabled;
+	billboard.Text.Text = string.format("%s\nStud: %s", target.Name, distance)
+	if target.Name == currentMurderer then
+		billboard.Text.TextColor3 = Color3.new(1, 0, 0)
+	elseif target.Name == currentSheriff then
+		billboard.Text.TextColor3 = Color3.new(0, 0, 1)
+	else
+		billboard.Text.TextColor3 = Color3.new(0, 1, 0)
+	end
+end;
+local gunLabel = Instance.new("TextLabel", mainFrame)
+gunLabel.Size = UDim2.new(1, 0, 0, 30)
+gunLabel.Position = UDim2.new(0, 0, 0, 150)
+gunLabel.Text = "Gun Status: Unknown"
+gunLabel.Font = Enum.Font.GothamBold;
+gunLabel.TextScaled = true;
+gunLabel.TextColor3 = Color3.new(1, 1, 1)
+gunLabel.BackgroundTransparency = 1;
+local murdererLabel = Instance.new("TextLabel", mainFrame)
+murdererLabel.Size = UDim2.new(1, 0, 0, 30)
+murdererLabel.Position = UDim2.new(0, 0, 0, 180)
+murdererLabel.Font = Enum.Font.GothamBold;
+murdererLabel.TextScaled = true;
+murdererLabel.TextColor3 = Color3.new(1, 0, 0)
+murdererLabel.BackgroundTransparency = 1;
+local sheriffLabel = Instance.new("TextLabel", mainFrame)
+sheriffLabel.Size = UDim2.new(1, 0, 0, 30)
+sheriffLabel.Position = UDim2.new(0, 0, 0, 210)
+sheriffLabel.Font = Enum.Font.GothamBold;
+sheriffLabel.TextScaled = true;
+sheriffLabel.TextColor3 = Color3.new(0, 0, 1)
+sheriffLabel.BackgroundTransparency = 1;
+local toggleBtn = Instance.new("TextButton", screenGui)
+toggleBtn.Size = UDim2.new(0, 42, 0, 42)
+toggleBtn.Position = UDim2.new(1, -54, 0, 12)
+toggleBtn.Text = "D"
+toggleBtn.Font = Enum.Font.GothamBlack;
+toggleBtn.TextScaled = true;
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
+local toggleStroke = Instance.new("UIStroke", toggleBtn)
+toggleStroke.Thickness = 2;
+toggleBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
+RunService.RenderStepped:Connect(function()
+	local t = tick()
+	local color = getRainbowColor(t)
+	toggleBtn.TextColor3 = color
+end)
+local function onPlayerWeaponCheck(p)
+	local function checkTools()
+		local bp = p:FindFirstChild("Backpack")
+		local char = p.Character;
+		local hasKnife = (bp and bp:FindFirstChild("Knife")) or (char and char:FindFirstChild("Knife"))
+		local hasGun = (bp and bp:FindFirstChild("Gun")) or (char and char:FindFirstChild("Gun"))
+		if hasKnife then
+			rememberedMurderer = p.Name
+		elseif rememberedMurderer == p.Name then
+			rememberedMurderer = nil
+		end;
+		if hasGun then
+			rememberedSheriff = p.Name
+		elseif rememberedSheriff == p.Name then
+			rememberedSheriff = nil
+		end;
+		currentMurderer = rememberedMurderer or "Unknown"
+		currentSheriff = rememberedSheriff or "Unknown"
+		murdererLabel.Text = "Murderer: " .. currentMurderer;
+		sheriffLabel.Text = "Sheriff: " .. currentSheriff;
+		createOrUpdateHighlight(p)
+		createOrUpdateESPLabel(p)
+	end;
+	if p.Character then
+		p.Character.ChildAdded:Connect(checkTools)
+		p.Character.ChildRemoved:Connect(checkTools)
+	end;
+	local bp = p:FindFirstChild("Backpack")
+	if bp then
+		bp.ChildAdded:Connect(checkTools)
+		bp.ChildRemoved:Connect(checkTools)
+	end;
+	p.CharacterAdded:Connect(function(char)
+		char.ChildAdded:Connect(checkTools)
+		char.ChildRemoved:Connect(checkTools)
+		checkTools()
+	end)
+	checkTools()
+end;
+for _, p in pairs(Players:GetPlayers()) do
+	onPlayerWeaponCheck(p)
+end;
+Players.PlayerAdded:Connect(onPlayerWeaponCheck)
+Players.PlayerRemoving:Connect(function(p)
+	if highlights[p.Name] then
+		highlights[p.Name]:Destroy()
+		highlights[p.Name] = nil
+	end
+end)
+local noclipEnabled = false;
+local noclipButton = Instance.new("TextButton", mainFrame)
+noclipButton.Size = UDim2.new(0.9, 0, 0, 40)
+noclipButton.Position = UDim2.new(0.05, 0, 0, 250)
+noclipButton.Text = "Noclip: Off"
+noclipButton.Font = Enum.Font.GothamBold;
+noclipButton.TextScaled = true;
+Instance.new("UICorner", noclipButton).CornerRadius = UDim.new(0, 10)
+styleButton(noclipButton)
+noclipButton.MouseButton1Click:Connect(function()
+	noclipEnabled = not noclipEnabled;
+	noclipButton.Text = "Noclip: " .. (noclipEnabled and "On" or "Off")
+	notify("Noclip " .. (noclipEnabled and "Enabled" or "Disabled"))
+end)
+RunService.Stepped:Connect(function()
+	if noclipEnabled and player.Character and player.Character:FindFirstChild("Humanoid") then
+		for _, v in pairs(player.Character:GetDescendants()) do
+			if v:IsA("BasePart") and v.CanCollide == true then
+				v.CanCollide = false
+			end
+		end
+	end
+end)
+local unlockEmoteButton = Instance.new("TextButton", mainFrame)
+unlockEmoteButton.Size = UDim2.new(0.9, 0, 0, 40)
+unlockEmoteButton.Position = UDim2.new(0.05, 0, 0, 300)
+unlockEmoteButton.Text = "Unlock All Emotes"
+unlockEmoteButton.Font = Enum.Font.GothamBold;
+unlockEmoteButton.TextScaled = true;
+Instance.new("UICorner", unlockEmoteButton).CornerRadius = UDim.new(0, 10)
+styleButton(unlockEmoteButton)
+unlockEmoteButton.MouseButton1Click:Connect(function()
+	local PlayerGui = player:WaitForChild("PlayerGui")
+	local Emotes = PlayerGui:WaitForChild("MainGUI"):WaitForChild("Game"):FindFirstChild("Emotes")
+	if Emotes then
+		local EmoteModule = require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EmoteModule"))
+		EmoteModule.GeneratePage({
+			"headless",
+			"zombie",
+			"zen",
+			"ninja",
+			"floss",
+			"dab",
+			"sit"
+		}, Emotes, "Free Emotes")
+		notify("Successfully added emotes!")
+	else
+		notify("Emotes not found!")
+	end
+end)
