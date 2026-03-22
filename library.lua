@@ -1,7 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
---  MM2 AUTOFARM v3 — Script standalone complet
---  Fusionne original + Christmas update
---  Fonctionne SANS GuiLibrary externe (tout intégré)
+--  MM2 AUTOFARM v3.1 — Correctifs : Y fixe + mort + hors-round
 -- ══════════════════════════════════════════════════════════════
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -9,11 +7,11 @@ if _G.AutoFarmMM2IsLoaded then return end
 _G.AutoFarmMM2IsLoaded = true
 
 -- ─── Services ────────────────────────────────────────────────
-local Players     = game:GetService("Players")
-local RunService  = game:GetService("RunService")
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local CoreGui     = game:GetService("CoreGui")
-local Player      = Players.LocalPlayer
+local CoreGui      = game:GetService("CoreGui")
+local Player       = Players.LocalPlayer
 
 -- ─── Config depuis _G ────────────────────────────────────────
 local Settings = _G.AutofarmSettings or {
@@ -22,23 +20,24 @@ local Settings = _G.AutofarmSettings or {
     DelayFarm        = 0.0001,
     StartAutofarm    = false,
     ImproveFPS       = false,
-    CoinType         = "Coin", -- "SnowToken", "Coin", "Candy", "BeachBall"
+    CoinType         = "Coin",
 }
 
 -- ─── Remotes MM2 ─────────────────────────────────────────────
-local Remotes      = game.ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay")
+local Remotes            = game.ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay")
 local CoinCollectedEvent = Remotes:WaitForChild("CoinCollected")
-local RoundStartEvent   = Remotes:WaitForChild("RoundStart")
-local RoundEndEvent     = Remotes:WaitForChild("RoundEndFade")
+local RoundStartEvent    = Remotes:WaitForChild("RoundStart")
+local RoundEndEvent      = Remotes:WaitForChild("RoundEndFade")
 
 -- ─── États ───────────────────────────────────────────────────
 local AutofarmStarted   = false
-local AutofarmIN        = false  -- false par défaut : pas de farm hors round
-local InActiveRound     = false  -- true uniquement entre RoundStart et RoundEnd
+local AutofarmIN        = false
+local IsInRound         = false   -- ← NOUVEAU : round actif ?
+local IsPlayerAlive     = false   -- ← NOUVEAU : joueur vivant ?
 local AntiAfkState      = false
 local ImproveFPSenabled = false
 local ResetWhenFullBag  = Settings.ResetWhenFullBag or false
-local CurrentCoinType   = Settings.CoinType or "SnowToken"
+local CurrentCoinType   = Settings.CoinType or "Coin"
 local autofarmstopevent = Instance.new("BindableEvent")
 
 -- ══════════════════════════════════════════════════════════════
@@ -50,7 +49,6 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
 
--- Bordure
 local Border = Instance.new("Frame", ScreenGui)
 Border.AnchorPoint = Vector2.new(.5, .5)
 Border.BackgroundColor3 = Color3.fromRGB(0,0,0)
@@ -61,7 +59,6 @@ Border.Active = true
 Border.Draggable = true
 Instance.new("UICorner", Border).CornerRadius = UDim.new(0, 10)
 
--- Frame principale
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.AnchorPoint = Vector2.new(.5, .5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(16, 250, 255)
@@ -72,12 +69,10 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
--- Sync bordure/frame au drag
 MainFrame:GetPropertyChangedSignal("Position"):Connect(function()
     Border.Position = MainFrame.Position
 end)
 
--- Titre
 local Title = Instance.new("TextLabel", MainFrame)
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 0, 0, 0)
@@ -88,7 +83,6 @@ Title.TextColor3 = Color3.fromRGB(0,0,0)
 Title.TextScaled = true
 Title.ZIndex = 3
 
--- Bouton fermer
 local BtnClose = Instance.new("TextButton", MainFrame)
 BtnClose.BackgroundTransparency = 1
 BtnClose.Position = UDim2.new(0.82, 0, 0, 0)
@@ -99,7 +93,6 @@ BtnClose.TextColor3 = Color3.fromRGB(255,0,0)
 BtnClose.TextScaled = true
 BtnClose.ZIndex = 3
 
--- Bouton "Ouvrir" (quand GUI cachée)
 local BtnOpen = Instance.new("TextButton", ScreenGui)
 BtnOpen.AnchorPoint = Vector2.new(.5,.5)
 BtnOpen.BackgroundColor3 = Color3.fromRGB(0,200,200)
@@ -128,25 +121,23 @@ local function makeBtn(text, posY)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     return btn
 end
-local function makeBtnR(text, posY) -- colonne droite
+local function makeBtnR(text, posY)
     local btn = makeBtn(text, posY)
     btn.Position = UDim2.new(0.525, 0, posY, 0)
     return btn
 end
 
-local BtnStart   = makeBtn("▶ START",    0.22)
+local BtnStart   = makeBtn("▶ START",         0.22)
 local BtnRAFB    = makeBtnR("Reset bag plein", 0.22)
-local BtnFPS     = makeBtn("Improve FPS", 0.44)
-local BtnAntiAfk = makeBtnR("Anti AFK",  0.44)
+local BtnFPS     = makeBtn("Improve FPS",      0.44)
+local BtnAntiAfk = makeBtnR("Anti AFK",        0.44)
 local BtnCoin    = makeBtn("🪙 " .. CurrentCoinType, 0.66)
-BtnCoin.Size = UDim2.new(0.942, 0, 0.18, 0) -- pleine largeur
+BtnCoin.Size = UDim2.new(0.942, 0, 0.18, 0)
 
--- ─── Toggle couleur helper ────────────────────────────────────
 local function setActive(btn, state)
     btn.TextColor3 = state and Color3.fromRGB(0,220,0) or Color3.fromRGB(0,0,0)
 end
 
--- ─── Toggle GUI ───────────────────────────────────────────────
 local function toggleGUI()
     local visible = not MainFrame.Visible
     MainFrame.Visible = visible
@@ -160,7 +151,6 @@ BtnOpen.MouseButton1Click:Connect(toggleGUI)
 --  FONCTIONS CORE
 -- ══════════════════════════════════════════════════════════════
 
--- ─── Anti-AFK ────────────────────────────────────────────────
 local function AntiAFK()
     local GC = getconnections or get_signal_cons
     if GC then
@@ -183,7 +173,6 @@ BtnAntiAfk.MouseButton1Click:Connect(function()
     if AntiAfkState then AntiAFK() end
 end)
 
--- ─── Improve FPS (supprime accessoires de tous les persos) ────
 local function applyFPS(char)
     for _, part in ipairs(char:GetChildren()) do
         if part:IsA("Accessory") or part.Name == "Radio" then
@@ -215,13 +204,11 @@ for _, p in ipairs(Players:GetPlayers()) do
     end)
 end
 
--- ─── Reset bag plein ─────────────────────────────────────────
 BtnRAFB.MouseButton1Click:Connect(function()
     ResetWhenFullBag = not ResetWhenFullBag
     setActive(BtnRAFB, ResetWhenFullBag)
 end)
 
--- ─── Cycle type de pièce ─────────────────────────────────────
 local CoinTypes = {"SnowToken", "Coin", "Candy", "BeachBall"}
 local coinIdx = 1
 BtnCoin.MouseButton1Click:Connect(function()
@@ -230,14 +217,74 @@ BtnCoin.MouseButton1Click:Connect(function()
     BtnCoin.Text = "🪙 " .. CurrentCoinType
 end)
 
+-- ══════════════════════════════════════════════════════════════
+--  DÉTECTION VIE / MORT
+-- ══════════════════════════════════════════════════════════════
+
+local function connectDeathTracking(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if not hum then return end
+    -- Initialise l'état d'après la santé actuelle
+    IsPlayerAlive = hum.Health > 0
+    hum:GetPropertyChangedSignal("Health"):Connect(function()
+        if hum.Health <= 0 and IsPlayerAlive then
+            IsPlayerAlive = false
+            AutofarmIN = false  -- stoppe le farm immédiatement à la mort
+        end
+    end)
+end
+
+-- À chaque respawn : reconnecte le tracking et reprend si conditions OK
+Player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    connectDeathTracking(char)
+    if IsInRound and AutofarmStarted and IsPlayerAlive then
+        AutofarmIN = true
+    end
+end)
+
+-- Tracking initial si le personnage existe déjà au chargement
+if Player.Character then
+    connectDeathTracking(Player.Character)
+end
+
+-- ══════════════════════════════════════════════════════════════
+--  EVENTS ROUND
+-- ══════════════════════════════════════════════════════════════
+
+-- CoinCollected : ne traite que si on est vivant ET dans un round
+CoinCollectedEvent.OnClientEvent:Connect(function(cointype, current, max)
+    if not IsInRound or not IsPlayerAlive then return end
+    AutofarmIN = true
+    if cointype == CurrentCoinType and tonumber(current) == tonumber(max) then
+        AutofarmIN = false
+        if ResetWhenFullBag and Player.Character then
+            local hum = Player.Character:FindFirstChild("Humanoid")
+            if hum then hum.Health = 0 end
+        end
+    end
+end)
+
+-- Round démarre
+RoundStartEvent.OnClientEvent:Connect(function()
+    IsInRound = true
+    if AutofarmStarted and IsPlayerAlive then
+        AutofarmIN = true
+    end
+end)
+
+-- Round termine
+RoundEndEvent.OnClientEvent:Connect(function()
+    IsInRound = false
+    AutofarmIN = false
+end)
+
 -- ─── Start / Stop ─────────────────────────────────────────────
 BtnStart.MouseButton1Click:Connect(function()
     AutofarmStarted = not AutofarmStarted
     if AutofarmStarted then
-        -- Active seulement si on est dans un round ET vivant
-        local char = Player.Character
-        local hum  = char and char:FindFirstChild("Humanoid")
-        AutofarmIN = InActiveRound and hum ~= nil and hum.Health > 0
+        -- Ne démarre le farm que si on est dans un round ET vivant
+        AutofarmIN = IsInRound and IsPlayerAlive
         BtnStart.Text = "⏹ STOP"
         setActive(BtnStart, true)
     else
@@ -249,34 +296,9 @@ BtnStart.MouseButton1Click:Connect(function()
 end)
 
 -- ══════════════════════════════════════════════════════════════
---  GESTION MORT
--- ══════════════════════════════════════════════════════════════
-
-local function watchDeath(char)
-    local hum = char:WaitForChild("Humanoid", 5)
-    if not hum then return end
-    hum.Died:Connect(function()
-        -- Mort pendant le farm → on coupe immédiatement, pas de TP post-mort
-        AutofarmIN = false
-        autofarmstopevent:Fire()
-    end)
-end
-
--- Après un respawn on est à l'accueil/spectateur → farm coupé
-Player.CharacterAdded:Connect(function(char)
-    AutofarmIN = false
-    watchDeath(char)
-end)
-
-if Player.Character then
-    watchDeath(Player.Character)
-end
-
--- ══════════════════════════════════════════════════════════════
 --  LOGIQUE AUTOFARM
 -- ══════════════════════════════════════════════════════════════
 
--- Trouve le CoinContainer dans le workspace
 local function getCoinContainer()
     for _, v in ipairs(workspace:GetChildren()) do
         if v:IsA("Model") and v:FindFirstChild("CoinContainer") then
@@ -286,24 +308,19 @@ local function getCoinContainer()
     return nil
 end
 
--- Téléportation sécurisée (Y du perso préservé, pas d'enfoncement)
-local function pcallTP(targetPos)
+local function pcallTP(cframe)
     local char = Player.Character
     if char then
         local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.CFrame = CFrame.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-        end
+        if hrp then hrp.CFrame = cframe end
     end
 end
 
--- Trouve la pièce la plus proche du type courant
 local function findNearestCoin(container)
     local nearest, minDist = nil, math.huge
     local char = Player.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil, math.huge end
-
     for _, v in ipairs(container:GetChildren()) do
         if v:GetAttribute("CoinID") == CurrentCoinType and v:FindFirstChild("TouchInterest") then
             local dist = (hrp.Position - v.Position).Magnitude
@@ -316,49 +333,13 @@ local function findNearestCoin(container)
     return nearest, minDist
 end
 
--- ─── Event : pièce collectée ─────────────────────────────────
-CoinCollectedEvent.OnClientEvent:Connect(function(cointype, current, max)
-    -- Remet AutofarmIN en route seulement si on est dans un round ET vivant
-    if AutofarmStarted and InActiveRound then
-        local char = Player.Character
-        local hum  = char and char:FindFirstChild("Humanoid")
-        if hum and hum.Health > 0 then
-            AutofarmIN = true
-        end
-    end
-    if cointype == CurrentCoinType and tonumber(current) == tonumber(max) then
-        AutofarmIN = false
-        if ResetWhenFullBag and Player.Character then
-            local hum = Player.Character:FindFirstChild("Humanoid")
-            if hum then hum.Health = 0 end
-        end
-    end
-end)
-
-RoundStartEvent.OnClientEvent:Connect(function()
-    InActiveRound = true
-    -- Active le farm seulement si START activé ET participant vivant (pas spectateur)
-    if AutofarmStarted then
-        local char = Player.Character
-        local hum  = char and char:FindFirstChild("Humanoid")
-        if hum and hum.Health > 0 then
-            AutofarmIN = true
-        end
-    end
-end)
-
-RoundEndEvent.OnClientEvent:Connect(function()
-    InActiveRound = false
-    AutofarmIN = false
-    autofarmstopevent:Fire()
-end)
-
 -- ─── Boucle principale ───────────────────────────────────────
 task.spawn(function()
     while true do
         task.wait(0.0001)
 
-        if not AutofarmStarted or not AutofarmIN then
+        -- ── Garde : inactif si hors-round, mort, ou farm désactivé ──
+        if not AutofarmStarted or not AutofarmIN or not IsInRound or not IsPlayerAlive then
             task.wait(0.3)
             continue
         end
@@ -368,7 +349,12 @@ task.spawn(function()
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then task.wait(0.3); continue end
         local hum = char:FindFirstChild("Humanoid")
-        if not hum or hum.Health <= 0 then task.wait(0.3); continue end
+        -- Double-vérification santé dans la boucle
+        if not hum or hum.Health <= 0 then
+            IsPlayerAlive = false
+            AutofarmIN = false
+            task.wait(0.3); continue
+        end
 
         local container = getCoinContainer()
         if not container then task.wait(0.3); continue end
@@ -376,61 +362,64 @@ task.spawn(function()
         local coin, dist = findNearestCoin(container)
         if not coin then task.wait(0.5); continue end
 
+        -- ── Hauteur Y fixe : on conserve l'altitude actuelle du joueur ──
+        local currentY  = hrp.Position.Y
+        local targetPos = Vector3.new(coin.Position.X, currentY, coin.Position.Z)
+
         if dist > 150 then
-            -- Trop loin → téléport direct (Y préservé)
-            pcallTP(coin.Position)
+            -- Téléport direct, hauteur préservée (pas de coin.Y + 3)
+            pcallTP(CFrame.new(targetPos))
         else
-            -- Distance raisonnable → Tween fluide
-            -- Y verrouillé sur celui du perso → jamais d'enfoncement dans le sol
-            local lockedY = hrp.Position.Y
-
-            -- Désactive la physique → plus de saccades/résistance pendant le Tween
-            hum.PlatformStand = true
-
+            -- Tween fluide sur un plan horizontal (Y constant)
             local tween = TweenService:Create(
                 hrp,
                 TweenInfo.new(dist / 20, Enum.EasingStyle.Linear),
-                { CFrame = CFrame.new(coin.Position.X, lockedY, coin.Position.Z) }
+                {CFrame = CFrame.new(targetPos)}
             )
             tween:Play()
 
-            -- Stop si l'utilisateur appuie sur STOP
             local stopConn
             stopConn = autofarmstopevent.Event:Connect(function()
                 tween:Cancel()
                 stopConn:Disconnect()
             end)
 
-            -- Attend que la pièce disparaisse (collectée), timeout, mort ou STOP
             local timeout = tick() + 5
-            while coin.Parent
-                  and coin:FindFirstChild("TouchInterest")
-                  and tick() < timeout
-                  and AutofarmIN do
+            while coin:FindFirstChild("TouchInterest") and tick() < timeout do
                 task.wait()
             end
             tween:Cancel()
-            stopConn:Disconnect()
+        end
+    end
+end)
 
-            -- Réactive la physique seulement si le perso est encore vivant
+-- ─── Détection mid-round au chargement ───────────────────────
+-- Si le script est lancé pendant un round déjà actif (RoundStart manqué)
+task.spawn(function()
+    task.wait(1)
+    if getCoinContainer() then
+        IsInRound = true
+        local char = Player.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
             if hum and hum.Health > 0 then
-                hum.PlatformStand = false
+                IsPlayerAlive = true
+                -- Relance le farm si StartAutofarm est actif
+                if AutofarmStarted then AutofarmIN = true end
             end
         end
     end
 end)
 
 -- ─── Application des configs _G ──────────────────────────────
-if Settings.AntiAfk       then AntiAfkState = true; AntiAFK(); setActive(BtnAntiAfk, true) end
+if Settings.AntiAfk then AntiAfkState = true; AntiAFK(); setActive(BtnAntiAfk, true) end
 if Settings.StartAutofarm then
     AutofarmStarted = true
-    -- AutofarmIN reste false, s'activera au prochain RoundStart
+    AutofarmIN = IsInRound and IsPlayerAlive   -- respecte l'état réel
     BtnStart.Text = "⏹ STOP"; setActive(BtnStart, true)
 end
-if Settings.ImproveFPS    then ImproveFPSenabled = true; setActive(BtnFPS, true) end
-if Settings.ResetWhenFullBag then
-    ResetWhenFullBag = true; setActive(BtnRAFB, true)
-end
+if Settings.ImproveFPS then ImproveFPSenabled = true; setActive(BtnFPS, true) end
+if Settings.ResetWhenFullBag then ResetWhenFullBag = true; setActive(BtnRAFB, true) end
 for i, v in ipairs(CoinTypes) do
     if v == Settings.CoinType then
         coinIdx = i; CurrentCoinType = v
@@ -439,4 +428,4 @@ for i, v in ipairs(CoinTypes) do
     end
 end
 
-print("[MM2 AUTOFARM v3] ✅ Chargé — CoinType: " .. CurrentCoinType)
+print("[MM2 AUTOFARM v3.1] ✅ Chargé — CoinType: " .. CurrentCoinType)
