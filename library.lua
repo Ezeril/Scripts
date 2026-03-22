@@ -293,7 +293,7 @@ end
 --    2. Déplace le CFrame manuellement en preservant la rotation
 --    3. Maintient le Y du personnage (pas celui de la pièce)
 --
-local MOVE_SPEED = 21 -- studs/s, augmente pour farmer plus vite
+local MOVE_SPEED = 80 -- studs/s, augmente pour farmer plus vite
 
 local function smoothMoveTo(coinPart)
     local char = Player.Character
