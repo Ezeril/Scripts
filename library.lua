@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
---  MM2 AUTOFARM v3 — Script standalone complet
+--  MM2 AUTOFARM v3.1 — Script standalone complet (FIX FLUIDITÉ)
 --  Fusionne original + Christmas update
 --  Fonctionne SANS GuiLibrary externe (tout intégré)
 -- ══════════════════════════════════════════════════════════════
@@ -78,7 +78,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 0, 0, 0)
 Title.Size = UDim2.new(0.82, 0, 0.18, 0)
 Title.Font = Enum.Font.Kalam
-Title.Text = "🎄 MM2 Autofarm v3"
+Title.Text = "🎄 MM2 Autofarm v3.1"
 Title.TextColor3 = Color3.fromRGB(0, 0, 0)
 Title.TextScaled = true
 Title.ZIndex = 3
@@ -238,8 +238,19 @@ BtnStart.MouseButton1Click:Connect(function()
 end)
 
 -- ══════════════════════════════════════════════════════════════
---  LOGIQUE AUTOFARM
+--  LOGIQUE AUTOFARM & MOUVEMENT
 -- ══════════════════════════════════════════════════════════════
+
+-- [NOUVEAU] Boucle NoClip pour éliminer la friction avec les murs/sols
+RunService.Stepped:Connect(function()
+    if AutofarmStarted and AutofarmIN and Player.Character then
+        for _, part in ipairs(Player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
 
 local function getCoinContainer()
     for _, v in ipairs(workspace:GetChildren()) do
@@ -250,14 +261,11 @@ local function getCoinContainer()
     return nil
 end
 
--- ─── [FIX] Téléportation sécurisée avec reset vélocité ───────
---    On garde le +3 pour ne pas enfoncer le perso dans le sol
 local function pcallTP(cframe)
     local char = Player.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    -- Reset vélocité AVANT de téléporter → évite la glisse post-TP
     hrp.AssemblyLinearVelocity  = Vector3.zero
     hrp.AssemblyAngularVelocity = Vector3.zero
     hrp.CFrame = cframe
@@ -280,82 +288,71 @@ local function findNearestCoin(container)
     return nearest, minDist
 end
 
--- ─── [FIX] Mouvement fluide via Heartbeat ────────────────────
---
---  Pourquoi on abandonne TweenService :
---    TweenService modifie le CFrame mais le moteur physique
---    continue d'appliquer gravité + forces sur le HRP en même
---    temps → conflit → personnage qui "lutte" et se retrouve
---    à hauteur de pièce (genoux dans le sol).
---
---  Solution : boucle Heartbeat qui, CHAQUE FRAME :
---    1. Annule la vélocité physique (AssemblyLinearVelocity = 0)
---    2. Déplace le CFrame manuellement en preservant la rotation
---    3. Maintient le Y du personnage (pas celui de la pièce)
---
-local MOVE_SPEED = 80 -- studs/s, augmente pour farmer plus vite
+local MOVE_SPEED = 80 -- studs/s
 
 local function smoothMoveTo(coinPart)
     local char = Player.Character
     local hrp  = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- [FIX] Y cible = Y actuel du perso (jamais celui de la pièce)
-    -- On prend aussi la hauteur la plus haute entre les deux
-    -- pour gérer les terrains en pente sans couler
-    local targetPos = Vector3.new(
-        coinPart.Position.X,
-        math.max(hrp.Position.Y, coinPart.Position.Y + 3),
-        coinPart.Position.Z
-    )
+    -- [FIX 1] Hauteur précise : +3.5 est la hauteur idéale pour poser les pieds sans s'enfoncer
+    local targetY = coinPart.Position.Y + 3.5
+
+    -- [FIX 2] Utilisation d'un BodyVelocity. 
+    -- Le moteur physique s'occupe de bouger le personnage en douceur, sans "lutter" contre la gravité.
+    local bv = hrp:FindFirstChild("AutofarmFly")
+    if not bv then
+        bv = Instance.new("BodyVelocity")
+        bv.Name = "AutofarmFly"
+        bv.MaxForce = Vector3.new(100000, 100000, 100000) -- Dépasse la gravité
+        bv.Parent = hrp
+    end
 
     local done     = false
-    local moveConn = nil
     local stopConn = nil
+    local moveConn = nil
 
     stopConn = autofarmstopevent.Event:Connect(function()
         done = true
     end)
 
-    moveConn = RunService.Heartbeat:Connect(function(dt)
-        local c = Player.Character
-        local h = c and c:FindFirstChild("HumanoidRootPart")
-        if not h then
+    moveConn = RunService.Heartbeat:Connect(function()
+        if not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then
             done = true
             return
         end
 
-        -- [FIX] Neutralise les forces physiques CHAQUE frame
-        --       → élimine le "struggle" / tremblement
-        h.AssemblyLinearVelocity  = Vector3.zero
-        h.AssemblyAngularVelocity = Vector3.zero
+        local currentTarget = Vector3.new(coinPart.Position.X, targetY, coinPart.Position.Z)
+        local dist = (hrp.Position - currentTarget).Magnitude
 
-        local dist = (h.Position - targetPos).Magnitude
         if dist < 1.5 then
             done = true
             return
         end
 
-        local dir  = (targetPos - h.Position).Unit
-        local step = math.min(MOVE_SPEED * dt, dist)
+        local dir = (currentTarget - hrp.Position).Unit
+        bv.Velocity = dir * MOVE_SPEED
 
-        -- [FIX] Déplacement par delta → conserve la rotation actuelle
-        --       (h.CFrame + Vector3) translate sans toucher à la rotation
-        h.CFrame = h.CFrame + dir * step
+        -- Oriente le personnage dans la direction du mouvement
+        hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + Vector3.new(dir.X, 0, dir.Z))
     end)
 
-    -- Attend que la pièce disparaisse, qu'on soit arrivé, ou timeout
+    -- Sécurité : Time out si la pièce bug
     local timeout = tick() + 6
-    while not done
-        and coinPart:FindFirstChild("TouchInterest")
-        and tick() < timeout
-    do
+    while not done and coinPart:FindFirstChild("TouchInterest") and tick() < timeout do
         task.wait()
     end
 
-    -- Nettoyage propre des connexions
-    moveConn:Disconnect()
-    stopConn:Disconnect()
+    -- Nettoyage
+    if moveConn then moveConn:Disconnect() end
+    if stopConn then stopConn:Disconnect() end
+    if bv then bv:Destroy() end
+
+    -- Stoppe net le personnage en arrivant
+    if hrp then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+    end
 end
 
 -- ─── Events réseau ───────────────────────────────────────────
@@ -395,10 +392,9 @@ task.spawn(function()
         if not coin then task.wait(0.5); continue end
 
         if dist > 150 then
-            -- Trop loin → téléport direct (+3 sur Y pour ne pas couler)
-            pcallTP(CFrame.new(coin.Position + Vector3.new(0, 3, 0)))
+            -- Téléport si trop loin (Y +3.5 pour correspondre au nouveau fix)
+            pcallTP(CFrame.new(coin.Position + Vector3.new(0, 3.5, 0)))
         else
-            -- [FIX] Mouvement fluide Heartbeat (plus de TweenService)
             smoothMoveTo(coin)
         end
     end
@@ -426,4 +422,4 @@ for i, v in ipairs(CoinTypes) do
     end
 end
 
-print("[MM2 AUTOFARM v3] ✅ Chargé — CoinType: " .. CurrentCoinType)
+print("[MM2 AUTOFARM v3.1] ✅ Chargé avec Fluidité et NoClip — CoinType: " .. CurrentCoinType)
