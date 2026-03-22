@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
---  MM2 AUTOFARM v3.1 — Script standalone complet (FIX FLUIDITÉ)
+--  MM2 AUTOFARM v3 — Script standalone complet
 --  Fusionne original + Christmas update
 --  Fonctionne SANS GuiLibrary externe (tout intégré)
 -- ══════════════════════════════════════════════════════════════
@@ -9,11 +9,11 @@ if _G.AutoFarmMM2IsLoaded then return end
 _G.AutoFarmMM2IsLoaded = true
 
 -- ─── Services ────────────────────────────────────────────────
-local Players      = game:GetService("Players")
-local RunService   = game:GetService("RunService")
+local Players     = game:GetService("Players")
+local RunService  = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local CoreGui      = game:GetService("CoreGui")
-local Player       = Players.LocalPlayer
+local CoreGui     = game:GetService("CoreGui")
+local Player      = Players.LocalPlayer
 
 -- ─── Config depuis _G ────────────────────────────────────────
 local Settings = _G.AutofarmSettings or {
@@ -22,11 +22,11 @@ local Settings = _G.AutofarmSettings or {
     DelayFarm        = 0.0001,
     StartAutofarm    = false,
     ImproveFPS       = false,
-    CoinType         = "Coin",
+    CoinType         = "Coin", -- "SnowToken", "Coin", "Candy", "BeachBall"
 }
 
 -- ─── Remotes MM2 ─────────────────────────────────────────────
-local Remotes           = game.ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay")
+local Remotes      = game.ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Gameplay")
 local CoinCollectedEvent = Remotes:WaitForChild("CoinCollected")
 local RoundStartEvent   = Remotes:WaitForChild("RoundStart")
 local RoundEndEvent     = Remotes:WaitForChild("RoundEndFade")
@@ -44,14 +44,15 @@ local autofarmstopevent = Instance.new("BindableEvent")
 --  GUI (sans dépendance externe)
 -- ══════════════════════════════════════════════════════════════
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MM2AutofarmGUI_" .. tostring(math.random(1000, 9999))
+ScreenGui.Name = "MM2AutofarmGUI_" .. tostring(math.random(1000,9999))
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
 
+-- Bordure
 local Border = Instance.new("Frame", ScreenGui)
 Border.AnchorPoint = Vector2.new(.5, .5)
-Border.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Border.BackgroundColor3 = Color3.fromRGB(0,0,0)
 Border.Position = UDim2.new(.5, 0, .5, 0)
 Border.Size = UDim2.new(0.152, 0, 0.357, 0)
 Border.ZIndex = 1
@@ -59,6 +60,7 @@ Border.Active = true
 Border.Draggable = true
 Instance.new("UICorner", Border).CornerRadius = UDim.new(0, 10)
 
+-- Frame principale
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.AnchorPoint = Vector2.new(.5, .5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(16, 250, 255)
@@ -69,38 +71,42 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
+-- Sync bordure/frame au drag
 MainFrame:GetPropertyChangedSignal("Position"):Connect(function()
     Border.Position = MainFrame.Position
 end)
 
+-- Titre
 local Title = Instance.new("TextLabel", MainFrame)
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 0, 0, 0)
 Title.Size = UDim2.new(0.82, 0, 0.18, 0)
 Title.Font = Enum.Font.Kalam
-Title.Text = "🎄 MM2 Autofarm v3.1"
-Title.TextColor3 = Color3.fromRGB(0, 0, 0)
+Title.Text = "🎄 MM2 Autofarm v3"
+Title.TextColor3 = Color3.fromRGB(0,0,0)
 Title.TextScaled = true
 Title.ZIndex = 3
 
+-- Bouton fermer
 local BtnClose = Instance.new("TextButton", MainFrame)
 BtnClose.BackgroundTransparency = 1
 BtnClose.Position = UDim2.new(0.82, 0, 0, 0)
 BtnClose.Size = UDim2.new(0.18, 0, 0.18, 0)
 BtnClose.Font = Enum.Font.Kalam
 BtnClose.Text = "X"
-BtnClose.TextColor3 = Color3.fromRGB(255, 0, 0)
+BtnClose.TextColor3 = Color3.fromRGB(255,0,0)
 BtnClose.TextScaled = true
 BtnClose.ZIndex = 3
 
+-- Bouton "Ouvrir" (quand GUI cachée)
 local BtnOpen = Instance.new("TextButton", ScreenGui)
-BtnOpen.AnchorPoint = Vector2.new(.5, .5)
-BtnOpen.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
+BtnOpen.AnchorPoint = Vector2.new(.5,.5)
+BtnOpen.BackgroundColor3 = Color3.fromRGB(0,200,200)
 BtnOpen.Position = UDim2.new(0.5, 0, 0.03, 0)
 BtnOpen.Size = UDim2.new(0.1, 0, 0.045, 0)
 BtnOpen.Font = Enum.Font.Kalam
 BtnOpen.Text = "Ouvrir Autofarm"
-BtnOpen.TextColor3 = Color3.fromRGB(0, 0, 0)
+BtnOpen.TextColor3 = Color3.fromRGB(0,0,0)
 BtnOpen.TextScaled = true
 BtnOpen.ZIndex = 5
 BtnOpen.Visible = false
@@ -108,35 +114,35 @@ Instance.new("UICorner", BtnOpen).CornerRadius = UDim.new(0, 8)
 
 local function makeBtn(text, posY)
     local btn = Instance.new("TextButton", MainFrame)
-    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    btn.BorderColor3 = Color3.fromRGB(0,0,0)
     btn.BorderSizePixel = 2
     btn.Position = UDim2.new(0.029, 0, posY, 0)
     btn.Size = UDim2.new(0.446, 0, 0.18, 0)
     btn.Font = Enum.Font.Kalam
     btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    btn.TextColor3 = Color3.fromRGB(0,0,0)
     btn.TextScaled = true
     btn.ZIndex = 3
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     return btn
 end
-local function makeBtnR(text, posY)
+local function makeBtnR(text, posY) -- colonne droite
     local btn = makeBtn(text, posY)
     btn.Position = UDim2.new(0.525, 0, posY, 0)
     return btn
 end
 
-local BtnStart   = makeBtn("▶ START",          0.22)
+local BtnStart   = makeBtn("▶ START",    0.22)
 local BtnRAFB    = makeBtnR("Reset bag plein", 0.22)
-local BtnFPS     = makeBtn("Improve FPS",      0.44)
-local BtnAntiAfk = makeBtnR("Anti AFK",        0.44)
+local BtnFPS     = makeBtn("Improve FPS", 0.44)
+local BtnAntiAfk = makeBtnR("Anti AFK",  0.44)
 local BtnCoin    = makeBtn("🪙 " .. CurrentCoinType, 0.66)
-BtnCoin.Size = UDim2.new(0.942, 0, 0.18, 0)
+BtnCoin.Size = UDim2.new(0.942, 0, 0.18, 0) -- pleine largeur
 
 -- ─── Toggle couleur helper ────────────────────────────────────
 local function setActive(btn, state)
-    btn.TextColor3 = state and Color3.fromRGB(0, 220, 0) or Color3.fromRGB(0, 0, 0)
+    btn.TextColor3 = state and Color3.fromRGB(0,220,0) or Color3.fromRGB(0,0,0)
 end
 
 -- ─── Toggle GUI ───────────────────────────────────────────────
@@ -176,7 +182,7 @@ BtnAntiAfk.MouseButton1Click:Connect(function()
     if AntiAfkState then AntiAFK() end
 end)
 
--- ─── Improve FPS ─────────────────────────────────────────────
+-- ─── Improve FPS (supprime accessoires de tous les persos) ────
 local function applyFPS(char)
     for _, part in ipairs(char:GetChildren()) do
         if part:IsA("Accessory") or part.Name == "Radio" then
@@ -216,7 +222,7 @@ end)
 
 -- ─── Cycle type de pièce ─────────────────────────────────────
 local CoinTypes = {"SnowToken", "Coin", "Candy", "BeachBall"}
-local coinIdx   = 1
+local coinIdx = 1
 BtnCoin.MouseButton1Click:Connect(function()
     coinIdx = (coinIdx % #CoinTypes) + 1
     CurrentCoinType = CoinTypes[coinIdx]
@@ -238,20 +244,10 @@ BtnStart.MouseButton1Click:Connect(function()
 end)
 
 -- ══════════════════════════════════════════════════════════════
---  LOGIQUE AUTOFARM & MOUVEMENT
+--  LOGIQUE AUTOFARM
 -- ══════════════════════════════════════════════════════════════
 
--- [NOUVEAU] Boucle NoClip pour éliminer la friction avec les murs/sols
-RunService.Stepped:Connect(function()
-    if AutofarmStarted and AutofarmIN and Player.Character then
-        for _, part in ipairs(Player.Character:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
+-- Trouve le CoinContainer dans le workspace
 local function getCoinContainer()
     for _, v in ipairs(workspace:GetChildren()) do
         if v:IsA("Model") and v:FindFirstChild("CoinContainer") then
@@ -261,21 +257,22 @@ local function getCoinContainer()
     return nil
 end
 
+-- Téléportation sécurisée
 local function pcallTP(cframe)
     local char = Player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    hrp.AssemblyLinearVelocity  = Vector3.zero
-    hrp.AssemblyAngularVelocity = Vector3.zero
-    hrp.CFrame = cframe
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = cframe end
+    end
 end
 
+-- Trouve la pièce la plus proche du type courant
 local function findNearestCoin(container)
     local nearest, minDist = nil, math.huge
     local char = Player.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hrp then return nil, math.huge end
+
     for _, v in ipairs(container:GetChildren()) do
         if v:GetAttribute("CoinID") == CurrentCoinType and v:FindFirstChild("TouchInterest") then
             local dist = (hrp.Position - v.Position).Magnitude
@@ -288,74 +285,7 @@ local function findNearestCoin(container)
     return nearest, minDist
 end
 
-local MOVE_SPEED = 80 -- studs/s
-
-local function smoothMoveTo(coinPart)
-    local char = Player.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    -- [FIX 1] Hauteur précise : +3.5 est la hauteur idéale pour poser les pieds sans s'enfoncer
-    local targetY = coinPart.Position.Y + 3.5
-
-    -- [FIX 2] Utilisation d'un BodyVelocity. 
-    -- Le moteur physique s'occupe de bouger le personnage en douceur, sans "lutter" contre la gravité.
-    local bv = hrp:FindFirstChild("AutofarmFly")
-    if not bv then
-        bv = Instance.new("BodyVelocity")
-        bv.Name = "AutofarmFly"
-        bv.MaxForce = Vector3.new(100000, 100000, 100000) -- Dépasse la gravité
-        bv.Parent = hrp
-    end
-
-    local done     = false
-    local stopConn = nil
-    local moveConn = nil
-
-    stopConn = autofarmstopevent.Event:Connect(function()
-        done = true
-    end)
-
-    moveConn = RunService.Heartbeat:Connect(function()
-        if not Player.Character or not Player.Character:FindFirstChild("HumanoidRootPart") then
-            done = true
-            return
-        end
-
-        local currentTarget = Vector3.new(coinPart.Position.X, targetY, coinPart.Position.Z)
-        local dist = (hrp.Position - currentTarget).Magnitude
-
-        if dist < 1.5 then
-            done = true
-            return
-        end
-
-        local dir = (currentTarget - hrp.Position).Unit
-        bv.Velocity = dir * MOVE_SPEED
-
-        -- Oriente le personnage dans la direction du mouvement
-        hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + Vector3.new(dir.X, 0, dir.Z))
-    end)
-
-    -- Sécurité : Time out si la pièce bug
-    local timeout = tick() + 6
-    while not done and coinPart:FindFirstChild("TouchInterest") and tick() < timeout do
-        task.wait()
-    end
-
-    -- Nettoyage
-    if moveConn then moveConn:Disconnect() end
-    if stopConn then stopConn:Disconnect() end
-    if bv then bv:Destroy() end
-
-    -- Stoppe net le personnage en arrivant
-    if hrp then
-        hrp.AssemblyLinearVelocity = Vector3.zero
-        hrp.AssemblyAngularVelocity = Vector3.zero
-    end
-end
-
--- ─── Events réseau ───────────────────────────────────────────
+-- ─── Event : pièce collectée ─────────────────────────────────
 CoinCollectedEvent.OnClientEvent:Connect(function(cointype, current, max)
     AutofarmIN = true
     if cointype == CurrentCoinType and tonumber(current) == tonumber(max) then
@@ -367,8 +297,8 @@ CoinCollectedEvent.OnClientEvent:Connect(function(cointype, current, max)
     end
 end)
 
-RoundStartEvent.OnClientEvent:Connect(function() AutofarmIN = true  end)
-RoundEndEvent.OnClientEvent:Connect(function()   AutofarmIN = false end)
+RoundStartEvent.OnClientEvent:Connect(function() AutofarmIN = true end)
+RoundEndEvent.OnClientEvent:Connect(function() AutofarmIN = false end)
 
 -- ─── Boucle principale ───────────────────────────────────────
 task.spawn(function()
@@ -392,25 +322,41 @@ task.spawn(function()
         if not coin then task.wait(0.5); continue end
 
         if dist > 150 then
-            -- Téléport si trop loin (Y +3.5 pour correspondre au nouveau fix)
-            pcallTP(CFrame.new(coin.Position + Vector3.new(0, 3.5, 0)))
+            -- Trop loin → téléport direct
+            pcallTP(coin.CFrame + Vector3.new(0, 3, 0))
         else
-            smoothMoveTo(coin)
+            -- Distance raisonnable → Tween fluide (vitesse: dist/20 secondes)
+            local tween = TweenService:Create(
+                hrp,
+                TweenInfo.new(dist / 20, Enum.EasingStyle.Linear),
+                {CFrame = CFrame.new(coin.Position)}
+            )
+            tween:Play()
+
+            -- Stop si l'utilisateur appuie sur STOP
+            local stopConn
+            stopConn = autofarmstopevent.Event:Connect(function()
+                tween:Cancel()
+                stopConn:Disconnect()
+            end)
+
+            -- Attend que la pièce disparaisse (collectée) ou timeout
+            local timeout = tick() + 5
+            while coin:FindFirstChild("TouchInterest") and tick() < timeout do
+                task.wait()
+            end
+            tween:Cancel()
         end
     end
 end)
 
 -- ─── Application des configs _G ──────────────────────────────
-if Settings.AntiAfk then
-    AntiAfkState = true; AntiAFK(); setActive(BtnAntiAfk, true)
-end
+if Settings.AntiAfk       then AntiAfkState = true; AntiAFK(); setActive(BtnAntiAfk, true) end
 if Settings.StartAutofarm then
     AutofarmStarted = true; AutofarmIN = true
     BtnStart.Text = "⏹ STOP"; setActive(BtnStart, true)
 end
-if Settings.ImproveFPS then
-    ImproveFPSenabled = true; setActive(BtnFPS, true)
-end
+if Settings.ImproveFPS    then ImproveFPSenabled = true; setActive(BtnFPS, true) end
 if Settings.ResetWhenFullBag then
     ResetWhenFullBag = true; setActive(BtnRAFB, true)
 end
@@ -422,4 +368,4 @@ for i, v in ipairs(CoinTypes) do
     end
 end
 
-print("[MM2 AUTOFARM v3.1] ✅ Chargé avec Fluidité et NoClip — CoinType: " .. CurrentCoinType)
+print("[MM2 AUTOFARM v3] ✅ Chargé — CoinType: " .. CurrentCoinType)
