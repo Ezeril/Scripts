@@ -22,7 +22,7 @@ local Settings = _G.AutofarmSettings or {
     DelayFarm        = 0.0001,
     StartAutofarm    = false,
     ImproveFPS       = false,
-    CoinType         = "SnowToken", -- "SnowToken", "Coin", "Candy", "BeachBall"
+    CoinType         = "Coin", -- "SnowToken", "Coin", "Candy", "BeachBall"
 }
 
 -- ─── Remotes MM2 ─────────────────────────────────────────────
